@@ -10,6 +10,7 @@ describe("createProviders", () => {
     VERCEL_PROJECT_IDS: [],
     RENDER_SERVICE_IDS: [],
     AIVEN_SERVICE_NAMES: [],
+    AIVEN_DATABASE_NAME: "student_tracking",
     CRONJOB_JOB_IDS: [],
     MONITORED_HEALTH_ENDPOINTS: [],
     MONITOR_AGENT_BUFFER_SECONDS: 60,

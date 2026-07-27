@@ -58,6 +58,7 @@ npm run hash-password -- "password"  # Generate bcrypt password hash
 | `RENDER_SERVICE_IDS` | Comma-separated `id:label` pairs (e.g. `srv_123:backend`) |
 | `AIVEN_API_TOKEN` | Read-only Aiven API token |
 | `AIVEN_PROJECT_NAME` | Aiven project name |
+| `AIVEN_DATABASE_NAME` | Database target shown for the configured Aiven service (default: `student_tracking`) |
 | `AIVEN_SERVICE_NAMES` | Comma-separated `id:label` pairs (e.g. `db-pg:database`) |
 | `CRONJOB_API_KEY` | Read-only cron-job.org API key |
 | `CRONJOB_JOB_IDS` | Comma-separated `id:label` pairs (e.g. `8158370:news-job`) |
@@ -88,6 +89,15 @@ The built-in read-only Diagnostic Terminal supports allowlisted commands:
 - **Redaction Engine**: Upstream log messages pass through a multi-pass regex redactor stripping Bearer headers, database URLs, and secret JSON keys.
 - **Memory Cache**: 10-second server memory cache prevents hitting provider rate limits.
 - **Resilience**: A failure in one provider adapter sets `partial: true` without removing successful events from other providers.
+
+---
+
+## Production Deployment Notes
+
+Set `AIVEN_DATABASE_NAME=student_tracking` in both Preview and Production when testing both Vercel environments. The dashboard label is a configured database target; it is not a schema-level connectivity proof from the Aiven service endpoint.
+
+Browser notifications require the user to click `Enable browser alerts`, and the in-app incident alert banner still works when permission is denied or blocked.
+
 
 ---
 

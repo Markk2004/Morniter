@@ -55,8 +55,16 @@ export default function ServiceCards({ services }: ServiceCardsProps) {
               </div>
             </div>
 
-            <div className="font-mono text-sm font-semibold text-white truncate" title={svc.service}>
-              {svc.service}
+            <div className="space-y-0.5">
+              <div className="font-mono text-sm font-semibold text-white truncate" title={svc.service}>
+                {svc.service}
+              </div>
+
+              {svc.source === "aiven" && svc.databaseName && (
+                <div className="text-[10px] font-mono text-cyan-300 truncate" title={svc.databaseName}>
+                  Database target: {svc.databaseName}
+                </div>
+              )}
             </div>
 
             <div className="text-[10px] font-mono opacity-60 text-right">

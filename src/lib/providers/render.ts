@@ -7,12 +7,22 @@ import { z } from "zod";
 
 const RENDER_REQUEST_TIMEOUT_MS = 15_000;
 
-const renderServiceSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  type: z.string().optional(),
-  dashboardUrl: z.string().optional(),
-});
+const renderServiceSchema = z
+  .object({
+    id: z.string().optional(),
+    name: z.string().optional(),
+    type: z.string().optional(),
+    dashboardUrl: z.string().optional(),
+    service: z
+      .object({
+        id: z.string(),
+        name: z.string(),
+        type: z.string().optional(),
+        dashboardUrl: z.string().optional(),
+      })
+      .optional(),
+  })
+  .transform((data) => data.service || { id: data.id || "", name: data.name || "", dashboardUrl: data.dashboardUrl });
 
 const renderDeploySchema = z.object({
   deploy: z.object({

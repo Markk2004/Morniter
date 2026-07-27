@@ -10,6 +10,7 @@ describe("RenderProvider", () => {
     VERCEL_PROJECT_IDS: [],
     RENDER_SERVICE_IDS: [{ id: "srv_123", label: "backend" }],
     AIVEN_SERVICE_NAMES: [],
+    AIVEN_DATABASE_NAME: "student_tracking",
     CRONJOB_JOB_IDS: [],
     MONITORED_HEALTH_ENDPOINTS: [],
     MONITOR_AGENT_BUFFER_SECONDS: 60,
@@ -48,9 +49,11 @@ describe("RenderProvider", () => {
         ok: true,
         status: 200,
         json: async () => ({
-          id: "srv_123",
-          name: "backend",
-          dashboardUrl: "https://dashboard.render.com/web/srv_123",
+          service: {
+            id: "srv_123",
+            name: "backend",
+            dashboardUrl: "https://dashboard.render.com/web/srv_123",
+          },
         }),
       });
     });
@@ -92,9 +95,11 @@ describe("RenderProvider", () => {
         ok: true,
         status: 200,
         json: async () => ({
-          id: "srv_123",
-          name: "backend",
-          dashboardUrl: "https://dashboard.render.com/web/srv_123",
+          service: {
+            id: "srv_123",
+            name: "backend",
+            dashboardUrl: "https://dashboard.render.com/web/srv_123",
+          },
         }),
       }));
     });

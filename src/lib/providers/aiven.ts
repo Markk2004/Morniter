@@ -15,6 +15,32 @@ const aivenServiceSchema = z.object({
   }),
 });
 
+export function normalizeAivenState(rawState: string): {
+  status: ServiceStatus["status"];
+  severity: MonitorEvent["severity"];
+  normalizedState: string;
+} {
+  const normalizedState = rawState.replace(/[^A-Z]/gi, "").toUpperCase();
+
+  if (normalizedState === "RUNNING") {
+    return { status: "healthy", severity: "info", normalizedState };
+  }
+
+  if (normalizedState === "REBUILDING" || normalizedState === "REBALANCING") {
+    return { status: "degraded", severity: "warning", normalizedState };
+  }
+
+  if (
+    normalizedState === "POWEROFF" ||
+    normalizedState === "POWEREDOFF" ||
+    normalizedState === "FAILED"
+  ) {
+    return { status: "failed", severity: "error", normalizedState };
+  }
+
+  return { status: "unknown", severity: "warning", normalizedState };
+}
+
 export class AivenProvider implements MonitorProvider {
   readonly source = "aiven" as const;
 
@@ -61,44 +87,33 @@ export class AivenProvider implements MonitorProvider {
           signal,
         );
 
-        const stateUpper = data.service.state.toUpperCase();
-        let status: ServiceStatus["status"] = "unknown";
-        let severity: MonitorEvent["severity"] = "info";
-
-        if (stateUpper === "RUNNING") {
-          status = "healthy";
-          severity = "info";
-        } else if (stateUpper === "REBUILDING" || stateUpper === "REBALANCING") {
-          status = "degraded";
-          severity = "warning";
-        } else if (stateUpper === "POWEROFF" || stateUpper === "FAILED") {
-          status = "failed";
-          severity = "error";
-        }
+        const state = normalizeAivenState(data.service.state);
 
         services.push({
           source: this.source,
           service: serviceRef.label,
-          status,
+          status: state.status,
           checkedAt: fetchedAt,
+          databaseName: this.env.AIVEN_DATABASE_NAME,
         });
 
         const occurredAt = data.service.update_time || data.service.create_time || fetchedAt;
 
         events.push({
-          id: `aiven-${data.service.service_name}-${stateUpper}`,
+          id: `aiven-${data.service.service_name}-${state.normalizedState}`,
           source: this.source,
           service: serviceRef.label,
           type: "database",
-          severity,
+          severity: state.severity,
           status: data.service.state,
           message: redactText(
-            `Aiven service ${data.service.service_name} (${data.service.service_type}) state is ${data.service.state}`,
+            `Aiven service ${data.service.service_name} (${data.service.service_type}) state is ${data.service.state}; Database target: ${this.env.AIVEN_DATABASE_NAME}`,
           ),
           occurredAt,
           externalUrl: `https://console.aiven.io/project/${encodeURIComponent(
             this.env.AIVEN_PROJECT_NAME,
           )}/services/${encodeURIComponent(data.service.service_name)}`,
+          databaseName: this.env.AIVEN_DATABASE_NAME,
         });
       }
 

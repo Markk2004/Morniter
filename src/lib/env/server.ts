@@ -66,6 +66,7 @@ export const serverEnvSchema = z.object({
   RENDER_SERVICE_IDS: resourceRefSchema,
   AIVEN_API_TOKEN: z.string().optional(),
   AIVEN_PROJECT_NAME: z.string().optional(),
+  AIVEN_DATABASE_NAME: z.string().default("student_tracking"),
   AIVEN_SERVICE_NAMES: resourceRefSchema,
   CRONJOB_API_KEY: z.string().optional(),
   CRONJOB_JOB_IDS: resourceRefSchema,

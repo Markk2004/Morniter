@@ -10,24 +10,26 @@ describe("Domain types contracts", () => {
   it("allows construction of valid MonitorEvent and MonitorSnapshot", () => {
     const event: MonitorEvent = {
       id: "evt-1",
-      source: "vercel",
-      service: "frontend",
-      type: "deployment",
+      source: "aiven",
+      service: "database",
+      type: "database",
       severity: "info",
-      status: "BUILDING",
-      message: "Build started",
+      status: "RUNNING",
+      message: "Database running",
       occurredAt: "2026-07-25T10:00:00Z",
+      databaseName: "student_tracking",
     };
 
     const service: ServiceStatus = {
-      source: "vercel",
-      service: "frontend",
+      source: "aiven",
+      service: "database",
       status: "healthy",
       checkedAt: "2026-07-25T10:00:00Z",
+      databaseName: "student_tracking",
     };
 
     const providerSnapshot: ProviderSnapshot = {
-      source: "vercel",
+      source: "aiven",
       fetchedAt: "2026-07-25T10:00:00Z",
       stale: false,
       services: [service],
@@ -44,6 +46,7 @@ describe("Domain types contracts", () => {
 
     expect(snapshot.refreshAfterSeconds).toBe(15);
     expect(snapshot.events).toHaveLength(1);
-    expect(snapshot.providers[0].source).toBe("vercel");
+    expect(snapshot.providers[0].source).toBe("aiven");
+    expect(snapshot.providers[0].services[0].databaseName).toBe("student_tracking");
   });
 });

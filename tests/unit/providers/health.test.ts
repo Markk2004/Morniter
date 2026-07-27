@@ -10,6 +10,7 @@ describe("HealthProvider", () => {
     VERCEL_PROJECT_IDS: [],
     RENDER_SERVICE_IDS: [],
     AIVEN_SERVICE_NAMES: [],
+    AIVEN_DATABASE_NAME: "student_tracking",
     CRONJOB_JOB_IDS: [],
     MONITORED_HEALTH_ENDPOINTS: [
       { id: "https://api.example.com/health", label: "main-api" },

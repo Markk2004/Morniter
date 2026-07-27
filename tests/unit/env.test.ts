@@ -47,6 +47,25 @@ describe("parseServerEnv", () => {
     expect(env.MONITORED_HEALTH_ENDPOINTS).toEqual([]);
   });
 
+  it("defaults the Aiven database target to student_tracking", () => {
+    const env = parseServerEnv({
+      GROUP_ACCESS_PASSWORD_HASH: "$2b$12$valid-looking-hash-string-here",
+      SESSION_SIGNING_SECRET: "x".repeat(48),
+    });
+
+    expect(env.AIVEN_DATABASE_NAME).toBe("student_tracking");
+  });
+
+  it("accepts an explicit Aiven database target", () => {
+    const env = parseServerEnv({
+      GROUP_ACCESS_PASSWORD_HASH: "$2b$12$valid-looking-hash-string-here",
+      SESSION_SIGNING_SECRET: "x".repeat(48),
+      AIVEN_DATABASE_NAME: "student_tracking",
+    });
+
+    expect(env.AIVEN_DATABASE_NAME).toBe("student_tracking");
+  });
+
   it("rejects duplicate IDs within one provider configuration", () => {
     expect(() =>
       parseServerEnv({

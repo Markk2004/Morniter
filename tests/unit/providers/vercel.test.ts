@@ -10,6 +10,7 @@ describe("VercelProvider", () => {
     VERCEL_PROJECT_IDS: [{ id: "prj_1", label: "frontend" }],
     RENDER_SERVICE_IDS: [],
     AIVEN_SERVICE_NAMES: [],
+    AIVEN_DATABASE_NAME: "student_tracking",
     CRONJOB_JOB_IDS: [],
     MONITORED_HEALTH_ENDPOINTS: [],
     MONITOR_AGENT_BUFFER_SECONDS: 60,

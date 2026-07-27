@@ -17,6 +17,7 @@ export type MonitorEvent = {
   message: string;
   occurredAt: string;
   externalUrl?: string;
+  databaseName?: string;
 };
 
 export type ServiceStatus = {
@@ -24,6 +25,7 @@ export type ServiceStatus = {
   service: string;
   status: "healthy" | "degraded" | "failed" | "unknown";
   checkedAt: string;
+  databaseName?: string;
 };
 
 export type ProviderErrorCode =

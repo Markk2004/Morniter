@@ -1,14 +1,15 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import Image from "next/image";
 import type { MonitorSnapshot, MonitorSource, Severity, MonitorEvent } from "@/lib/monitor/types";
 import AutoRefreshControl from "./AutoRefreshControl";
 import ServiceCards from "./ServiceCards";
 import ProviderErrors from "./ProviderErrors";
+import AivenIncidentAlerts from "./AivenIncidentAlerts";
 import SourceFilters from "./SourceFilters";
 import TerminalPanel from "./TerminalPanel";
 import DiagnosticTerminal from "./DiagnosticTerminal";
-import BrandLogo from "@/components/BrandLogo";
 
 interface MonitorDashboardProps {
   initialSnapshot?: MonitorSnapshot | null;
@@ -117,7 +118,13 @@ export default function MonitorDashboard({
       <header className="border-b border-slate-800 bg-slate-950/80 backdrop-blur sticky top-0 z-50 px-4 py-3">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex w-full sm:w-auto items-center space-x-3">
-            <BrandLogo />
+            <Image
+              src="/icons/icon-192.png"
+              alt="Project Monitor logo"
+              width={32}
+              height={32}
+              className="rounded-xl object-cover shadow-lg shadow-cyan-500/20"
+            />
             <div>
               <h1 className="text-base font-bold tracking-tight text-white flex items-center gap-2">
                 {displayName}
@@ -155,6 +162,9 @@ export default function MonitorDashboard({
       <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
         {/* Provider Errors Notice (if any) */}
         {activeSnapshot?.providers && <ProviderErrors providers={activeSnapshot.providers} />}
+
+        {/* Aiven Incident Alerts */}
+        <AivenIncidentAlerts services={allServices} />
 
         {/* Live Service Cards */}
         <section className="space-y-2">
