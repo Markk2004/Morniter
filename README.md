@@ -1,147 +1,98 @@
 # Project Monitor
 
-เว็บภายในสำหรับให้สมาชิกกลุ่มดูสถานะ deployment, service health และ log ที่ผู้ให้บริการเปิดให้เรียกดูได้จากหน้าจอเดียว
+Next.js full-stack read-only telemetry dashboard for group members to view deployment status, service health, and provider events from Vercel, Render, Aiven, and cron-job.org in a single unified terminal interface.
 
-แอปใช้ Next.js แบบ full-stack ตัวเดียว หน้าเว็บและ server routes อยู่ใน repository เดียวกัน ไม่มี database และไม่มีคำสั่งที่แก้ไข production
+The application contains both React UI components and server-side API route handlers within a single Next.js project deployed on Vercel. It requires **no database**, **no Redis**, and contains **no mutation/destructive operations**.
 
-แอปรองรับ PWA เพื่อให้สมาชิกติดตั้งเป็น icon บน Desktop หรือมือถือได้ โดยยังใช้ URL และ backend เดิม
+Includes PWA support for Desktop/Mobile home screen installation and an interactive Diagnostic Terminal query engine.
 
-ตัวแอปเป็น portable monitor ไม่ผูกกับ project ใด project หนึ่ง การนำไปใช้กับ project ใหม่ทำโดยเปลี่ยน environment variables แล้ว deploy instance ใหม่ ไม่ต้องแก้ source code และไม่มีหน้าเพิ่ม project ในรุ่นแรก
-
-รองรับ Diagnostic Terminal แบบ read-only สำหรับค้นหา provider logs, deployment errors, health status และ log ที่ส่งจาก optional project agent ห้ามใช้เป็น interactive shell และห้ามสั่งคำสั่งที่แก้ระบบ
-
-## เป้าหมาย
-
-- รวมสถานะจาก Vercel, Render, Aiven และ cron-job.org
-- แสดง event ในหน้าตาคล้าย terminal
-- สมาชิกใช้รหัสผ่านกลางของกลุ่ม
-- ทุกความสามารถเป็น read-only
-- API token อยู่ฝั่ง server เท่านั้น
-- กรอง secret และข้อมูลส่วนตัวก่อนตอบ frontend
-
-## ขอบเขตของรุ่นแรก
-
-- ดูสถานะ service และ deployment ล่าสุด
-- ดูประวัติ deployment เท่าที่ provider API ส่งกลับ
-- ดูผลการทำงานของ scheduled jobs เท่าที่ provider API ส่งกลับ
-- ดู health endpoint ของแต่ละ project
-- กรองตาม provider, project, severity และช่วงเวลา
-- refresh อัตโนมัติทุก 15 วินาที
-- pause, resume และ manual refresh
-- เปิดลิงก์ไปยัง dashboard ต้นทาง
-- ใช้คำสั่ง diagnostic แบบ allowlist เช่น `logs`, `errors`, `deploys`, `health` และ `cron`
-- รับ stdout/stderr จาก optional agent ที่ติดตั้งใน project ปลายทาง
-
-รุ่นแรกไม่เก็บ raw log ย้อนหลังเอง หาก provider ลบ log หรือไม่มี API สำหรับอ่าน raw log แอปจะแสดงเฉพาะสถานะและ event ที่เข้าถึงได้
-
-## เทคโนโลยี
-
-- Next.js App Router
-- TypeScript
-- React
-- Tailwind CSS
-- Zod
-- jose
-- bcryptjs
-- Vitest และ React Testing Library
-- Playwright
-- Vercel สำหรับ deployment
-- Web App Manifest และ service worker สำหรับ PWA
-
-## การติดตั้งในอนาคต
-
-คำสั่งเหล่านี้เป็นคำสั่งเป้าหมายหลังดำเนินการตาม implementation plan:
+## Quick Start
 
 ```bash
+# 1. Install dependencies
 npm install
+
+# 2. Configure environment
 cp .env.example .env.local
+
+# 3. Generate group password hash
+npm run hash-password -- "your-secure-group-password"
+
+# 4. Generate 48+ character session signing secret
+openssl rand -base64 48
+
+# 5. Start development server
 npm run dev
 ```
 
-เปิด `http://localhost:3000`
+Open `http://localhost:3000` in your browser.
 
-## Environment variables
+---
 
-ค่าจริงต้องอยู่ใน `.env.local` หรือ Vercel Environment Variables และห้าม commit:
-
-```dotenv
-GROUP_ACCESS_PASSWORD_HASH=
-SESSION_SIGNING_SECRET=
-MONITOR_DISPLAY_NAME=Project Monitor
-VERCEL_API_TOKEN=
-VERCEL_TEAM_ID=
-VERCEL_PROJECT_IDS=
-RENDER_API_KEY=
-RENDER_SERVICE_IDS=
-AIVEN_API_TOKEN=
-AIVEN_PROJECT_NAME=
-AIVEN_SERVICE_NAMES=
-CRONJOB_API_KEY=
-CRONJOB_JOB_IDS=
-MONITORED_HEALTH_ENDPOINTS=
-```
-
-รายการหลายค่าจะใช้ comma-separated values เช่น:
-
-```dotenv
-RENDER_SERVICE_IDS=srv_backend,srv_worker
-MONITORED_HEALTH_ENDPOINTS=https://example.com/api/health,https://api.example.com/health
-```
-
-agent configuration:
-
-```dotenv
-MONITOR_AGENT_INGEST_TOKEN=
-MONITOR_AGENT_PROJECT_ID=
-MONITOR_AGENT_BUFFER_SECONDS=60
-```
-
-agent logs เป็น best-effort เมื่อใช้ Vercel serverless เพราะ memory cache อาจหายหรืออยู่คนละ function instance หากต้องการ stream และย้อนหลังที่เชื่อถือได้ ต้องเพิ่ม long-running ingestion service หรือ log storage ในรุ่นถัดไป
-
-resource ที่ต้องการดูจะผูกด้วย ID และ label จาก environment:
-
-```dotenv
-VERCEL_PROJECT_IDS=project_id:frontend,another_project_id:admin
-RENDER_SERVICE_IDS=srv_backend:backend,srv_worker:worker
-AIVEN_SERVICE_NAMES=kairos-db:database
-CRONJOB_JOB_IDS=8158370:news-process
-```
-
-ถ้าไม่ตั้ง provider ใด provider นั้นจะถูกปิดและไม่ทำให้แอปทั้งหน้าล้มเหลว
-
-สร้าง password hash ด้วย script ที่จะเพิ่มตาม implementation plan:
+## Commands
 
 ```bash
-npm run hash-password -- "group-password"
+npm run dev          # Start Next.js development server
+npm run build        # Build production bundle
+npm run start        # Start production server
+npm run lint         # Run ESLint check
+npm run typecheck    # Run TypeScript check
+npm run test         # Run Vitest test suite
+npm run test:e2e     # Run Playwright end-to-end tests
+npm run hash-password -- "password"  # Generate bcrypt password hash
 ```
 
-สร้าง session secret:
+---
 
-```bash
-openssl rand -base64 48
-```
+## Environment Variables
 
-## เอกสาร
+| Variable | Description |
+|---|---|
+| `GROUP_ACCESS_PASSWORD_HASH` | Required bcrypt hash of the group password |
+| `SESSION_SIGNING_SECRET` | Required 48+ char secret for HS256 JWT cookie signing |
+| `MONITOR_DISPLAY_NAME` | Display title on the monitor header (default: Project Monitor) |
+| `VERCEL_API_TOKEN` | Read-only Vercel API access token |
+| `VERCEL_TEAM_ID` | Optional Vercel Team ID |
+| `VERCEL_PROJECT_IDS` | Comma-separated `id:label` pairs (e.g. `prj_123:frontend`) |
+| `RENDER_API_KEY` | Read-only Render API key |
+| `RENDER_SERVICE_IDS` | Comma-separated `id:label` pairs (e.g. `srv_123:backend`) |
+| `AIVEN_API_TOKEN` | Read-only Aiven API token |
+| `AIVEN_PROJECT_NAME` | Aiven project name |
+| `AIVEN_SERVICE_NAMES` | Comma-separated `id:label` pairs (e.g. `db-pg:database`) |
+| `CRONJOB_API_KEY` | Read-only cron-job.org API key |
+| `CRONJOB_JOB_IDS` | Comma-separated `id:label` pairs (e.g. `8158370:news-job`) |
+| `MONITORED_HEALTH_ENDPOINTS` | Comma-separated `id:label` pairs (e.g. `https://example.com/api/health:api`) |
+| `MONITOR_AGENT_INGEST_TOKEN` | Secret Bearer token for dev agent log ingestion |
+| `MONITOR_AGENT_PROJECT_ID` | Configured project ID for dev agent logs |
+| `MONITOR_AGENT_BUFFER_SECONDS` | In-memory agent log TTL (default: 60) |
 
-- `CONTEXT.md` เหตุผล ข้อกำหนด และขอบเขต
-- `ARCHITECTURE.md` โครงสร้างและ data flow
-- `CLAUDE.md` ข้อกำหนดสำหรับ agent ที่รับช่วงพัฒนา
-- `docs/superpowers/specs/2026-07-25-project-monitor-design.md` design specification
-- `docs/superpowers/plans/2026-07-25-project-monitor-implementation.md` implementation plan
+---
 
-## Deployment model
+## Diagnostic Terminal Commands
 
-Monitor ใช้ Vercel project เดียวเป็นทั้ง frontend และ server-side API ของ Next.js ไม่ต้องมี Render backend แยกสำหรับรุ่นแรก
+The built-in read-only Diagnostic Terminal supports allowlisted commands:
 
-การเปลี่ยน project ที่ monitor ต้องแก้ environment variables ของ deployment นั้นแล้ว redeploy การตั้งค่า provider ไม่รับผ่าน query string หรือหน้าเว็บ เพื่อไม่ให้ token ถูกบันทึกใน browser history
+- `logs [source] [service] [--last N]` - Filter logs by provider source and service name (e.g., `logs render backend --last 50`)
+- `errors [source] [--last N]` - View error severity events
+- `deploys [source] [--last N]` - View deployment history events
+- `health all` - View health endpoint status
+- `cron failures` - View failed scheduled cron job executions
+- `agent [projectId] [--last N]` - View dev agent runtime output
 
-PWA เป็น client ของ deployment นี้ ไม่เก็บ provider token และไม่ทำงานแทน server routes
+---
 
-## หลักความปลอดภัย
+## Architecture & Security Constraints
 
-- ห้ามส่ง provider token ไปยัง browser
-- ห้ามแสดง environment variables หรือ request headers แบบดิบ
-- ห้ามเพิ่มปุ่ม deploy, restart, retry job หรือแก้ configuration
-- ทุก server route ต้องตรวจ session ยกเว้น `/api/auth/login`
-- cookie ต้องเป็น `HttpOnly`, `Secure` ใน production และ `SameSite=Strict`
-- ข้อความจาก provider ต้องผ่าน redaction ก่อนส่งออก
+- **Read-Only**: All provider calls are read-only. No redeploy, restart, or mutation endpoints exist.
+- **Provider Credentials**: Secret tokens reside strictly on the server (`server-only`). They are never exposed in JavaScript bundles or client API responses.
+- **Redaction Engine**: Upstream log messages pass through a multi-pass regex redactor stripping Bearer headers, database URLs, and secret JSON keys.
+- **Memory Cache**: 10-second server memory cache prevents hitting provider rate limits.
+- **Resilience**: A failure in one provider adapter sets `partial: true` without removing successful events from other providers.
+
+---
+
+## Production Deployment (Vercel)
+
+1. Deploy the Next.js application to Vercel.
+2. Set Environment Variables (`GROUP_ACCESS_PASSWORD_HASH`, `SESSION_SIGNING_SECRET`, and provider credentials) in Vercel Project Settings.
+3. Configure Vercel Firewall rate-limiting on `/api/auth/login`.

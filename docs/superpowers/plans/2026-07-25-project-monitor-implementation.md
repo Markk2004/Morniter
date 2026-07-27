@@ -85,6 +85,18 @@ E:\project-monitor
 └── e2e\monitor.spec.ts
 ```
 
+## Implementation order
+
+ให้ทำตามลำดับนี้ เพราะ frontend ต้องใช้สัญญาข้อมูลและ API จาก backend:
+
+1. **Foundation — Task 1-2:** สร้าง Next.js project, test tooling, environment parser และชนิดข้อมูลกลาง
+2. **Backend — Task 3-7:** ทำ authentication, redaction, cache, provider adapters, aggregator, API routes, diagnostic command และ optional agent ingestion
+3. **Frontend — Task 8:** ทำหน้า login, dashboard, service cards, filters, terminal และ polling controls โดยเรียกเฉพาะ API ภายใน Next.js
+4. **Verification — Task 9:** ทดสอบเส้นทางจริงตั้งแต่ login ถึง dashboard และตรวจว่า secret ไม่เข้า browser
+5. **Deployment — Task 10:** ตั้งค่า read-only credentials บน Vercel และตรวจ acceptance criteria ใน production
+
+Backend และ frontend อยู่ใน Next.js repository เดียวกัน แต่แยกขอบเขตด้วย `src/lib` และ `src/app/api` สำหรับ server กับ `src/components` และ page components สำหรับ browser ห้าม import provider modules หรือ server environment เข้า client components
+
 ## Task 1: Scaffold Next.js and test tooling
 
 **Files:**
@@ -882,7 +894,7 @@ npm run build
 
 Expected: PASS; manifest is present in the build and no provider token appears in static assets.
 
-## Task 8: Add end-to-end tests and production hardening
+## Task 9: Add end-to-end tests and production hardening
 
 **Files:**
 
@@ -946,7 +958,7 @@ npm run build
 
 Expected: every command exits `0`.
 
-## Task 9: Configure Vercel and perform production acceptance
+## Task 10: Configure Vercel and perform production acceptance
 
 **Files:**
 
