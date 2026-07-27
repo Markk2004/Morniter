@@ -54,7 +54,7 @@ export class AivenProvider implements MonitorProvider {
           url,
           {
             headers: {
-              Authorization: `aivenapi ${this.env.AIVEN_API_TOKEN}`,
+              Authorization: `aivenv1 ${this.env.AIVEN_API_TOKEN}`,
             },
           },
           aivenServiceSchema,

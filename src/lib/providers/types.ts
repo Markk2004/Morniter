@@ -16,7 +16,9 @@ export function createProviders(env: ServerEnv): MonitorProvider[] {
     new VercelProvider(env),
     new RenderProvider(env),
     new AivenProvider(env),
-    new CronJobProvider(env),
+    ...(env.CRONJOB_API_KEY && env.CRONJOB_JOB_IDS.length > 0
+      ? [new CronJobProvider(env)]
+      : []),
     new HealthProvider(env),
   ];
 }

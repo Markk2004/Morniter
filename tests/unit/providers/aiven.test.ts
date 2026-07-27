@@ -48,6 +48,9 @@ describe("AivenProvider", () => {
     expect(snapshot.error).toBeUndefined();
     expect(snapshot.services[0].status).toBe("healthy");
     expect(snapshot.events[0].status).toBe("RUNNING");
+    expect(new Headers(mockFetch.mock.calls[0][1]?.headers).get("Authorization")).toBe(
+      "aivenv1 aiven_tok_123",
+    );
 
     vi.unstubAllGlobals();
   });

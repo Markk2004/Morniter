@@ -8,6 +8,7 @@ import ProviderErrors from "./ProviderErrors";
 import SourceFilters from "./SourceFilters";
 import TerminalPanel from "./TerminalPanel";
 import DiagnosticTerminal from "./DiagnosticTerminal";
+import BrandLogo from "@/components/BrandLogo";
 
 interface MonitorDashboardProps {
   initialSnapshot?: MonitorSnapshot | null;
@@ -111,14 +112,12 @@ export default function MonitorDashboard({
   });
 
   return (
-    <div className="min-h-screen bg-[#0a0d14] text-slate-100 font-sans selection:bg-cyan-500 selection:text-black">
+    <div className="min-h-screen overflow-x-hidden bg-[#0a0d14] text-slate-100 font-sans selection:bg-cyan-500 selection:text-black">
       {/* Header Bar */}
       <header className="border-b border-slate-800 bg-slate-950/80 backdrop-blur sticky top-0 z-50 px-4 py-3">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center space-x-3">
-            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-cyan-500 to-emerald-500 flex items-center justify-center font-mono font-bold text-black shadow-lg shadow-cyan-500/20">
-              M
-            </div>
+          <div className="flex w-full sm:w-auto items-center space-x-3">
+            <BrandLogo />
             <div>
               <h1 className="text-base font-bold tracking-tight text-white flex items-center gap-2">
                 {displayName}

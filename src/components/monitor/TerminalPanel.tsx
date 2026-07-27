@@ -2,6 +2,7 @@
 
 import React from "react";
 import type { MonitorEvent } from "@/lib/monitor/types";
+import LocalTime from "@/components/LocalTime";
 
 interface TerminalPanelProps {
   events: MonitorEvent[];
@@ -57,7 +58,7 @@ export default function TerminalPanel({ events, onClearVisible }: TerminalPanelP
               <div key={evt.id} className="pt-2 first:pt-0 flex flex-col space-y-1">
                 <div className="flex flex-wrap items-center gap-2 text-[11px]">
                   <span className="text-slate-500 font-mono">
-                    [{new Date(evt.occurredAt).toLocaleTimeString()}]
+                    [<LocalTime key="time" value={evt.occurredAt} />]
                   </span>
 
                   <span className="px-1.5 py-0.2 rounded bg-slate-900 text-slate-300 border border-slate-800 text-[10px] uppercase font-semibold">

@@ -23,6 +23,17 @@ describe("parseServerEnv", () => {
     ]);
   });
 
+  it("keeps URL schemes and ports when parsing health endpoints", () => {
+    const env = parseServerEnv({
+      GROUP_ACCESS_PASSWORD_HASH: "$2b$12$valid-looking-hash-string-here",
+      SESSION_SIGNING_SECRET: "x".repeat(48),
+      MONITORED_HEALTH_ENDPOINTS: "http://localhost:3001/api/health:sts-backend",
+    });
+    expect(env.MONITORED_HEALTH_ENDPOINTS).toEqual([
+      { id: "http://localhost:3001/api/health", label: "sts-backend" },
+    ]);
+  });
+
   it("handles empty or optional provider environment variables gracefully", () => {
     const env = parseServerEnv({
       GROUP_ACCESS_PASSWORD_HASH: "$2b$12$valid-looking-hash-string-here",

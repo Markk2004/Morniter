@@ -58,7 +58,7 @@ export default function SourceFilters({
       </div>
 
       {/* Severity filter */}
-      <div className="flex items-center gap-1">
+      <div className="flex flex-wrap items-center gap-1">
         <span className="text-slate-400 font-mono mr-1">Severity:</span>
         {SEVERITIES.map((sev) => {
           const isActive = selectedSeverity === sev.id;

@@ -2,6 +2,7 @@
 
 import React from "react";
 import type { ServiceStatus } from "@/lib/monitor/types";
+import LocalTime from "@/components/LocalTime";
 
 interface ServiceCardsProps {
   services: ServiceStatus[];
@@ -59,7 +60,7 @@ export default function ServiceCards({ services }: ServiceCardsProps) {
             </div>
 
             <div className="text-[10px] font-mono opacity-60 text-right">
-              {new Date(svc.checkedAt).toLocaleTimeString()}
+              <LocalTime value={svc.checkedAt} />
             </div>
           </div>
         );

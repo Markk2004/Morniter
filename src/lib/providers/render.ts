@@ -5,13 +5,13 @@ import { fetchJson, ProviderError } from "./request";
 import { redactText } from "@/lib/monitor/redact";
 import { z } from "zod";
 
+const RENDER_REQUEST_TIMEOUT_MS = 15_000;
+
 const renderServiceSchema = z.object({
-  service: z.object({
-    id: z.string(),
-    name: z.string(),
-    type: z.string().optional(),
-    dashboardUrl: z.string().optional(),
-  }),
+  id: z.string(),
+  name: z.string(),
+  type: z.string().optional(),
+  dashboardUrl: z.string().optional(),
 });
 
 const renderDeploySchema = z.object({
@@ -55,21 +55,23 @@ export class RenderProvider implements MonitorProvider {
       for (const serviceRef of this.env.RENDER_SERVICE_IDS) {
         const headers = { Authorization: `Bearer ${this.env.RENDER_API_KEY}` };
 
-        // Fetch service details
-        const serviceData = await fetchJson(
-          `https://api.render.com/v1/services/${encodeURIComponent(serviceRef.id)}`,
-          { headers },
-          renderServiceSchema,
-          signal,
-        );
-
-        // Fetch deploys
-        const deploysData = await fetchJson(
-          `https://api.render.com/v1/services/${encodeURIComponent(serviceRef.id)}/deploys?limit=10`,
-          { headers },
-          renderDeploysResponseSchema,
-          signal,
-        );
+        // Fetch service details and deploys concurrently
+        const [serviceData, deploysData] = await Promise.all([
+          fetchJson(
+            `https://api.render.com/v1/services/${encodeURIComponent(serviceRef.id)}`,
+            { headers },
+            renderServiceSchema,
+            signal,
+            RENDER_REQUEST_TIMEOUT_MS,
+          ),
+          fetchJson(
+            `https://api.render.com/v1/services/${encodeURIComponent(serviceRef.id)}/deploys?limit=10`,
+            { headers },
+            renderDeploysResponseSchema,
+            signal,
+            RENDER_REQUEST_TIMEOUT_MS,
+          ),
+        ]);
 
         let latestStatus: ServiceStatus["status"] = "unknown";
 
@@ -110,7 +112,7 @@ export class RenderProvider implements MonitorProvider {
             status: dep.status,
             message: redactText(rawMsg),
             occurredAt: dep.createdAt,
-            externalUrl: serviceData.service.dashboardUrl,
+            externalUrl: serviceData.dashboardUrl,
           });
         }
       }

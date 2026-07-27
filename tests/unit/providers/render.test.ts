@@ -48,11 +48,9 @@ describe("RenderProvider", () => {
         ok: true,
         status: 200,
         json: async () => ({
-          service: {
-            id: "srv_123",
-            name: "backend",
-            dashboardUrl: "https://dashboard.render.com/web/srv_123",
-          },
+          id: "srv_123",
+          name: "backend",
+          dashboardUrl: "https://dashboard.render.com/web/srv_123",
         }),
       });
     });
@@ -65,6 +63,56 @@ describe("RenderProvider", () => {
     expect(snapshot.error).toBeUndefined();
     expect(snapshot.services[0].status).toBe("healthy");
     expect(snapshot.events[0].status).toBe("live");
+    expect(snapshot.events[0].externalUrl).toBe("https://dashboard.render.com/web/srv_123");
+
+    vi.unstubAllGlobals();
+  });
+
+  it("starts service details and deploy requests concurrently", async () => {
+    const envWithKey: ServerEnv = {
+      ...baseEnv,
+      RENDER_API_KEY: "rnd_key_123",
+    };
+    const startedUrls: string[] = [];
+    let releaseService!: (value: unknown) => void;
+    const serviceResponse = new Promise((resolve) => {
+      releaseService = resolve;
+    });
+
+    const mockFetch = vi.fn((url: string) => {
+      startedUrls.push(url);
+      if (url.includes("/deploys")) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => [],
+        });
+      }
+      return serviceResponse.then(() => ({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          id: "srv_123",
+          name: "backend",
+          dashboardUrl: "https://dashboard.render.com/web/srv_123",
+        }),
+      }));
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const provider = new RenderProvider(envWithKey);
+    const snapshotPromise = provider.fetchSnapshot();
+    await Promise.resolve();
+
+    expect(startedUrls).toEqual([
+      "https://api.render.com/v1/services/srv_123",
+      "https://api.render.com/v1/services/srv_123/deploys?limit=10",
+    ]);
+
+    releaseService(undefined);
+    await expect(snapshotPromise).resolves.toMatchObject({
+      services: [{ service: "backend", status: "unknown" }],
+    });
 
     vi.unstubAllGlobals();
   });

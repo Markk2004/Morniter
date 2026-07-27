@@ -57,7 +57,7 @@ Vercel project เดียวให้บริการทั้ง UI แล�
 แต่ละ adapter:
 
 1. ตรวจ config ของตัวเอง
-2. เรียก upstream ด้วย timeout 8 วินาที
+2. เรียก upstream ด้วย timeout default 8 วินาที; Render API requests use a 15-second provider-specific timeout
 3. validate response
 4. normalize เป็นข้อมูลกลาง
 5. redact ข้อความ

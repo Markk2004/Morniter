@@ -14,7 +14,7 @@
 - ไม่มี database, Redis, queue หรือ WebSocket
 - ใช้ shared group password และ stateless HttpOnly session cookie
 - ทุก provider integration เป็น read-only
-- provider timeout 8 วินาที
+- provider timeout default 8 วินาที; Render API requests use a 15-second provider-specific timeout
 - polling interval 15 วินาที
 - memory cache TTL 10 วินาที
 - session อายุ 8 ชั่วโมง

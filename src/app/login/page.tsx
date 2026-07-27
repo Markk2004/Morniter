@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import BrandLogo from "@/components/BrandLogo";
 
 export default function LoginPage() {
   const [password, setPassword] = useState("");
@@ -39,8 +40,8 @@ export default function LoginPage() {
     <div className="min-h-screen bg-[#0a0d14] text-slate-100 flex items-center justify-center p-4 font-sans selection:bg-cyan-500 selection:text-black">
       <div className="w-full max-w-md bg-slate-900/90 border border-slate-800 rounded-2xl p-8 shadow-2xl space-y-6 backdrop-blur">
         <div className="text-center space-y-2">
-          <div className="inline-flex h-12 w-12 rounded-xl bg-gradient-to-br from-cyan-500 to-emerald-500 items-center justify-center font-mono font-bold text-black text-xl shadow-lg shadow-cyan-500/20 mb-2">
-            M
+          <div className="inline-flex mb-2">
+            <BrandLogo size="md" />
           </div>
           <h1 className="text-xl font-bold tracking-tight text-white">Project Monitor Access</h1>
           <p className="text-xs text-slate-400 font-mono">

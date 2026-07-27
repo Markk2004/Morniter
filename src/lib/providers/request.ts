@@ -74,7 +74,12 @@ export async function fetchJson<T>(
     }
 
     if (error instanceof Error && error.name === "AbortError") {
-      throw new ProviderError("timeout", "Provider request timed out after 8s");
+      const timeoutLabel =
+        timeoutMs % 1000 === 0 ? `${timeoutMs / 1000}s` : `${timeoutMs}ms`;
+      throw new ProviderError(
+        "timeout",
+        `Provider request timed out after ${timeoutLabel}`,
+      );
     }
 
     throw new ProviderError(

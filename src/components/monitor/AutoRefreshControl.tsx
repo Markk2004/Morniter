@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import LocalTime from "@/components/LocalTime";
 
 interface AutoRefreshControlProps {
   isPaused: boolean;
@@ -18,7 +19,7 @@ export default function AutoRefreshControl({
   onManualRefresh,
 }: AutoRefreshControlProps) {
   return (
-    <div className="flex items-center space-x-3 bg-slate-900/80 backdrop-blur border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-300">
+    <div className="flex w-full sm:w-auto flex-wrap items-center justify-between gap-2 bg-slate-900/80 backdrop-blur border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-300">
       <div className="flex items-center space-x-2">
         <span
           className={`h-2.5 w-2.5 rounded-full ${
@@ -36,7 +37,7 @@ export default function AutoRefreshControl({
 
       {lastUpdated && (
         <span className="hidden sm:inline text-slate-500 font-mono">
-          Last: {new Date(lastUpdated).toLocaleTimeString()}
+          Last: <LocalTime value={lastUpdated} />
         </span>
       )}
 

@@ -13,9 +13,14 @@ function parseResourceRefString(val: string | undefined, ctx: z.RefinementCtx): 
   const seenIds = new Set<string>();
 
   for (const item of items) {
-    const parts = item.split(":");
-    const id = parts[0]?.trim();
-    const label = parts.length > 1 ? parts.slice(1).join(":").trim() : id;
+    const separatorIndex = item.lastIndexOf(":");
+    const suffix = separatorIndex >= 0 ? item.slice(separatorIndex + 1) : "";
+    const isUrl = /^https?:\/\//i.test(item);
+    const hasLabel = isUrl
+      ? separatorIndex > item.lastIndexOf("/") && suffix.length > 0 && !/^\d+$/.test(suffix)
+      : separatorIndex >= 0 && separatorIndex < item.length - 1;
+    const id = (hasLabel ? item.slice(0, separatorIndex) : item).trim();
+    const label = (hasLabel ? item.slice(separatorIndex + 1) : id).trim();
 
     if (!id || id.length === 0) {
       ctx.addIssue({

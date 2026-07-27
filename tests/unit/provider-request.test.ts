@@ -52,4 +52,41 @@ describe("fetchJson", () => {
 
     vi.unstubAllGlobals();
   });
+
+  it("uses the configured timeout in timeout errors", async () => {
+    vi.useFakeTimers();
+    const mockSchema = z.object({ ok: z.boolean() });
+    const mockFetch = vi.fn((_url: string, init?: RequestInit) =>
+      new Promise((_, reject) => {
+        init?.signal?.addEventListener("abort", () => {
+          const error = new Error("aborted");
+          error.name = "AbortError";
+          reject(error);
+        });
+      }),
+    );
+    vi.stubGlobal("fetch", mockFetch);
+
+    try {
+      const request = fetchJson(
+        "https://api.example.com/test",
+        {},
+        mockSchema,
+        undefined,
+        15,
+      );
+      const assertion = expect(request).rejects.toSatisfy(
+        (err: unknown) =>
+          err instanceof ProviderError &&
+          err.code === "timeout" &&
+          err.message === "Provider request timed out after 15ms",
+      );
+
+      await vi.advanceTimersByTimeAsync(15);
+      await assertion;
+    } finally {
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    }
+  });
 });
