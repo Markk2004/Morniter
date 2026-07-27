@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { VercelProvider } from "@/lib/providers/vercel";
+import { VercelProvider, normalizeVercelState } from "@/lib/providers/vercel";
 import type { ServerEnv } from "@/lib/env/server";
 
 describe("VercelProvider", () => {
@@ -15,6 +15,18 @@ describe("VercelProvider", () => {
     MONITORED_HEALTH_ENDPOINTS: [],
     MONITOR_AGENT_BUFFER_SECONDS: 60,
   };
+
+  it.each([
+    ["READY", "healthy", "info"],
+    ["BUILDING", "degraded", "warning"],
+    ["INITIALIZING", "degraded", "warning"],
+    ["QUEUED", "degraded", "warning"],
+    ["ERROR", "failed", "error"],
+    ["CANCELED", "failed", "error"],
+    ["UNKNOWN_NEW_STATE", "unknown", "warning"],
+  ] as const)("maps Vercel state %s", (raw, status, severity) => {
+    expect(normalizeVercelState(raw)).toMatchObject({ status, severity });
+  });
 
   it("returns configuration_error when token is missing", async () => {
     const provider = new VercelProvider(baseEnv);
@@ -53,6 +65,58 @@ describe("VercelProvider", () => {
     expect(snapshot.services[0].status).toBe("healthy");
     expect(snapshot.events).toHaveLength(1);
     expect(snapshot.events[0].status).toBe("READY");
+
+    vi.unstubAllGlobals();
+  });
+
+  it("fetches and classifies deployment events only on demand", async () => {
+    const envWithToken: ServerEnv = {
+      ...baseEnv,
+      VERCEL_API_TOKEN: "vcl_token_123",
+    };
+
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => [
+        {
+          type: "stderr",
+          created: 1785000001000,
+          payload: { text: "Module not found: package-x" },
+        },
+        {
+          type: "exit",
+          created: 1785000002000,
+          payload: { text: "Command exited with code 1" },
+        },
+      ],
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const provider = new VercelProvider(envWithToken);
+    const result = await provider.fetchDiagnostics({
+      id: "vercel-dep_123",
+      source: "vercel",
+      service: "frontend",
+      type: "deployment",
+      severity: "error",
+      status: "ERROR",
+      message: "Deployment failed",
+      occurredAt: "2026-07-28T03:00:00Z",
+      resourceId: "prj_1",
+      deploymentId: "dep_123",
+      diagnosticAvailable: true,
+    });
+
+    expect(result.summary).toContain("Module not found");
+    expect(result.lines[0]).toMatchObject({
+      stage: "build",
+      level: "error",
+    });
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining("/v3/deployments/dep_123/events"),
+      expect.any(Object),
+    );
 
     vi.unstubAllGlobals();
   });

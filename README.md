@@ -92,6 +92,20 @@ The built-in read-only Diagnostic Terminal supports allowlisted commands:
 
 ---
 
+### Deployment Diagnostics
+
+Vercel and Render deployment status is included in the 15-second monitor snapshot.
+Build logs are fetched only when an authenticated user expands diagnostic details.
+The response is redacted and limited to 20 lines or 4 KB.
+
+- Vercel diagnostics use deployment events for non-READY deployments.
+- Render diagnostics use the configured service ID and the owner ID returned by the service API.
+- Provider tokens remain server-side.
+- The monitor never retries, cancels, rolls back, or triggers a deployment.
+
+
+---
+
 ## Production Deployment Notes
 
 Set `AIVEN_DATABASE_NAME=student_tracking` in both Preview and Production when testing both Vercel environments. The dashboard label is a configured database target; it is not a schema-level connectivity proof from the Aiven service endpoint.

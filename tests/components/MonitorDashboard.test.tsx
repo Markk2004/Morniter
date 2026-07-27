@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, cleanup } from "@testing-library/react";
+import { render, screen, fireEvent, cleanup, within } from "@testing-library/react";
 import MonitorDashboard from "@/components/monitor/MonitorDashboard";
 import type { MonitorSnapshot } from "@/lib/monitor/types";
 
@@ -25,6 +25,7 @@ describe("MonitorDashboard UI", () => {
             status: "READY",
             message: "Build ready",
             occurredAt: "2026-07-25T10:00:00Z",
+            stage: "deploy",
           },
         ],
       },
@@ -40,9 +41,10 @@ describe("MonitorDashboard UI", () => {
             service: "backend-api",
             type: "runtime",
             severity: "error",
-            status: "FAILED",
+            status: "build_failed",
             message: "Service crash detected",
             occurredAt: "2026-07-25T10:01:00Z",
+            stage: "build",
           },
         ],
       },
@@ -70,6 +72,7 @@ describe("MonitorDashboard UI", () => {
             message: "Database target: student_tracking",
             occurredAt: "2026-07-25T10:00:00Z",
             databaseName: "student_tracking",
+            stage: "database",
           },
         ],
       },
@@ -85,6 +88,7 @@ describe("MonitorDashboard UI", () => {
         message: "Database target: student_tracking",
         occurredAt: "2026-07-25T10:00:00Z",
         databaseName: "student_tracking",
+        stage: "database",
       },
       {
         id: "r-1",
@@ -92,9 +96,10 @@ describe("MonitorDashboard UI", () => {
         service: "backend-api",
         type: "runtime",
         severity: "error",
-        status: "FAILED",
+        status: "build_failed",
         message: "Service crash detected",
         occurredAt: "2026-07-25T10:01:00Z",
+        stage: "build",
       },
       {
         id: "v-1",
@@ -105,6 +110,7 @@ describe("MonitorDashboard UI", () => {
         status: "READY",
         message: "Build ready",
         occurredAt: "2026-07-25T10:00:00Z",
+        stage: "deploy",
       },
     ],
   };
@@ -142,20 +148,34 @@ describe("MonitorDashboard UI", () => {
     render(<MonitorDashboard initialSnapshot={sampleSnapshot} />);
     expect(screen.getAllByText("frontend-web")[0]).toBeInTheDocument();
     expect(screen.getAllByText("backend-api")[0]).toBeInTheDocument();
-    expect(screen.getByText(/service crash detected/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/service crash detected/i)[0]).toBeInTheDocument();
     expect(screen.getAllByText(/student_tracking/i)[0]).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /enable browser alerts/i })).toBeInTheDocument();
   });
 
-  it("filters events when source filter is clicked", () => {
+  it("filters terminal events when source filter is clicked", () => {
     render(<MonitorDashboard initialSnapshot={sampleSnapshot} />);
 
     // Click Vercel filter tab using data-testid
     const vercelFilterBtn = screen.getByTestId("filter-source-vercel");
     fireEvent.click(vercelFilterBtn);
 
-    expect(screen.queryByText(/service crash detected/i)).not.toBeInTheDocument();
-    expect(screen.getByText(/build ready/i)).toBeInTheDocument();
+    const terminalContainer = screen.getByText(/Terminal Stream/i).closest("div.flex-col") as HTMLElement;
+    expect(within(terminalContainer).queryByText(/service crash detected/i)).not.toBeInTheDocument();
+    expect(within(terminalContainer).getByText(/build ready/i)).toBeInTheDocument();
+  });
+
+  it("filters terminal events by status and stage buttons", () => {
+    render(<MonitorDashboard initialSnapshot={sampleSnapshot} />);
+    const terminalContainer = screen.getByText(/Terminal Stream/i).closest("div.flex-col") as HTMLElement;
+
+    fireEvent.click(screen.getByTestId("filter-status-build_failed"));
+    expect(within(terminalContainer).getByText(/service crash detected/i)).toBeInTheDocument();
+    expect(within(terminalContainer).queryByText(/build ready/i)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("filter-status-all"));
+    fireEvent.click(screen.getByTestId("filter-stage-build"));
+    expect(within(terminalContainer).getByText(/service crash detected/i)).toBeInTheDocument();
   });
 
   it("requests browser notification permission on button click and dedupes alerts", async () => {

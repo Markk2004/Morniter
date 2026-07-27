@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type {
+  MonitorDiagnosticsResult,
   MonitorEvent,
   MonitorSnapshot,
   ProviderSnapshot,
@@ -48,5 +49,25 @@ describe("Domain types contracts", () => {
     expect(snapshot.events).toHaveLength(1);
     expect(snapshot.providers[0].source).toBe("aiven");
     expect(snapshot.providers[0].services[0].databaseName).toBe("student_tracking");
+  });
+
+  it("supports MonitorDiagnosticsResult and diagnostic metadata fields", () => {
+    const diagnosticsResult: MonitorDiagnosticsResult = {
+      eventId: "vercel-dep_123",
+      summary: "Build command exited with code 1",
+      lines: [
+        {
+          id: "log-1",
+          stage: "build",
+          level: "error",
+          message: "Build command exited with code 1",
+          occurredAt: "2026-07-28T03:00:00Z",
+        },
+      ],
+      truncated: false,
+    };
+
+    expect(diagnosticsResult.lines[0].stage).toBe("build");
+    expect(diagnosticsResult.summary).toContain("code 1");
   });
 });

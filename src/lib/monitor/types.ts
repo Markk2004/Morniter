@@ -7,6 +7,30 @@ export type MonitorSource =
 
 export type Severity = "info" | "warning" | "error";
 
+export type DiagnosticStage =
+  | "build"
+  | "deploy"
+  | "runtime"
+  | "database"
+  | "health"
+  | "cron"
+  | "unknown";
+
+export type MonitorDiagnostic = {
+  id: string;
+  stage: DiagnosticStage;
+  level: Severity;
+  message: string;
+  occurredAt?: string;
+};
+
+export type MonitorDiagnosticsResult = {
+  eventId: string;
+  summary: string;
+  lines: MonitorDiagnostic[];
+  truncated: boolean;
+};
+
 export type MonitorEvent = {
   id: string;
   source: MonitorSource;
@@ -18,6 +42,13 @@ export type MonitorEvent = {
   occurredAt: string;
   externalUrl?: string;
   databaseName?: string;
+  stage?: DiagnosticStage;
+  incidentKey?: string;
+  deploymentId?: string;
+  resourceId?: string;
+  ownerId?: string;
+  diagnosticAvailable?: boolean;
+  diagnosticEndTime?: string;
 };
 
 export type ServiceStatus = {

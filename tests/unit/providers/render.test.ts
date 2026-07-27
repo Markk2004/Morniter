@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { RenderProvider } from "@/lib/providers/render";
+import { RenderProvider, normalizeRenderState } from "@/lib/providers/render";
 import type { ServerEnv } from "@/lib/env/server";
 
 describe("RenderProvider", () => {
@@ -15,6 +15,19 @@ describe("RenderProvider", () => {
     MONITORED_HEALTH_ENDPOINTS: [],
     MONITOR_AGENT_BUFFER_SECONDS: 60,
   };
+
+  it.each([
+    ["live", "healthy", "info"],
+    ["build_succeeded", "healthy", "info"],
+    ["building", "degraded", "warning"],
+    ["deploying", "degraded", "warning"],
+    ["build_failed", "failed", "error"],
+    ["deploy_failed", "failed", "error"],
+    ["deactivated", "failed", "error"],
+    ["future_status", "unknown", "warning"],
+  ] as const)("maps Render state %s", (raw, status, severity) => {
+    expect(normalizeRenderState(raw)).toMatchObject({ status, severity });
+  });
 
   it("returns configuration_error when key is missing", async () => {
     const provider = new RenderProvider(baseEnv);
@@ -52,6 +65,7 @@ describe("RenderProvider", () => {
           service: {
             id: "srv_123",
             name: "backend",
+            ownerId: "tea_123",
             dashboardUrl: "https://dashboard.render.com/web/srv_123",
           },
         }),
@@ -67,6 +81,7 @@ describe("RenderProvider", () => {
     expect(snapshot.services[0].status).toBe("healthy");
     expect(snapshot.events[0].status).toBe("live");
     expect(snapshot.events[0].externalUrl).toBe("https://dashboard.render.com/web/srv_123");
+    expect(snapshot.events[0].ownerId).toBe("tea_123");
 
     vi.unstubAllGlobals();
   });
@@ -98,6 +113,7 @@ describe("RenderProvider", () => {
           service: {
             id: "srv_123",
             name: "backend",
+            ownerId: "tea_123",
             dashboardUrl: "https://dashboard.render.com/web/srv_123",
           },
         }),
@@ -118,6 +134,60 @@ describe("RenderProvider", () => {
     await expect(snapshotPromise).resolves.toMatchObject({
       services: [{ service: "backend", status: "unknown" }],
     });
+
+    vi.unstubAllGlobals();
+  });
+
+  it("queries Render build logs for the configured service", async () => {
+    const envWithKey: ServerEnv = {
+      ...baseEnv,
+      RENDER_API_KEY: "rnd_key_123",
+    };
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        hasMore: false,
+        nextStartTime: "2026-07-28T02:00:00Z",
+        nextEndTime: "2026-07-28T03:00:00Z",
+        logs: [
+          {
+            id: "log-1",
+            message: "npm run build exited with code 1",
+            timestamp: "2026-07-28T03:00:00Z",
+            labels: [
+              { name: "resource", value: "srv_123" },
+              { name: "type", value: "build" },
+              { name: "level", value: "error" },
+            ],
+          },
+        ],
+      }),
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const provider = new RenderProvider(envWithKey);
+    const result = await provider.fetchDiagnostics({
+      id: "render-dep_abc",
+      source: "render",
+      service: "backend",
+      type: "deployment",
+      severity: "error",
+      status: "build_failed",
+      message: "Deploy failed",
+      occurredAt: "2026-07-28T03:00:00Z",
+      resourceId: "srv_123",
+      deploymentId: "dep_abc",
+      diagnosticAvailable: true,
+      ownerId: "tea_123",
+    });
+
+    expect(result.summary).toContain("exited with code 1");
+    expect(result.lines[0]).toMatchObject({ stage: "build", level: "error" });
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining("ownerId=tea_123"),
+      expect.any(Object),
+    );
 
     vi.unstubAllGlobals();
   });

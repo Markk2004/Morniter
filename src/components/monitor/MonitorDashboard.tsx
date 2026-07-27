@@ -2,11 +2,11 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
-import type { MonitorSnapshot, MonitorSource, Severity, MonitorEvent } from "@/lib/monitor/types";
+import type { MonitorSnapshot, MonitorSource, Severity, DiagnosticStage, MonitorEvent } from "@/lib/monitor/types";
 import AutoRefreshControl from "./AutoRefreshControl";
 import ServiceCards from "./ServiceCards";
 import ProviderErrors from "./ProviderErrors";
-import AivenIncidentAlerts from "./AivenIncidentAlerts";
+import ProviderIncidentAlerts from "./ProviderIncidentAlerts";
 import SourceFilters from "./SourceFilters";
 import TerminalPanel from "./TerminalPanel";
 import DiagnosticTerminal from "./DiagnosticTerminal";
@@ -25,6 +25,8 @@ export default function MonitorDashboard({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedSource, setSelectedSource] = useState<MonitorSource | "all">("all");
   const [selectedSeverity, setSelectedSeverity] = useState<Severity | "all">("all");
+  const [selectedStatus, setSelectedStatus] = useState<string | "all">("all");
+  const [selectedStage, setSelectedStage] = useState<DiagnosticStage | "all">("all");
   const [customQueryResult, setCustomQueryResult] = useState<MonitorSnapshot | null>(null);
 
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -105,10 +107,17 @@ export default function MonitorDashboard({
   const allServices = activeSnapshot?.providers.flatMap((p) => p.services) || [];
   const rawEvents = activeSnapshot?.events || [];
 
+  const availableStatuses = Array.from(new Set(rawEvents.map((evt) => evt.status))).sort();
+  const availableStages = Array.from(
+    new Set(rawEvents.map((evt) => evt.stage).filter(Boolean)),
+  ) as DiagnosticStage[];
+
   // Filter events
   const filteredEvents = rawEvents.filter((evt) => {
     if (selectedSource !== "all" && evt.source !== selectedSource) return false;
     if (selectedSeverity !== "all" && evt.severity !== selectedSeverity) return false;
+    if (selectedStatus !== "all" && evt.status !== selectedStatus) return false;
+    if (selectedStage !== "all" && evt.stage !== selectedStage) return false;
     return true;
   });
 
@@ -163,8 +172,8 @@ export default function MonitorDashboard({
         {/* Provider Errors Notice (if any) */}
         {activeSnapshot?.providers && <ProviderErrors providers={activeSnapshot.providers} />}
 
-        {/* Aiven Incident Alerts */}
-        <AivenIncidentAlerts services={allServices} />
+        {/* Provider Incident Alerts */}
+        <ProviderIncidentAlerts services={allServices} events={rawEvents} />
 
         {/* Live Service Cards */}
         <section className="space-y-2">
@@ -180,8 +189,14 @@ export default function MonitorDashboard({
         <SourceFilters
           selectedSource={selectedSource}
           selectedSeverity={selectedSeverity}
+          selectedStatus={selectedStatus}
+          selectedStage={selectedStage}
+          availableStatuses={availableStatuses}
+          availableStages={availableStages}
           onSelectSource={setSelectedSource}
           onSelectSeverity={setSelectedSeverity}
+          onSelectStatus={setSelectedStatus}
+          onSelectStage={setSelectedStage}
         />
 
         {/* Main Terminal View */}

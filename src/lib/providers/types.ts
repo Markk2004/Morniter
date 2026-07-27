@@ -1,4 +1,9 @@
-import type { MonitorSource, ProviderSnapshot } from "@/lib/monitor/types";
+import type {
+  MonitorDiagnosticsResult,
+  MonitorEvent,
+  MonitorSource,
+  ProviderSnapshot,
+} from "@/lib/monitor/types";
 import type { ServerEnv } from "@/lib/env/server";
 import { VercelProvider } from "./vercel";
 import { RenderProvider } from "./render";
@@ -9,6 +14,10 @@ import { HealthProvider } from "./health";
 export interface MonitorProvider {
   readonly source: MonitorSource;
   fetchSnapshot(signal?: AbortSignal): Promise<ProviderSnapshot>;
+  fetchDiagnostics?(
+    event: MonitorEvent,
+    signal?: AbortSignal,
+  ): Promise<MonitorDiagnosticsResult>;
 }
 
 export function createProviders(env: ServerEnv): MonitorProvider[] {

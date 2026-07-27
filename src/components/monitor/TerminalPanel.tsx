@@ -3,6 +3,7 @@
 import React from "react";
 import type { MonitorEvent } from "@/lib/monitor/types";
 import LocalTime from "@/components/LocalTime";
+import EventDiagnosticDetails from "./EventDiagnosticDetails";
 
 interface TerminalPanelProps {
   events: MonitorEvent[];
@@ -11,7 +12,7 @@ interface TerminalPanelProps {
 
 export default function TerminalPanel({ events, onClearVisible }: TerminalPanelProps) {
   return (
-    <div className="flex flex-col h-[480px] bg-slate-950 border border-slate-800 rounded-xl overflow-hidden shadow-2xl font-mono">
+    <div className="flex flex-col h-[520px] bg-slate-950 border border-slate-800 rounded-xl overflow-hidden shadow-2xl font-mono">
       {/* Terminal Header Bar */}
       <div className="flex items-center justify-between px-4 py-2.5 bg-slate-900 border-b border-slate-800">
         <div className="flex items-center space-x-2">
@@ -55,7 +56,7 @@ export default function TerminalPanel({ events, onClearVisible }: TerminalPanelP
                 : "bg-cyan-950 text-cyan-300 border-cyan-800";
 
             return (
-              <div key={evt.id} className="pt-2 first:pt-0 flex flex-col space-y-1">
+              <div key={evt.id} className="pt-2.5 first:pt-0 flex flex-col space-y-1">
                 <div className="flex flex-wrap items-center gap-2 text-[11px]">
                   <span className="text-slate-500 font-mono">
                     [<LocalTime key="time" value={evt.occurredAt} />]
@@ -71,6 +72,12 @@ export default function TerminalPanel({ events, onClearVisible }: TerminalPanelP
                     {evt.severity}
                   </span>
 
+                  {evt.stage && (
+                    <span className="px-1.5 py-0.5 rounded border border-violet-800/80 bg-violet-950 text-violet-300 text-[10px] uppercase">
+                      {evt.stage}
+                    </span>
+                  )}
+
                   <span className="text-slate-400 font-mono text-[11px]">({evt.status})</span>
 
                   {evt.externalUrl && (
@@ -85,9 +92,21 @@ export default function TerminalPanel({ events, onClearVisible }: TerminalPanelP
                   )}
                 </div>
 
+                {evt.deploymentId && (
+                  <div className="text-[10px] text-slate-500 font-mono pl-4">
+                    Deployment ID: {evt.deploymentId}
+                  </div>
+                )}
+
                 <div className="text-slate-300 pl-4 border-l-2 border-slate-800 whitespace-pre-wrap break-all leading-relaxed font-mono">
                   {evt.message}
                 </div>
+
+                {evt.diagnosticAvailable && (
+                  <div className="pl-4">
+                    <EventDiagnosticDetails eventId={evt.id} />
+                  </div>
+                )}
               </div>
             );
           })

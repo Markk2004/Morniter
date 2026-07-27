@@ -1,6 +1,7 @@
 import type { ServiceStatus } from "./types";
+export * from "./incidents";
 
-export type AivenIncidentTransition = {
+export type AivenTransitionResult = {
   kind: "opened" | "recovered";
   key: string;
   service: string;
@@ -8,33 +9,28 @@ export type AivenIncidentTransition = {
   databaseName?: string;
 };
 
-const isAivenUnhealthy = (service: ServiceStatus) =>
-  service.source === "aiven" && service.status !== "healthy";
-
 export function getAivenIncidentTransitions(
   previousServices: ServiceStatus[],
   currentServices: ServiceStatus[],
-): AivenIncidentTransition[] {
+): AivenTransitionResult[] {
   const previous = new Map(
     previousServices
-      .filter((service) => service.source === "aiven")
-      .map((service) => [service.service, service]),
+      .filter((s) => s.source === "aiven")
+      .map((s) => [s.service, s]),
   );
 
   return currentServices
-    .filter((service) => service.source === "aiven")
-    .flatMap((current): AivenIncidentTransition[] => {
-      const previousService = previous.get(current.service);
+    .filter((s) => s.source === "aiven")
+    .flatMap((current): AivenTransitionResult[] => {
+      const prev = previous.get(current.service);
       const key = `aiven:${current.service}`;
 
-      if (isAivenUnhealthy(current) && (!previousService || previousService.status === "healthy")) {
+      if (current.status !== "healthy" && (!prev || prev.status === "healthy")) {
         return [{ kind: "opened", key, service: current.service, status: current.status, databaseName: current.databaseName }];
       }
-
-      if (current.status === "healthy" && previousService && isAivenUnhealthy(previousService)) {
+      if (current.status === "healthy" && prev && prev.status !== "healthy") {
         return [{ kind: "recovered", key, service: current.service, status: current.status, databaseName: current.databaseName }];
       }
-
       return [];
     });
 }

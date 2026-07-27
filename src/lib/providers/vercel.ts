@@ -1,8 +1,16 @@
 import type { ServerEnv } from "@/lib/env/server";
-import type { ProviderSnapshot, ServiceStatus, MonitorEvent } from "@/lib/monitor/types";
+import type {
+  ProviderSnapshot,
+  ServiceStatus,
+  MonitorEvent,
+  MonitorDiagnosticsResult,
+  MonitorDiagnostic,
+  DiagnosticStage,
+} from "@/lib/monitor/types";
 import type { MonitorProvider } from "./types";
 import { fetchJson, ProviderError } from "./request";
 import { redactText } from "@/lib/monitor/redact";
+import { limitDiagnostics } from "@/lib/monitor/diagnostic-lines";
 import { z } from "zod";
 
 const vercelDeploymentSchema = z.object({
@@ -17,6 +25,46 @@ const vercelDeploymentSchema = z.object({
 const vercelDeploymentsResponseSchema = z.object({
   deployments: z.array(vercelDeploymentSchema),
 });
+
+const vercelDeploymentEventSchema = z.object({
+  type: z.string(),
+  created: z.number(),
+  payload: z.record(z.string(), z.unknown()),
+});
+
+const vercelDeploymentEventsSchema = z.array(vercelDeploymentEventSchema);
+
+export function normalizeVercelState(rawState: string): {
+  status: ServiceStatus["status"];
+  severity: MonitorEvent["severity"];
+  normalizedState: string;
+} {
+  const normalizedState = rawState.toUpperCase();
+  if (normalizedState === "READY") {
+    return { status: "healthy", severity: "info", normalizedState };
+  }
+  if (["BUILDING", "INITIALIZING", "QUEUED"].includes(normalizedState)) {
+    return { status: "degraded", severity: "warning", normalizedState };
+  }
+  if (["ERROR", "CANCELED"].includes(normalizedState)) {
+    return { status: "failed", severity: "error", normalizedState };
+  }
+  return { status: "unknown", severity: "warning", normalizedState };
+}
+
+function vercelEventMessage(payload: Record<string, unknown>): string {
+  for (const key of ["text", "message", "error"]) {
+    const value = payload[key];
+    if (typeof value === "string" && value.trim()) return value;
+  }
+  return JSON.stringify(payload);
+}
+
+function vercelEventStage(type: string): DiagnosticStage {
+  if (type === "deployment-state") return "deploy";
+  if (type.includes("invocation") || type === "middleware") return "runtime";
+  return "build";
+}
 
 export class VercelProvider implements MonitorProvider {
   readonly source = "vercel" as const;
@@ -64,10 +112,7 @@ export class VercelProvider implements MonitorProvider {
         let latestStatus: ServiceStatus["status"] = "unknown";
 
         if (data.deployments.length > 0) {
-          const latestState = data.deployments[0].state.toUpperCase();
-          if (latestState === "READY") latestStatus = "healthy";
-          else if (latestState === "BUILDING" || latestState === "INITIALIZING" || latestState === "QUEUED") latestStatus = "degraded";
-          else if (latestState === "ERROR" || latestState === "CANCELED") latestStatus = "failed";
+          latestStatus = normalizeVercelState(data.deployments[0].state).status;
         }
 
         services.push({
@@ -78,14 +123,7 @@ export class VercelProvider implements MonitorProvider {
         });
 
         for (const dep of data.deployments) {
-          const stateUpper = dep.state.toUpperCase();
-          const severity =
-            stateUpper === "ERROR" || stateUpper === "CANCELED"
-              ? "error"
-              : stateUpper === "BUILDING" || stateUpper === "INITIALIZING"
-                ? "warning"
-                : "info";
-
+          const normalized = normalizeVercelState(dep.state);
           const message = redactText(`Deployment ${dep.name} (${dep.uid}): state is ${dep.state}`);
           const externalUrl = dep.url ? `https://${dep.url}` : undefined;
 
@@ -94,11 +132,16 @@ export class VercelProvider implements MonitorProvider {
             source: this.source,
             service: projectRef.label,
             type: "deployment",
-            severity,
+            severity: normalized.severity,
             status: dep.state,
             message,
             occurredAt: new Date(dep.created).toISOString(),
             externalUrl,
+            stage: normalized.status === "healthy" ? "deploy" : "build",
+            incidentKey: `vercel:${projectRef.label}:${dep.uid}`,
+            deploymentId: dep.uid,
+            resourceId: projectRef.id,
+            diagnosticAvailable: normalized.status !== "healthy",
           });
         }
       }
@@ -122,5 +165,53 @@ export class VercelProvider implements MonitorProvider {
         error: { code, message },
       };
     }
+  }
+
+  async fetchDiagnostics(
+    event: MonitorEvent,
+    signal?: AbortSignal,
+  ): Promise<MonitorDiagnosticsResult> {
+    if (
+      event.source !== "vercel" ||
+      !event.deploymentId ||
+      !event.resourceId ||
+      !this.env.VERCEL_PROJECT_IDS.some((ref) => ref.id === event.resourceId)
+    ) {
+      throw new ProviderError("upstream_error", "Invalid Vercel diagnostic event");
+    }
+
+    const params = new URLSearchParams({
+      direction: "backward",
+      limit: "20",
+      builds: "1",
+    });
+    if (this.env.VERCEL_TEAM_ID) params.set("teamId", this.env.VERCEL_TEAM_ID);
+
+    const data = await fetchJson(
+      `https://api.vercel.com/v3/deployments/${encodeURIComponent(event.deploymentId)}/events?${params}`,
+      { headers: { Authorization: `Bearer ${this.env.VERCEL_API_TOKEN}` } },
+      vercelDeploymentEventsSchema,
+      signal,
+    );
+
+    const rawLines: MonitorDiagnostic[] = data.map((item, index) => ({
+      id: `vercel-log-${item.created}-${index}`,
+      stage: vercelEventStage(item.type),
+      level:
+        item.type === "fatal" || item.type === "stderr" || item.type === "exit"
+          ? "error"
+          : "info",
+      message: vercelEventMessage(item.payload),
+      occurredAt: new Date(item.created).toISOString(),
+    }));
+    const limited = limitDiagnostics(rawLines);
+    const firstError = limited.lines.find((line) => line.level === "error");
+
+    return {
+      eventId: event.id,
+      summary: firstError?.message ?? `Vercel deployment status is ${event.status}`,
+      lines: limited.lines,
+      truncated: limited.truncated,
+    };
   }
 }
