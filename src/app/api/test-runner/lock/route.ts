@@ -3,7 +3,16 @@ import {
   EXECUTE_SESSION_COOKIE,
   requireSameOrigin,
   ExecuteSessionError,
+  verifyExecuteSessionToken,
 } from "@/lib/auth/execute-session";
+
+export async function GET(req: NextRequest) {
+  const token = req.cookies.get(EXECUTE_SESSION_COOKIE)?.value ?? "";
+  const session = await verifyExecuteSessionToken(token);
+  const res = NextResponse.json({ unlocked: Boolean(session) });
+  res.headers.set("Cache-Control", "no-store");
+  return res;
+}
 
 export async function POST(req: NextRequest) {
   try {

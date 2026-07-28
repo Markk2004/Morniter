@@ -1,10 +1,11 @@
 // @vitest-environment node
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { POST as authPost } from "@/app/api/test-runner/auth/route";
-import { POST as lockPost } from "@/app/api/test-runner/lock/route";
+import { GET as lockGet, POST as lockPost } from "@/app/api/test-runner/lock/route";
 import { NextRequest } from "next/server";
 import { resetServerEnvCache } from "@/lib/env/server";
 import { createSessionToken } from "@/lib/auth/session";
+import { createExecuteSessionToken } from "@/lib/auth/execute-session";
 
 // Pre-computed low-cost bcrypt hash of "execute-secret-123" for deterministic test performance
 const VALID_PASSWORD_HASH = "$2b$04$RlXxHNPOt0IMHz0F7KuhYu0NsEzLhUMeoeexhqPWv9e6fDGITXvz2";
@@ -118,5 +119,22 @@ describe("Test Runner Execution Auth APIs", () => {
 
     const cookieHeader = res.headers.get("set-cookie");
     expect(cookieHeader).toContain("project_monitor_execute=;");
+  });
+
+  it("reports the execution lock state without exposing the token", async () => {
+    const lockedReq = new NextRequest("http://localhost:3000/api/test-runner/lock");
+    const lockedRes = await lockGet(lockedReq);
+    expect(lockedRes.status).toBe(200);
+    expect(await lockedRes.json()).toEqual({ unlocked: false });
+
+    const executeToken = await createExecuteSessionToken();
+    const unlockedReq = new NextRequest("http://localhost:3000/api/test-runner/lock", {
+      headers: { cookie: `project_monitor_execute=${executeToken}` },
+    });
+    const unlockedRes = await lockGet(unlockedReq);
+    expect(unlockedRes.status).toBe(200);
+    const unlockedBody = await unlockedRes.json();
+    expect(unlockedBody).toEqual({ unlocked: true });
+    expect(JSON.stringify(unlockedBody)).not.toContain(executeToken);
   });
 });

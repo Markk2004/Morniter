@@ -39,54 +39,79 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0d14] text-slate-100 flex items-center justify-center p-4 font-sans selection:bg-cyan-500 selection:text-black">
-      <div className="w-full max-w-md bg-slate-900/90 border border-slate-800 rounded-2xl p-8 shadow-2xl space-y-6 backdrop-blur">
-        <div className="text-center space-y-2">
-          <div className="inline-flex mb-2">
-            <BrandLogo size="md" />
-          </div>
-          <h1 className="text-xl font-bold tracking-tight text-white">Project Monitor Access</h1>
-          <p className="text-xs text-slate-400 font-mono">
-            Enter group access password to view telemetry
-          </p>
-        </div>
+    <main className="min-h-screen bg-[#0a0d14] text-slate-100 font-sans selection:bg-cyan-300 selection:text-slate-950">
+      <div className="mx-auto flex min-h-screen w-full max-w-6xl items-center px-4 py-8 sm:px-6 lg:px-10">
+        <div className="grid w-full overflow-hidden rounded-2xl border border-slate-800 bg-[#111827] shadow-2xl shadow-black/30 lg:grid-cols-[1.15fr_0.85fr]">
+          <section className="order-2 flex min-h-[560px] flex-col justify-between border-t border-slate-800 p-6 sm:p-10 lg:order-1 lg:border-r lg:border-t-0 lg:p-14">
+            <div>
+              <BrandLogo size="md" />
+              <p className="mt-8 font-mono text-[11px] uppercase tracking-[0.18em] text-cyan-300">
+                Morniter / Workspace access
+              </p>
+              <h1 className="mt-4 max-w-md text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+                See what changed before it becomes a problem.
+              </h1>
+              <p className="mt-5 max-w-md text-sm leading-6 text-slate-300">
+                Sign in to review deployment telemetry, service health and test execution logs.
+              </p>
+            </div>
 
-        {errorMsg && (
-          <div className="p-3 rounded-lg bg-rose-950/80 border border-rose-800 text-rose-200 text-xs font-mono text-center">
-            {errorMsg}
-          </div>
-        )}
+            <p className="max-w-sm font-mono text-[11px] leading-5 text-slate-400">
+              Read-only monitoring workspace. Test execution requires a separate unlock step.
+            </p>
+          </section>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <label htmlFor="group-password" className="block text-xs font-mono text-slate-300">
-              Group password
-            </label>
-            <input
-              id="group-password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••••••"
-              required
-              autoFocus
-              className="w-full px-4 py-2.5 rounded-lg bg-slate-950 border border-slate-800 focus:border-cyan-500 text-white placeholder-slate-600 text-sm outline-none transition font-mono"
-            />
-          </div>
+          <section className="order-1 flex min-h-[560px] items-center p-6 sm:p-10 lg:order-2 lg:p-12">
+            <div className="w-full max-w-sm">
+              <p className="font-mono text-xs text-slate-400">Group authentication</p>
+              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-white">
+                Project Monitor Access
+              </h2>
+              <p id="group-password-help" className="mt-3 text-sm leading-6 text-slate-300">
+                Enter the group password to view telemetry.
+              </p>
 
-          <button
-            type="submit"
-            disabled={isPending || !password}
-            className="w-full py-2.5 rounded-lg bg-gradient-to-r from-cyan-600 to-emerald-600 hover:from-cyan-500 hover:to-emerald-500 font-mono font-bold text-slate-950 text-sm transition shadow-lg shadow-cyan-500/10 disabled:opacity-50"
-          >
-            {isPending ? "Authenticating..." : "Sign in"}
-          </button>
-        </form>
+              {errorMsg && (
+                <div role="alert" className="mt-6 rounded-lg border border-rose-800 bg-rose-950/60 p-3 text-sm text-rose-200">
+                  {errorMsg}
+                </div>
+              )}
 
-        <div className="text-[11px] text-slate-500 text-center font-mono border-t border-slate-800/80 pt-4">
-          Read-only telemetry session (this tab only)
+              <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+                <div className="space-y-2">
+                  <label htmlFor="group-password" className="block text-sm font-medium text-slate-200">
+                    Group password
+                  </label>
+                  <input
+                    id="group-password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    autoComplete="current-password"
+                    aria-describedby="group-password-help"
+                    aria-invalid={Boolean(errorMsg)}
+                    required
+                    autoFocus
+                    className="w-full rounded-lg border border-slate-700 bg-[#0a0d14] px-4 py-3 text-sm text-white outline-none transition-colors placeholder:text-slate-500 hover:border-slate-600 focus:border-cyan-300 focus:ring-2 focus:ring-cyan-300/30"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isPending || !password}
+                  className="w-full rounded-lg bg-cyan-300 px-4 py-3 text-sm font-semibold text-slate-950 transition-colors hover:bg-cyan-200 focus:outline-none focus:ring-2 focus:ring-cyan-200 focus:ring-offset-2 focus:ring-offset-[#111827] disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
+                >
+                  {isPending ? "Authenticating..." : "Sign in"}
+                </button>
+              </form>
+
+              <p className="mt-8 border-t border-slate-800 pt-5 font-mono text-[11px] leading-5 text-slate-400">
+                This session is limited to the current browser tab.
+              </p>
+            </div>
+          </section>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

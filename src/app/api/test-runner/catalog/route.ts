@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE, verifySessionToken } from "@/lib/auth/session";
-import { getCatalog } from "@/lib/test-runner/store";
+import { getAgentPresence, getCatalog } from "@/lib/test-runner/store";
 
 export async function GET(req: NextRequest) {
   const token = req.cookies.get(SESSION_COOKIE)?.value;
@@ -9,11 +9,12 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const catalog = await getCatalog();
+    const [catalog, presence] = await Promise.all([getCatalog(), getAgentPresence()]);
     return NextResponse.json(
       {
         catalog,
         online: Boolean(catalog),
+        presence,
       },
       {
         headers: {
