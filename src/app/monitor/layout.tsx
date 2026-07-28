@@ -1,6 +1,7 @@
 import React from "react";
 import { requireMonitorSession } from "@/lib/auth/session";
 import { MonitorShell } from "@/components/monitor/MonitorShell";
+import { TabSessionGuard } from "@/components/auth/TabSessionGuard";
 
 export default async function MonitorLayout({
   children,
@@ -11,5 +12,10 @@ export default async function MonitorLayout({
 
   const displayName = process.env.MONITOR_DISPLAY_NAME || "Morniter Operator";
 
-  return <MonitorShell displayName={displayName}>{children}</MonitorShell>;
+  return (
+    <MonitorShell displayName={displayName}>
+      <TabSessionGuard />
+      {children}
+    </MonitorShell>
+  );
 }

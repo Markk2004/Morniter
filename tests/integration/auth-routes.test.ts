@@ -36,6 +36,7 @@ describe("auth route handlers", () => {
     const setCookie = goodRes.cookies.get("project_monitor_session");
     expect(setCookie).toBeDefined();
     expect(setCookie?.value).toBeTruthy();
+    expect(setCookie?.maxAge).toBeUndefined();
 
     // 3. Logout
     const logoutRes = await logoutPost();

@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { verifyGroupPassword } from "@/lib/auth/password";
-import { createSessionToken, SESSION_COOKIE, SESSION_DURATION_SECONDS } from "@/lib/auth/session";
+import { createSessionToken, SESSION_COOKIE } from "@/lib/auth/session";
 
 const LoginSchema = z.object({
   password: z.string().min(1).max(256),
@@ -71,7 +71,6 @@ export async function POST(req: NextRequest) {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
-      maxAge: SESSION_DURATION_SECONDS,
       path: "/",
     });
 

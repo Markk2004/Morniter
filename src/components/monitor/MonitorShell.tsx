@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { TAB_SESSION_STORAGE_KEY } from "@/lib/auth/tab-session";
 
 interface MonitorShellProps {
   displayName?: string;
@@ -19,6 +20,7 @@ export function MonitorShell({ displayName = "Morniter Operator", children }: Mo
     try {
       await fetch("/api/auth/logout", { method: "POST" });
     } finally {
+      window.sessionStorage.removeItem(TAB_SESSION_STORAGE_KEY);
       router.push("/login");
       router.refresh();
     }

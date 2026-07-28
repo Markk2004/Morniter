@@ -64,10 +64,43 @@ function crc32(buf) {
 }
 
 const iconsDir = path.resolve("public/icons");
+const faviconPath = path.resolve("src/app/favicon.ico");
+
 if (!fs.existsSync(iconsDir)) {
   fs.mkdirSync(iconsDir, { recursive: true });
 }
 
-fs.writeFileSync(path.join(iconsDir, "icon-192.png"), createPng(192, 192));
-fs.writeFileSync(path.join(iconsDir, "icon-512.png"), createPng(512, 512));
-console.log("PNG icons generated successfully.");
+const icon192Path = path.join(iconsDir, "icon-192.png");
+const icon512Path = path.join(iconsDir, "icon-512.png");
+
+// Keep the checked-in brand assets. Generate a fallback only for a fresh setup
+// where the files do not exist yet, so a deploy cannot overwrite the real logo.
+if (!fs.existsSync(icon192Path)) {
+  fs.writeFileSync(icon192Path, createPng(192, 192));
+}
+if (!fs.existsSync(icon512Path)) {
+  fs.writeFileSync(icon512Path, createPng(512, 512));
+}
+
+function createIcoFromPng(png) {
+  const width = png.readUInt32BE(16);
+  const height = png.readUInt32BE(20);
+  const directory = Buffer.alloc(22);
+
+  directory.writeUInt16LE(0, 0); // reserved
+  directory.writeUInt16LE(1, 2); // ICO image type
+  directory.writeUInt16LE(1, 4); // image count
+  directory.writeUInt8(width >= 256 ? 0 : width, 6);
+  directory.writeUInt8(height >= 256 ? 0 : height, 7);
+  directory.writeUInt8(0, 8); // palette colors
+  directory.writeUInt8(0, 9); // reserved
+  directory.writeUInt16LE(1, 10); // color planes
+  directory.writeUInt16LE(32, 12); // bits per pixel
+  directory.writeUInt32LE(png.length, 14);
+  directory.writeUInt32LE(directory.length, 18);
+
+  return Buffer.concat([directory, png]);
+}
+
+fs.writeFileSync(faviconPath, createIcoFromPng(fs.readFileSync(icon192Path)));
+console.log("Brand icons preserved and favicon synchronized.");

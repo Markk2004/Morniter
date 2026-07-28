@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import BrandLogo from "@/components/BrandLogo";
+import { createTabSessionMarker, TAB_SESSION_STORAGE_KEY } from "@/lib/auth/tab-session";
 
 export default function LoginPage() {
   const [password, setPassword] = useState("");
@@ -23,6 +24,7 @@ export default function LoginPage() {
       });
 
       if (res.status === 204) {
+        window.sessionStorage.setItem(TAB_SESSION_STORAGE_KEY, createTabSessionMarker());
         window.location.href = "/monitor";
         return;
       }
@@ -82,7 +84,7 @@ export default function LoginPage() {
         </form>
 
         <div className="text-[11px] text-slate-500 text-center font-mono border-t border-slate-800/80 pt-4">
-          Read-only telemetry session (8 hours)
+          Read-only telemetry session (this tab only)
         </div>
       </div>
     </div>

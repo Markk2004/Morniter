@@ -1,4 +1,4 @@
-const CACHE_NAME = "project-monitor-static-v1";
+const CACHE_NAME = "project-monitor-static-v2";
 const STATIC_ASSETS = ["/icons/icon-192.png", "/icons/icon-512.png"];
 
 self.addEventListener("install", (event) => {
