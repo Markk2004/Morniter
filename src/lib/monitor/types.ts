@@ -40,7 +40,6 @@ export type MonitorEvent = {
   status: string;
   message: string;
   occurredAt: string;
-  externalUrl?: string;
   databaseName?: string;
   stage?: DiagnosticStage;
   incidentKey?: string;
@@ -49,6 +48,11 @@ export type MonitorEvent = {
   ownerId?: string;
   diagnosticAvailable?: boolean;
   diagnosticEndTime?: string;
+  commitSha?: string;
+  commitMessage?: string;
+  branch?: string;
+  commitAuthor?: string;
+  deploymentTarget?: string;
 };
 
 export type ServiceStatus = {
@@ -77,7 +81,7 @@ export type ProviderSnapshot = {
 
 export type MonitorSnapshot = {
   generatedAt: string;
-  refreshAfterSeconds: 15;
+  refreshAfterSeconds: number;
   partial: boolean;
   providers: ProviderSnapshot[];
   events: MonitorEvent[];

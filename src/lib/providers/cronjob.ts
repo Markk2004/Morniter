@@ -95,7 +95,6 @@ export class CronJobProvider implements MonitorProvider {
           status: execStatusStr,
           message: redactText(`Cron job "${job.title}" (${job.jobId}) execution status: ${execStatusStr}`),
           occurredAt: execDate,
-          externalUrl: `https://console.cron-job.org/jobs/${job.jobId}`,
         });
       }
 

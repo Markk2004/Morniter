@@ -64,7 +64,7 @@ describe("getMonitorSnapshot", () => {
     expect(snapshot.events[0].id).toBe("evt-1");
   });
 
-  it("serves response from memory cache when fresh", async () => {
+  it("serves response from memory cache when fresh and bypasses cache when forceRefresh is true", async () => {
     const cache = new MemoryCache<MonitorSnapshot>();
     const fetchSpy = vi.spyOn(successProvider, "fetchSnapshot");
 
@@ -74,6 +74,23 @@ describe("getMonitorSnapshot", () => {
     expect(snap1).toEqual(snap2);
     expect(fetchSpy).toHaveBeenCalledTimes(1);
 
+    const snap3 = await getMonitorSnapshot({ providers: [successProvider], cache, forceRefresh: true });
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(snap3.refreshAfterSeconds).toBe(60);
+
     fetchSpy.mockRestore();
+  });
+
+  it("calculates refreshAfterSeconds as 60 for healthy snapshot and 20 for partial/unhealthy snapshot", async () => {
+    const cache = new MemoryCache<MonitorSnapshot>();
+    const healthySnap = await getMonitorSnapshot({ providers: [successProvider], cache, forceRefresh: true });
+    expect(healthySnap.refreshAfterSeconds).toBe(60);
+
+    const incidentSnap = await getMonitorSnapshot({
+      providers: [successProvider, failingProvider],
+      cache,
+      forceRefresh: true,
+    });
+    expect(incidentSnap.refreshAfterSeconds).toBe(20);
   });
 });

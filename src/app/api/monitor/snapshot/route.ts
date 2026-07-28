@@ -15,7 +15,8 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const snapshot = await getMonitorSnapshot({ signal: req.signal });
+    const force = req.nextUrl.searchParams.get("force") === "1" || req.nextUrl.searchParams.get("forceRefresh") === "true";
+    const snapshot = await getMonitorSnapshot({ forceRefresh: force, signal: req.signal });
 
     // If all providers returned errors, return 503 Service Unavailable
     const totalProviders = snapshot.providers.length;

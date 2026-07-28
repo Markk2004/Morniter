@@ -39,3 +39,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# test runner agent
+test-runner.config.local.json
+/agent/dist/
+cypress/videos/
+cypress/screenshots/
+cypress/downloads/

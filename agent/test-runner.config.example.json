@@ -1,0 +1,31 @@
+{
+  "agentId": "windows-local-agent-1",
+  "serverUrl": "http://localhost:3000",
+  "agentToken": "REPLACE_WITH_YOUR_32_BYTE_AGENT_TOKEN",
+  "projects": [
+    {
+      "id": "student-tracking",
+      "name": "Student Tracking System",
+      "presets": [
+        {
+          "id": "cypress-e2e",
+          "name": "Cypress E2E Suite",
+          "description": "Run full Cypress integration & E2E suite",
+          "command": "npx",
+          "args": ["cypress", "run"],
+          "cwd": "E:\\project-monitor",
+          "timeoutSeconds": 600
+        },
+        {
+          "id": "vitest-unit",
+          "name": "Vitest Unit Tests",
+          "description": "Run Vitest unit test suite",
+          "command": "npx",
+          "args": ["vitest", "run"],
+          "cwd": "E:\\project-monitor",
+          "timeoutSeconds": 300
+        }
+      ]
+    }
+  ]
+}

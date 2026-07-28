@@ -79,9 +79,13 @@ describe("RenderProvider", () => {
 
     expect(snapshot.error).toBeUndefined();
     expect(snapshot.services[0].status).toBe("healthy");
-    expect(snapshot.events[0].status).toBe("live");
-    expect(snapshot.events[0].externalUrl).toBe("https://dashboard.render.com/web/srv_123");
-    expect(snapshot.events[0].ownerId).toBe("tea_123");
+    expect(snapshot.events[0]).toMatchObject({
+      status: "live",
+      ownerId: "tea_123",
+      commitSha: "c1",
+      commitMessage: "Initial release",
+      diagnosticAvailable: true,
+    });
 
     vi.unstubAllGlobals();
   });
@@ -127,7 +131,7 @@ describe("RenderProvider", () => {
 
     expect(startedUrls).toEqual([
       "https://api.render.com/v1/services/srv_123",
-      "https://api.render.com/v1/services/srv_123/deploys?limit=10",
+      "https://api.render.com/v1/services/srv_123/deploys?limit=20",
     ]);
 
     releaseService(undefined);

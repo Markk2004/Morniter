@@ -13,6 +13,7 @@ import { limitDiagnostics } from "@/lib/monitor/diagnostic-lines";
 import { z } from "zod";
 
 const RENDER_REQUEST_TIMEOUT_MS = 15_000;
+const DEPLOYMENT_HISTORY_LIMIT = 20;
 
 const renderServiceSchema = z
   .object({
@@ -132,7 +133,7 @@ export class RenderProvider implements MonitorProvider {
             RENDER_REQUEST_TIMEOUT_MS,
           ),
           fetchJson(
-            `https://api.render.com/v1/services/${encodeURIComponent(serviceRef.id)}/deploys?limit=10`,
+            `https://api.render.com/v1/services/${encodeURIComponent(serviceRef.id)}/deploys?limit=${DEPLOYMENT_HISTORY_LIMIT}`,
             { headers },
             renderDeploysResponseSchema,
             signal,
@@ -170,14 +171,15 @@ export class RenderProvider implements MonitorProvider {
             status: dep.status,
             message: redactText(rawMsg),
             occurredAt: dep.createdAt,
-            externalUrl: serviceData.dashboardUrl,
             stage: normalized.status === "healthy" ? "deploy" : "build",
             incidentKey: `render:${serviceRef.label}:${dep.id}`,
             deploymentId: dep.id,
             resourceId: serviceRef.id,
             ownerId: serviceData.ownerId,
-            diagnosticAvailable: normalized.status !== "healthy" && Boolean(serviceData.ownerId),
+            diagnosticAvailable: Boolean(serviceData.ownerId),
             diagnosticEndTime: dep.finishedAt ?? fetchedAt,
+            commitSha: dep.commit?.id,
+            commitMessage: dep.commit?.message,
           });
         }
       }

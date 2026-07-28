@@ -75,4 +75,18 @@ describe("EventDiagnosticDetails", () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
+
+  it("renders 'View deployment log' when eventType is deployment", () => {
+    render(<EventDiagnosticDetails eventId="vercel-dep_1" eventType="deployment" />);
+    expect(screen.getByRole("button", { name: /view deployment log/i })).toBeInTheDocument();
+  });
+
+  it("shows rate limit error message when response status is 429", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 429 }));
+    render(<EventDiagnosticDetails eventId="vercel-dep_1" eventType="deployment" />);
+    fireEvent.click(screen.getByRole("button", { name: /view deployment log/i }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Provider rate limit reached. Try again later.",
+    );
+  });
 });

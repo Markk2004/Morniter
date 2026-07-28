@@ -13,7 +13,6 @@ export type ActiveMonitorIncident = {
   severity: MonitorEvent["severity"];
   stage: DiagnosticStage;
   summary: string;
-  externalUrl?: string;
 };
 
 const alertSources = new Set(["aiven", "vercel", "render"]);
@@ -39,7 +38,6 @@ export function deriveActiveIncidents(
         severity: event?.severity ?? "warning",
         stage: event?.stage ?? "unknown",
         summary: event?.message ?? `${service.service} status is ${service.status}`,
-        externalUrl: event?.externalUrl,
       };
     });
 }

@@ -74,6 +74,10 @@ export const serverEnvSchema = z.object({
   MONITOR_AGENT_INGEST_TOKEN: z.string().optional(),
   MONITOR_AGENT_PROJECT_ID: z.string().optional(),
   MONITOR_AGENT_BUFFER_SECONDS: z.coerce.number().default(60),
+  TEST_RUNNER_PASSWORD_HASH: z.string().optional(),
+  TEST_RUNNER_AGENT_TOKEN: z.string().optional(),
+  UPSTASH_REDIS_REST_URL: z.string().optional(),
+  UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
 });
 
 export type ServerEnv = z.infer<typeof serverEnvSchema>;

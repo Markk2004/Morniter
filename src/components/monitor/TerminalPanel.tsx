@@ -80,21 +80,34 @@ export default function TerminalPanel({ events, onClearVisible }: TerminalPanelP
 
                   <span className="text-slate-400 font-mono text-[11px]">({evt.status})</span>
 
-                  {evt.externalUrl && (
-                    <a
-                      href={evt.externalUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="ml-auto text-cyan-400 hover:text-cyan-300 underline text-[10px] font-mono"
-                    >
-                      View External ↗
-                    </a>
-                  )}
                 </div>
 
                 {evt.deploymentId && (
                   <div className="text-[10px] text-slate-500 font-mono pl-4">
                     Deployment ID: {evt.deploymentId}
+                  </div>
+                )}
+
+                {(evt.commitSha || evt.commitMessage || evt.branch || evt.commitAuthor) && (
+                  <div className="text-[11px] text-slate-400 font-mono pl-4 flex flex-wrap items-center gap-x-2 gap-y-1">
+                    {evt.commitSha && (
+                      <span className="px-1 py-0.5 rounded bg-slate-900 border border-slate-800 text-[10px] text-slate-300 font-mono">
+                        {evt.commitSha.slice(0, 7)}
+                      </span>
+                    )}
+                    {evt.branch && (
+                      <span className="text-cyan-400 font-semibold">
+                        [{evt.branch}]
+                      </span>
+                    )}
+                    {evt.commitAuthor && (
+                      <span className="text-slate-400">by {evt.commitAuthor}</span>
+                    )}
+                    {evt.commitMessage && (
+                      <span className="text-slate-300 italic whitespace-pre-wrap break-all">
+                        &quot;{evt.commitMessage}&quot;
+                      </span>
+                    )}
                   </div>
                 )}
 
@@ -104,7 +117,7 @@ export default function TerminalPanel({ events, onClearVisible }: TerminalPanelP
 
                 {evt.diagnosticAvailable && (
                   <div className="pl-4">
-                    <EventDiagnosticDetails eventId={evt.id} />
+                    <EventDiagnosticDetails eventId={evt.id} eventType={evt.type} />
                   </div>
                 )}
               </div>

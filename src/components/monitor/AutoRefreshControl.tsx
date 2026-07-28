@@ -7,6 +7,7 @@ interface AutoRefreshControlProps {
   isPaused: boolean;
   isRefreshing: boolean;
   lastUpdated: string | null;
+  refreshAfterSeconds?: number;
   onTogglePause: () => void;
   onManualRefresh: () => void;
 }
@@ -15,9 +16,15 @@ export default function AutoRefreshControl({
   isPaused,
   isRefreshing,
   lastUpdated,
+  refreshAfterSeconds = 60,
   onTogglePause,
   onManualRefresh,
 }: AutoRefreshControlProps) {
+  const isIncidentMode = refreshAfterSeconds <= 20;
+  const badgeLabel = isIncidentMode
+    ? `INCIDENT (${refreshAfterSeconds}s)`
+    : `LIVE (${refreshAfterSeconds}s)`;
+
   return (
     <div className="flex w-full sm:w-auto flex-wrap items-center justify-between gap-2 bg-slate-900/80 backdrop-blur border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-300">
       <div className="flex items-center space-x-2">
@@ -27,11 +34,13 @@ export default function AutoRefreshControl({
               ? "bg-amber-500 animate-pulse"
               : isRefreshing
                 ? "bg-cyan-400 animate-ping"
-                : "bg-emerald-400 animate-pulse"
+                : isIncidentMode
+                  ? "bg-amber-400 animate-pulse"
+                  : "bg-emerald-400 animate-pulse"
           }`}
         />
         <span className="font-mono text-slate-300">
-          {isPaused ? "PAUSED" : isRefreshing ? "REFRESHING..." : "LIVE (15s)"}
+          {isPaused ? "PAUSED" : isRefreshing ? "REFRESHING..." : badgeLabel}
         </span>
       </div>
 

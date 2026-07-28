@@ -182,16 +182,6 @@ export default function ProviderIncidentAlerts({
           </div>
 
           <div className="flex items-center space-x-2 self-end sm:self-auto">
-            {incident.externalUrl && (
-              <a
-                href={incident.externalUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-2.5 py-1 rounded bg-slate-900 border border-slate-700 text-slate-200 hover:bg-slate-800 transition text-[11px]"
-              >
-                View provider ↗
-              </a>
-            )}
             {(permission === "denied" || permission === "unsupported") && (
               <span className="text-[10px] text-rose-400/80 italic">
                 Browser notifications are unavailable or blocked

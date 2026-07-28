@@ -88,7 +88,6 @@ export class HealthProvider implements MonitorProvider {
             status: statusStr,
             message: redactText(`Health check for ${endpointRef.label}: ${statusStr} in ${latencyMs}ms`),
             occurredAt: fetchedAt,
-            externalUrl: urlStr.startsWith("http") ? urlStr : undefined,
           });
         } catch (err) {
           const latencyMs = Date.now() - startTime;

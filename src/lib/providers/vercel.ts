@@ -13,11 +13,14 @@ import { redactText } from "@/lib/monitor/redact";
 import { limitDiagnostics } from "@/lib/monitor/diagnostic-lines";
 import { z } from "zod";
 
+const DEPLOYMENT_HISTORY_LIMIT = 20;
+
 const vercelDeploymentSchema = z.object({
   uid: z.string(),
   name: z.string(),
   url: z.string().optional(),
   state: z.string(),
+  target: z.string().optional(),
   created: z.number(),
   meta: z.record(z.string(), z.string().or(z.number())).optional(),
 });
@@ -33,6 +36,34 @@ const vercelDeploymentEventSchema = z.object({
 });
 
 const vercelDeploymentEventsSchema = z.array(vercelDeploymentEventSchema);
+
+export function extractVercelGitMetadata(meta?: Record<string, string | number>): {
+  commitSha?: string;
+  commitMessage?: string;
+  branch?: string;
+  commitAuthor?: string;
+  deploymentTarget?: string;
+} {
+  if (!meta) return {};
+
+  const getString = (keys: string[]): string | undefined => {
+    for (const k of keys) {
+      const val = meta[k];
+      if (typeof val === "string" && val.trim().length > 0) {
+        return val.trim();
+      }
+    }
+    return undefined;
+  };
+
+  return {
+    commitSha: getString(["githubCommitSha", "gitlabCommitSha", "bitbucketCommitSha", "commitSha", "gitCommitSha"]),
+    commitMessage: getString(["githubCommitMessage", "gitlabCommitMessage", "bitbucketCommitMessage", "commitMessage", "gitCommitMessage"]),
+    branch: getString(["githubCommitRef", "gitlabCommitRef", "bitbucketCommitRef", "branch", "gitBranch"]),
+    commitAuthor: getString(["githubCommitAuthorName", "githubCommitAuthorLogin", "gitlabCommitAuthorName", "commitAuthorName", "commitAuthor"]),
+    deploymentTarget: getString(["target", "deploymentTarget"]),
+  };
+}
 
 export function normalizeVercelState(rawState: string): {
   status: ServiceStatus["status"];
@@ -93,7 +124,7 @@ export class VercelProvider implements MonitorProvider {
 
     try {
       for (const projectRef of this.env.VERCEL_PROJECT_IDS) {
-        let url = `https://api.vercel.com/v6/deployments?projectId=${encodeURIComponent(projectRef.id)}&limit=10`;
+        let url = `https://api.vercel.com/v6/deployments?projectId=${encodeURIComponent(projectRef.id)}&limit=${DEPLOYMENT_HISTORY_LIMIT}`;
         if (this.env.VERCEL_TEAM_ID) {
           url += `&teamId=${encodeURIComponent(this.env.VERCEL_TEAM_ID)}`;
         }
@@ -124,9 +155,9 @@ export class VercelProvider implements MonitorProvider {
 
         for (const dep of data.deployments) {
           const normalized = normalizeVercelState(dep.state);
+          const gitMeta = extractVercelGitMetadata(dep.meta);
+          const deploymentTarget = dep.target ?? gitMeta.deploymentTarget;
           const message = redactText(`Deployment ${dep.name} (${dep.uid}): state is ${dep.state}`);
-          const externalUrl = dep.url ? `https://${dep.url}` : undefined;
-
           events.push({
             id: `vercel-${dep.uid}`,
             source: this.source,
@@ -136,12 +167,16 @@ export class VercelProvider implements MonitorProvider {
             status: dep.state,
             message,
             occurredAt: new Date(dep.created).toISOString(),
-            externalUrl,
             stage: normalized.status === "healthy" ? "deploy" : "build",
             incidentKey: `vercel:${projectRef.label}:${dep.uid}`,
             deploymentId: dep.uid,
             resourceId: projectRef.id,
-            diagnosticAvailable: normalized.status !== "healthy",
+            diagnosticAvailable: true,
+            commitSha: gitMeta.commitSha,
+            commitMessage: gitMeta.commitMessage,
+            branch: gitMeta.branch,
+            commitAuthor: gitMeta.commitAuthor,
+            deploymentTarget,
           });
         }
       }

@@ -4,21 +4,26 @@ import type { MonitorProvider } from "@/lib/providers/types";
 import { createProviders } from "@/lib/providers/types";
 import { getServerEnv } from "@/lib/env/server";
 import { MemoryCache } from "./cache";
+import { getRefreshAfterSeconds } from "./refresh-policy";
 
-const globalSnapshotCache = new MemoryCache<MonitorSnapshot>(10_000);
+const SNAPSHOT_TTL_MS = 30_000;
+const globalSnapshotCache = new MemoryCache<MonitorSnapshot>(SNAPSHOT_TTL_MS);
 const CACHE_KEY = "monitor_snapshot";
 
 export interface AggregateOptions {
   providers?: MonitorProvider[];
   cache?: MemoryCache<MonitorSnapshot>;
   signal?: AbortSignal;
+  forceRefresh?: boolean;
 }
 
 export async function getMonitorSnapshot(options: AggregateOptions = {}): Promise<MonitorSnapshot> {
   const cache = options.cache ?? globalSnapshotCache;
-  const cached = cache.get(CACHE_KEY);
-  if (cached) {
-    return cached;
+  if (!options.forceRefresh) {
+    const cached = cache.get(CACHE_KEY);
+    if (cached) {
+      return cached;
+    }
   }
 
   const env = getServerEnv();
@@ -66,15 +71,20 @@ export async function getMonitorSnapshot(options: AggregateOptions = {}): Promis
   // Cap at 500 events max
   const cappedEvents = allEvents.slice(0, 500);
 
+  const refreshAfterSeconds = getRefreshAfterSeconds({
+    partial,
+    providers: providerSnapshots,
+  });
+
   const snapshot: MonitorSnapshot = {
     generatedAt: new Date().toISOString(),
-    refreshAfterSeconds: 15,
+    refreshAfterSeconds,
     partial,
     providers: providerSnapshots,
     events: cappedEvents,
   };
 
-  cache.set(CACHE_KEY, snapshot);
+  cache.set(CACHE_KEY, snapshot, SNAPSHOT_TTL_MS);
   return snapshot;
 }
 

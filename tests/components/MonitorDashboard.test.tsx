@@ -186,4 +186,33 @@ describe("MonitorDashboard UI", () => {
 
     expect(Notification.requestPermission).toHaveBeenCalledTimes(1);
   });
+
+  it("renders commit message, branch, sha, and deployment log button for deployment events", () => {
+    const historicalSnapshot: MonitorSnapshot = {
+      ...sampleSnapshot,
+      events: [
+        {
+          id: "v-hist-1",
+          source: "vercel",
+          service: "frontend-web",
+          type: "deployment",
+          severity: "info",
+          status: "READY",
+          message: "Deployment ready",
+          occurredAt: "2026-07-28T02:00:00Z",
+          commitSha: "abc123456789",
+          commitMessage: "Merge branch 'main' into production",
+          branch: "main",
+          commitAuthor: "developer",
+          diagnosticAvailable: true,
+        },
+      ],
+    };
+
+    render(<MonitorDashboard initialSnapshot={historicalSnapshot} />);
+
+    expect(screen.getByText(/Merge branch 'main' into production/i)).toBeInTheDocument();
+    expect(screen.getByText("[main]")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /view deployment log/i })).toBeInTheDocument();
+  });
 });

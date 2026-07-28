@@ -1,10 +1,8 @@
 # Project Monitor
 
-Next.js full-stack read-only telemetry dashboard for group members to view deployment status, service health, and provider events from Vercel, Render, Aiven, and cron-job.org in a single unified terminal interface.
+Next.js full-stack telemetry dashboard and local test runner for group members to view deployment status, service health, provider events from Vercel, Render, Aiven, and cron-job.org, and execute verified test presets on a local Windows agent via Upstash Redis.
 
-The application contains both React UI components and server-side API route handlers within a single Next.js project deployed on Vercel. It requires **no database**, **no Redis**, and contains **no mutation/destructive operations**.
-
-Includes PWA support for Desktop/Mobile home screen installation and an interactive Diagnostic Terminal query engine.
+Includes PWA support for Desktop/Mobile home screen installation and an interactive Test Runner Console.
 
 ## Quick Start
 
@@ -21,7 +19,13 @@ npm run hash-password -- "your-secure-group-password"
 # 4. Generate 48+ character session signing secret
 openssl rand -base64 48
 
-# 5. Start development server
+# 5. Build and start local test runner agent (Windows)
+npm run test-agent:build
+$env:TEST_RUNNER_CONFIG="E:\project-monitor\test-runner.config.local.json"
+$env:TEST_RUNNER_AGENT_TOKEN="your-agent-token-32-chars"
+npm run test-agent
+
+# 6. Start development server
 npm run dev
 ```
 
@@ -32,13 +36,15 @@ Open `http://localhost:3000` in your browser.
 ## Commands
 
 ```bash
-npm run dev          # Start Next.js development server
-npm run build        # Build production bundle
-npm run start        # Start production server
-npm run lint         # Run ESLint check
-npm run typecheck    # Run TypeScript check
-npm run test         # Run Vitest test suite
-npm run test:e2e     # Run Playwright end-to-end tests
+npm run dev               # Start Next.js development server
+npm run build             # Build production bundle
+npm run start             # Start production server
+npm run lint              # Run ESLint check
+npm run typecheck         # Run TypeScript check
+npm run test              # Run Vitest test suite
+npm run test:e2e          # Run Playwright end-to-end tests
+npm run test-agent:build  # Compile Local Test Runner Agent
+npm run test-agent        # Start Local Test Runner Agent
 npm run hash-password -- "password"  # Generate bcrypt password hash
 ```
 
@@ -51,34 +57,23 @@ npm run hash-password -- "password"  # Generate bcrypt password hash
 | `GROUP_ACCESS_PASSWORD_HASH` | Required bcrypt hash of the group password |
 | `SESSION_SIGNING_SECRET` | Required 48+ char secret for HS256 JWT cookie signing |
 | `MONITOR_DISPLAY_NAME` | Display title on the monitor header (default: Project Monitor) |
-| `VERCEL_API_TOKEN` | Read-only Vercel API access token |
-| `VERCEL_TEAM_ID` | Optional Vercel Team ID |
-| `VERCEL_PROJECT_IDS` | Comma-separated `id:label` pairs (e.g. `prj_123:frontend`) |
-| `RENDER_API_KEY` | Read-only Render API key |
-| `RENDER_SERVICE_IDS` | Comma-separated `id:label` pairs (e.g. `srv_123:backend`) |
-| `AIVEN_API_TOKEN` | Read-only Aiven API token |
-| `AIVEN_PROJECT_NAME` | Aiven project name |
-| `AIVEN_DATABASE_NAME` | Database target shown for the configured Aiven service (default: `student_tracking`) |
-| `AIVEN_SERVICE_NAMES` | Comma-separated `id:label` pairs (e.g. `db-pg:database`) |
-| `CRONJOB_API_KEY` | Read-only cron-job.org API key |
-| `CRONJOB_JOB_IDS` | Comma-separated `id:label` pairs (e.g. `8158370:news-job`) |
-| `MONITORED_HEALTH_ENDPOINTS` | Comma-separated `id:label` pairs (e.g. `https://example.com/api/health:api`) |
-| `MONITOR_AGENT_INGEST_TOKEN` | Secret Bearer token for dev agent log ingestion |
-| `MONITOR_AGENT_PROJECT_ID` | Configured project ID for dev agent logs |
-| `MONITOR_AGENT_BUFFER_SECONDS` | In-memory agent log TTL (default: 60) |
+| `TEST_RUNNER_PASSWORD_HASH` | Bcrypt hash for execution step-up authorization (15-minute session) |
+| `TEST_RUNNER_AGENT_TOKEN` | Secret Bearer token shared with Local Test Runner Agent |
+| `UPSTASH_REDIS_REST_URL` | Upstash Redis REST API URL for test queue & log streaming |
+| `UPSTASH_REDIS_REST_TOKEN` | Upstash Redis REST API Token |
 
 ---
 
-## Diagnostic Terminal Commands
+## Test Runner Console & Local Agent
 
-The built-in read-only Diagnostic Terminal supports allowlisted commands:
+The Test Runner Console replaces arbitrary shell commands with a secure, preset-driven local execution system:
 
-- `logs [source] [service] [--last N]` - Filter logs by provider source and service name (e.g., `logs render backend --last 50`)
-- `errors [source] [--last N]` - View error severity events
-- `deploys [source] [--last N]` - View deployment history events
-- `health all` - View health endpoint status
-- `cron failures` - View failed scheduled cron job executions
-- `agent [projectId] [--last N]` - View dev agent runtime output
+- **Zero Shell Exposure**: Browser payloads send only `projectId` and `presetId`. Raw commands, parameters, working directories, or environment variables are never accepted over HTTP.
+- **Local Agent Preset Resolver**: The Windows Local Agent resolves preset execution contracts strictly from local config (`test-runner.config.local.json`).
+- **Safe Process Execution**: Executes commands via Node `spawn(executable, args, { shell: false })` with process-tree termination on timeout or cancellation.
+- **Execution Step-Up Authorization**: Execution requires a dedicated 15-minute `monitor:execute` session (`TEST_RUNNER_PASSWORD_HASH`).
+- **Upstash Redis Queue & Storage**: Job queue (max 10 items), job status, log streaming (max 5,000 lines / 1 MB), catalog, and heartbeat are stored in Upstash Redis.
+
 
 ---
 
@@ -87,16 +82,21 @@ The built-in read-only Diagnostic Terminal supports allowlisted commands:
 - **Read-Only**: All provider calls are read-only. No redeploy, restart, or mutation endpoints exist.
 - **Provider Credentials**: Secret tokens reside strictly on the server (`server-only`). They are never exposed in JavaScript bundles or client API responses.
 - **Redaction Engine**: Upstream log messages pass through a multi-pass regex redactor stripping Bearer headers, database URLs, and secret JSON keys.
-- **Memory Cache**: 10-second server memory cache prevents hitting provider rate limits.
+- **Memory Cache**: 30-second server memory cache prevents hitting provider rate limits. Manual refresh (`force=1`) bypasses cache.
+- **Adaptive Polling**: Automatically polls at 60-second intervals during healthy operation and accelerates to 20-second intervals during incidents or degraded states.
+- **Historical Deployments**: Fetches up to 20 historical deployment and commit records per Vercel project or Render service without requiring database storage.
 - **Resilience**: A failure in one provider adapter sets `partial: true` without removing successful events from other providers.
 
 ---
 
 ### Deployment Diagnostics
 
-Vercel and Render deployment status is included in the 15-second monitor snapshot.
-Build logs are fetched only when an authenticated user expands diagnostic details.
-The response is redacted and limited to 20 lines or 4 KB.
+Vercel and Render provider snapshots include up to 20 historical deployment records with Git commit metadata (SHA, branch, author, commit message).
+Diagnostic logs are fetched on-demand when an authenticated user clicks "View deployment log" or "View diagnostic details".
+Diagnostic responses are cached server-side for 60 seconds with in-flight deduplication, redacted, and limited to 20 lines or 4 KB.
+
+> **Production Note for Vercel & Render:**
+> Ensure `VERCEL_PROJECT_IDS` and `RENDER_SERVICE_IDS` use the exact project/service identifiers. When updating environment variables on Vercel or Render production, redeploy the application for new environment configuration to take effect.
 
 - Vercel diagnostics use deployment events for non-READY deployments.
 - Render diagnostics use the configured service ID and the owner ID returned by the service API.

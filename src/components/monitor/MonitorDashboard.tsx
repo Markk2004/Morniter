@@ -9,7 +9,7 @@ import ProviderErrors from "./ProviderErrors";
 import ProviderIncidentAlerts from "./ProviderIncidentAlerts";
 import SourceFilters from "./SourceFilters";
 import TerminalPanel from "./TerminalPanel";
-import DiagnosticTerminal from "./DiagnosticTerminal";
+import TestRunnerPanel from "@/components/test-runner/TestRunnerPanel";
 
 interface MonitorDashboardProps {
   initialSnapshot?: MonitorSnapshot | null;
@@ -32,12 +32,17 @@ export default function MonitorDashboard({
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isMountedRef = useRef(true);
 
-  const fetchLatestSnapshot = useCallback(async () => {
+  const activeSnapshot = customQueryResult || snapshot;
+  const allServices = activeSnapshot?.providers.flatMap((p) => p.services) || [];
+  const rawEvents = activeSnapshot?.events || [];
+
+  const fetchLatestSnapshot = useCallback(async (force = false) => {
     if (isRefreshing) return;
     setIsRefreshing(true);
 
     try {
-      const res = await fetch("/api/monitor/snapshot");
+      const url = force ? "/api/monitor/snapshot?force=1" : "/api/monitor/snapshot";
+      const res = await fetch(url);
       if (res.ok || res.status === 503) {
         const data: MonitorSnapshot = await res.json();
         if (isMountedRef.current) {
@@ -62,15 +67,16 @@ export default function MonitorDashboard({
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     if (isPaused) return;
 
+    const intervalSeconds = activeSnapshot?.refreshAfterSeconds ?? 60;
     timeoutRef.current = setTimeout(async () => {
       if (document.visibilityState === "visible" && !isPaused && isMountedRef.current) {
-        await fetchLatestSnapshot();
+        await fetchLatestSnapshot(false);
       }
       if (isMountedRef.current) {
         scheduleNextFetchRef.current();
       }
-    }, 15_000);
-  }, [isPaused, fetchLatestSnapshot]);
+    }, intervalSeconds * 1000);
+  }, [isPaused, fetchLatestSnapshot, activeSnapshot?.refreshAfterSeconds]);
 
   useEffect(() => {
     scheduleNextFetchRef.current = scheduleNextFetch;
@@ -82,7 +88,7 @@ export default function MonitorDashboard({
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible" && !isPaused) {
-        fetchLatestSnapshot();
+        fetchLatestSnapshot(false);
       }
     };
 
@@ -102,10 +108,6 @@ export default function MonitorDashboard({
       window.location.href = "/login";
     }
   };
-
-  const activeSnapshot = customQueryResult || snapshot;
-  const allServices = activeSnapshot?.providers.flatMap((p) => p.services) || [];
-  const rawEvents = activeSnapshot?.events || [];
 
   const availableStatuses = Array.from(new Set(rawEvents.map((evt) => evt.status))).sort();
   const availableStages = Array.from(
@@ -152,8 +154,9 @@ export default function MonitorDashboard({
               isPaused={isPaused}
               isRefreshing={isRefreshing}
               lastUpdated={activeSnapshot?.generatedAt || null}
+              refreshAfterSeconds={activeSnapshot?.refreshAfterSeconds ?? 60}
               onTogglePause={() => setIsPaused((prev) => !prev)}
-              onManualRefresh={fetchLatestSnapshot}
+              onManualRefresh={() => fetchLatestSnapshot(true)}
             />
 
             <button
@@ -209,8 +212,8 @@ export default function MonitorDashboard({
           }}
         />
 
-        {/* Diagnostic Terminal Query Prompt */}
-        <DiagnosticTerminal onCommandResult={(resSnap) => setCustomQueryResult(resSnap)} />
+        {/* Test Runner Console */}
+        <TestRunnerPanel />
       </main>
     </div>
   );

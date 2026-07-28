@@ -110,9 +110,6 @@ export class AivenProvider implements MonitorProvider {
             `Aiven service ${data.service.service_name} (${data.service.service_type}) state is ${data.service.state}; Database target: ${this.env.AIVEN_DATABASE_NAME}`,
           ),
           occurredAt,
-          externalUrl: `https://console.aiven.io/project/${encodeURIComponent(
-            this.env.AIVEN_PROJECT_NAME,
-          )}/services/${encodeURIComponent(data.service.service_name)}`,
           databaseName: this.env.AIVEN_DATABASE_NAME,
         });
       }

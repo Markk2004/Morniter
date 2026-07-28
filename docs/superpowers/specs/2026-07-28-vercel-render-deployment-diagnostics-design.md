@@ -135,7 +135,7 @@ event ที่มี `diagnosticAvailable` จะแสดงปุ่ม `View
 2. fetch diagnostics endpoint
 3. แสดง summary ของ error
 4. แสดง log ไม่เกิน 20 บรรทัดและไม่เกิน 4 KB
-5. แสดง deployment ID และ external provider link
+5. แสดง deployment ID เพื่อใช้ค้นหาเหตุการณ์ต้นทางโดยไม่สร้างลิงก์ออกจากระบบ
 6. สามารถพับรายละเอียดกลับได้
 
 ข้อความสาเหตุใช้ log จริงจาก provider ระบบทำเฉพาะ classification, redaction และเลือกบรรทัดสำคัญ ไม่สร้างสาเหตุที่ไม่มีใน log

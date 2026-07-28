@@ -416,7 +416,6 @@ events.push({
   status: dep.state,
   message: redactText(`Deployment ${dep.name} (${dep.uid}): state is ${dep.state}`),
   occurredAt: new Date(dep.created).toISOString(),
-  externalUrl: dep.url ? `https://${dep.url}` : undefined,
   stage: normalized.status === "healthy" ? "deploy" : "build",
   incidentKey: `vercel:${projectRef.label}:${dep.uid}`,
   deploymentId: dep.uid,
@@ -687,7 +686,6 @@ events.push({
   status: dep.status,
   message: redactText(rawMsg),
   occurredAt: dep.createdAt,
-  externalUrl: serviceData.dashboardUrl,
   stage: normalized.status === "healthy" ? "deploy" : "build",
   incidentKey: `render:${serviceRef.label}:${dep.id}`,
   deploymentId: dep.id,
@@ -1090,7 +1088,6 @@ export type ActiveMonitorIncident = {
   severity: MonitorEvent["severity"];
   stage: DiagnosticStage;
   summary: string;
-  externalUrl?: string;
 };
 
 const alertSources = new Set(["aiven", "vercel", "render"]);
@@ -1116,7 +1113,6 @@ export function deriveActiveIncidents(
         severity: event?.severity ?? "warning",
         stage: event?.stage ?? "unknown",
         summary: event?.message ?? `${service.service} status is ${service.status}`,
-        externalUrl: event?.externalUrl,
       };
     });
 }
@@ -1240,11 +1236,6 @@ Render:
         {incident.status.toUpperCase()} · {incident.stage.toUpperCase()}
       </div>
       <div>{incident.summary}</div>
-      {incident.externalUrl && (
-        <a href={incident.externalUrl} target="_blank" rel="noopener noreferrer">
-          View provider
-        </a>
-      )}
     </div>
   ))}
 

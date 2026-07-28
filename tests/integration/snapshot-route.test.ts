@@ -41,8 +41,18 @@ describe("GET /api/monitor/snapshot route handler", () => {
     expect(res.status).toBe(200);
 
     const data = await res.json();
-    expect(data.refreshAfterSeconds).toBe(15);
+    expect(data.refreshAfterSeconds).toBe(20);
     expect(Array.isArray(data.providers)).toBe(true);
+
+    const forceReq = new NextRequest("http://localhost:3000/api/monitor/snapshot?force=1", {
+      headers: {
+        cookie: `project_monitor_session=${token}`,
+      },
+    });
+    const forceRes = await snapshotGet(forceReq);
+    expect(forceRes.status).toBe(200);
+    const forceData = await forceRes.json();
+    expect(forceData.refreshAfterSeconds).toBe(20);
 
     vi.unstubAllGlobals();
     vi.unstubAllEnvs();

@@ -32,7 +32,7 @@ Next.js pages and route handlers
 - `SourceFilters` กรอง provider, project และ severity
 - `TerminalPanel` แสดง event เรียงตามเวลา
 - `ServiceCards` แสดงสถานะล่าสุดของแต่ละ source
-- `AutoRefreshControl` ควบคุม polling 15 วินาที
+- `AutoRefreshControl` ควบคุม polling แบบ adaptive (60s สภาพปกติ, 20s เมื่อเกิด incident) พร้อมปุ่ม Manual Refresh (`force=1`)
 - `manifest.webmanifest` และ service worker ให้ติดตั้งเป็น PWA
 
 ### Authentication
@@ -85,7 +85,6 @@ export type MonitorEvent = {
   status: string;
   message: string;
   occurredAt: string;
-  externalUrl?: string;
 };
 
 export type ProviderSnapshot = {

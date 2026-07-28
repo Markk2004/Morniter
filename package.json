@@ -11,9 +11,12 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "hash-password": "node scripts/hash-password.mjs"
+    "hash-password": "node scripts/hash-password.mjs",
+    "test-agent": "node --enable-source-maps agent/dist/index.js",
+    "test-agent:build": "tsc -p agent/tsconfig.json"
   },
   "dependencies": {
+    "@upstash/redis": "^1.38.0",
     "bcryptjs": "^3.0.3",
     "jose": "^6.2.4",
     "next": "16.2.12",

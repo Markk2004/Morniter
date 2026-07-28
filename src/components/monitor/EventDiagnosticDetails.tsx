@@ -2,15 +2,26 @@
 
 import { useState } from "react";
 import LocalTime from "@/components/LocalTime";
-import type { MonitorDiagnosticsResult } from "@/lib/monitor/types";
+import type { MonitorDiagnosticsResult, MonitorEvent } from "@/lib/monitor/types";
 
-type Props = { eventId: string };
+type Props = { eventId: string; eventType?: MonitorEvent["type"] };
 
-export default function EventDiagnosticDetails({ eventId }: Props) {
+export default function EventDiagnosticDetails({ eventId, eventType }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<MonitorDiagnosticsResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const isDeployment = eventType === "deployment";
+  const buttonLabel = expanded
+    ? isDeployment
+      ? "Hide deployment log"
+      : "Hide diagnostic details"
+    : isDeployment
+      ? "View deployment log"
+      : "View diagnostic details";
+
+  const loadingLabel = isDeployment ? "Loading deployment logs…" : "Loading diagnostic logs…";
 
   const toggle = async () => {
     if (expanded) {
@@ -27,6 +38,10 @@ export default function EventDiagnosticDetails({ eventId }: Props) {
         `/api/monitor/diagnostics?eventId=${encodeURIComponent(eventId)}`,
         { cache: "no-store" },
       );
+      if (response.status === 429) {
+        setError("Provider rate limit reached. Try again later.");
+        return;
+      }
       if (!response.ok) throw new Error("diagnostics request failed");
       setResult((await response.json()) as MonitorDiagnosticsResult);
     } catch {
@@ -44,12 +59,12 @@ export default function EventDiagnosticDetails({ eventId }: Props) {
         aria-expanded={expanded}
         className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-cyan-300 hover:text-cyan-200 transition text-[11px] font-medium"
       >
-        {expanded ? "Hide diagnostic details" : "View diagnostic details"}
+        {buttonLabel}
       </button>
 
       {expanded && (
         <div className="mt-2 rounded-md border border-slate-800 bg-slate-950 p-3 space-y-2 text-slate-300">
-          {loading && <div className="text-slate-400 text-xs italic">Loading diagnostic logs…</div>}
+          {loading && <div className="text-slate-400 text-xs italic">{loadingLabel}</div>}
           {error && (
             <div role="alert" className="text-rose-400 text-xs font-semibold">
               {error}

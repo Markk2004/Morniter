@@ -34,7 +34,7 @@ describe("VercelProvider", () => {
     expect(snapshot.error?.code).toBe("configuration_error");
   });
 
-  it("normalizes deployment data cleanly", async () => {
+  it("normalizes deployment data cleanly and includes Git metadata and limit=20", async () => {
     const envWithToken: ServerEnv = {
       ...baseEnv,
       VERCEL_API_TOKEN: "vcl_token_123",
@@ -51,6 +51,12 @@ describe("VercelProvider", () => {
             url: "my-app.vercel.app",
             state: "READY",
             created: 1785000000000,
+            meta: {
+              githubCommitSha: "abc123456789",
+              githubCommitMessage: "Merge branch main",
+              githubCommitRef: "main",
+              githubCommitAuthorName: "Developer",
+            },
           },
         ],
       }),
@@ -60,11 +66,22 @@ describe("VercelProvider", () => {
     const provider = new VercelProvider(envWithToken);
     const snapshot = await provider.fetchSnapshot();
 
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining("/v6/deployments?projectId=prj_1&limit=20"),
+      expect.anything(),
+    );
     expect(snapshot.error).toBeUndefined();
     expect(snapshot.services).toHaveLength(1);
     expect(snapshot.services[0].status).toBe("healthy");
     expect(snapshot.events).toHaveLength(1);
-    expect(snapshot.events[0].status).toBe("READY");
+    expect(snapshot.events[0]).toMatchObject({
+      status: "READY",
+      commitSha: "abc123456789",
+      commitMessage: "Merge branch main",
+      branch: "main",
+      commitAuthor: "Developer",
+      diagnosticAvailable: true,
+    });
 
     vi.unstubAllGlobals();
   });
