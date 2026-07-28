@@ -22,4 +22,10 @@ describe("redactText", () => {
     expect(redacted.length).toBeLessThanOrEqual(20_100);
     expect(redacted).toContain("[TRUNCATED]");
   });
+
+  it("removes terminal color control sequences", () => {
+    expect(redactText("\u001b[96msrc/app.module.ts\u001b[0m:31:10")).toBe(
+      "src/app.module.ts:31:10",
+    );
+  });
 });

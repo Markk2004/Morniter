@@ -23,7 +23,7 @@ describe("RenderProvider", () => {
     ["deploying", "degraded", "warning"],
     ["build_failed", "failed", "error"],
     ["deploy_failed", "failed", "error"],
-    ["deactivated", "failed", "error"],
+    ["deactivated", "healthy", "info"],
     ["future_status", "unknown", "warning"],
   ] as const)("maps Render state %s", (raw, status, severity) => {
     expect(normalizeRenderState(raw)).toMatchObject({ status, severity });

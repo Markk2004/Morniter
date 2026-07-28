@@ -2,6 +2,7 @@
 
 import React, { useRef, useEffect, useState } from "react";
 import type { TestLogLine } from "@/lib/test-runner/types";
+import { stripTerminalControlSequences } from "@/lib/monitor/redact";
 
 const MAX_RENDERED_LINES = 300;
 
@@ -93,7 +94,7 @@ export function LiveTestTerminal({ lines, hasOlder = false, onLoadOlder }: LiveT
                   {line.stream}
                 </span>
                 <span className={`flex-1 whitespace-pre-wrap break-all ${msgColor}`}>
-                  {line.message}
+                  {stripTerminalControlSequences(line.message)}
                 </span>
               </div>
             );

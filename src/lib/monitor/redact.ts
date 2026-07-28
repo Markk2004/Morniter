@@ -1,5 +1,19 @@
 const MAX_INPUT_LENGTH = 20_000;
 
+// Test runners such as TypeScript and Nest emit terminal color controls. The
+// execution log is rendered as text, so keep those controls out of persisted
+// log lines instead of showing sequences such as "\u001b[96m" to users.
+const ANSI_CSI_REGEX = /\u001B\[[0-?]*[ -/]*[@-~]/g;
+const ANSI_C1_CSI_REGEX = /\u009B[0-?]*[ -/]*[@-~]/g;
+const ANSI_OSC_REGEX = /\u001B\][^\u0007]*(?:\u0007|\u001B\\)/g;
+
+export function stripTerminalControlSequences(input: string): string {
+  return input
+    .replace(ANSI_OSC_REGEX, "")
+    .replace(ANSI_CSI_REGEX, "")
+    .replace(ANSI_C1_CSI_REGEX, "");
+}
+
 const BEARER_REGEX = /authorization:\s*bearer\s+[^\s"'\\]+/gi;
 const DB_URL_REGEX = /\b(?:postgres|postgresql|mysql|mongodb|redis|amqp):\/\/[^\s"'\\]+/gi;
 const JSON_SECRET_KEY_REGEX = /"(?:api_key|token|password|secret|access_token|auth_token|private_key)":\s*"(?:[^"\\]|\\.)*"/gi;
@@ -8,7 +22,7 @@ const QUERY_SECRET_KEY_REGEX = /\b(api_key|token|password|secret|access_token|au
 export function redactText(input: string): string {
   if (!input) return "";
 
-  let text = input;
+  let text = stripTerminalControlSequences(input);
   if (text.length > MAX_INPUT_LENGTH) {
     text = text.slice(0, MAX_INPUT_LENGTH) + "\n[TRUNCATED]";
   }

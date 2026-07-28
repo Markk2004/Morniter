@@ -76,7 +76,9 @@ export function normalizeRenderState(rawState: string): {
   normalizedState: string;
 } {
   const normalizedState = rawState.toLowerCase();
-  if (["live", "build_succeeded"].includes(normalizedState)) {
+  // Render marks a previously-live deploy as deactivated when another deploy
+  // replaces it. That is normal deployment history, not a failed build.
+  if (["live", "build_succeeded", "deactivated"].includes(normalizedState)) {
     return { status: "healthy", severity: "info", normalizedState };
   }
   if (
@@ -86,7 +88,7 @@ export function normalizeRenderState(rawState: string): {
     return { status: "degraded", severity: "warning", normalizedState };
   }
   if (
-    ["build_failed", "deploy_failed", "canceled", "cancelled", "suspended", "deactivated"]
+    ["build_failed", "deploy_failed", "canceled", "cancelled", "suspended"]
       .includes(normalizedState)
   ) {
     return { status: "failed", severity: "error", normalizedState };
