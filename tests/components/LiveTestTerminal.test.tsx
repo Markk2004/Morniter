@@ -10,7 +10,7 @@ afterEach(() => {
 });
 
 describe("LiveTestTerminal", () => {
-  it("renders at most 1000 tagged lines", () => {
+  it("renders at most 300 tagged lines", () => {
     const lines: TestLogLine[] = Array.from({ length: 1200 }, (_, sequence) => ({
       sequence,
       stream: sequence % 2 === 0 ? "stdout" : "stderr",
@@ -21,7 +21,8 @@ describe("LiveTestTerminal", () => {
     render(<LiveTestTerminal lines={lines} />);
 
     const renderedLines = screen.getAllByTestId("terminal-line");
-    expect(renderedLines).toHaveLength(1000);
+    expect(renderedLines).toHaveLength(300);
+    expect(screen.getByTestId("terminal-hidden-count")).toHaveTextContent("900 older lines hidden");
   });
 
   it("loads older lines and triggers onLoadOlder callback", () => {

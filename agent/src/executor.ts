@@ -54,7 +54,15 @@ export async function runPreset(
       }
 
       if (shouldKill && child.pid) {
-        terminateProcessTree(child.pid);
+        const pid = child.pid;
+        // Stop the direct child immediately so timeout/cancel resolves without
+        // waiting for Windows taskkill.exe to finish its synchronous tree walk.
+        try {
+          child.kill();
+        } catch {
+          // The process may have exited between the status check and kill.
+        }
+        setImmediate(() => terminateProcessTree(pid));
       }
 
       const finishedAtDate = new Date();

@@ -14,6 +14,49 @@ const fakeLists = new Map<string, string[]>();
 
 vi.mock("@/lib/test-runner/redis", () => ({
   getRunnerRedis: () => ({
+    eval: vi.fn(async (script: string, keys: string[], args: string[]) => {
+      // RESERVE_SCRIPT
+      if (script.includes("ACQUIRED")) {
+        const [idemKey, activeKey, queueKey] = keys;
+        const [jobId, maxQueue] = args;
+
+        const existing = fakeStore.get(idemKey);
+        if (existing) return ["IDEMPOTENT", existing];
+
+        const active = fakeStore.get(activeKey);
+        if (active) return ["ACTIVE", active];
+
+        const queue = fakeLists.get(queueKey) || [];
+        if (queue.length >= Number(maxQueue)) return ["QUEUE_FULL", ""];
+
+        fakeStore.set(idemKey, jobId);
+        fakeStore.set(activeKey, jobId);
+        return ["ACQUIRED", jobId];
+      }
+
+      // RENEW_SCRIPT
+      if (script.includes("EXPIRE")) {
+        const [activeKey] = keys;
+        const [jobId] = args;
+        const current = fakeStore.get(activeKey);
+        if (current === jobId) return 1;
+        return 0;
+      }
+
+      // RELEASE_SCRIPT
+      if (script.includes("DEL")) {
+        const [activeKey] = keys;
+        const [jobId] = args;
+        const current = fakeStore.get(activeKey);
+        if (current === jobId) {
+          fakeStore.delete(activeKey);
+          return 1;
+        }
+        return 0;
+      }
+
+      return 0;
+    }),
     get: vi.fn(async (key: string) => fakeStore.get(key) ?? null),
     set: vi.fn(async (key: string, val: unknown) => {
       fakeStore.set(key, val);
@@ -91,6 +134,10 @@ describe("Browser-Facing Test Runner APIs", () => {
               description: "Run vitest",
               commandPreview: "npx vitest run",
               timeoutSeconds: 120,
+              category: "automated",
+              srsIds: [],
+              risk: "safe",
+              databaseTarget: "none",
             },
           ],
         },
@@ -147,6 +194,8 @@ describe("Browser-Facing Test Runner APIs", () => {
     expect(authRes.status).toBe(201);
     const job = await authRes.json();
     expect(job.status).toBe("queued");
+    expect(job.category).toBe("automated");
+    expect(job.databaseTarget).toBe("none");
   });
 
   it("POST /api/test-runner/jobs rejects unknown preset with 400", async () => {

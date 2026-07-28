@@ -20,6 +20,10 @@ export default defineConfig({
   webServer: {
     command: "npm run dev -- --port 3100",
     url: "http://localhost:3100",
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
+    env: {
+      SESSION_SIGNING_SECRET: "RoLw5fpZO-N4TBtm-WirNonWWftIrY4fW6pjN8MAF30T1e6bBZWBTh3rP-nvArSY",
+      GROUP_ACCESS_PASSWORD_HASH: "$2b$12$RoLw5fpZO-N4TBtm-WirNonWWftIrY4fW6pjN8MAF30T1e6bBZWBTh3rP-nvArSY",
+    },
   },
 });

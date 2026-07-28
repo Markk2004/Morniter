@@ -23,7 +23,6 @@ export function TestRunnerWorkspace() {
     isJobRunning,
     createJob,
     cancelJob,
-    unlockSession,
     refreshHistory,
   } = useTestRunner();
 
@@ -54,6 +53,7 @@ export function TestRunnerWorkspace() {
       {/* Preset Launcher Shortcuts */}
       <PresetLauncher
         catalog={catalog}
+        activeJob={activeJob}
         isUnlocked={isUnlocked}
         isAgentOnline={isAgentOnline}
         isJobRunning={isJobRunning}

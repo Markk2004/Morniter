@@ -18,6 +18,17 @@ vi.mock("next/navigation", () => ({
 }));
 
 describe("MonitorShell", () => {
+  it("renders the cat logo in the header", () => {
+    vi.mocked(usePathname).mockReturnValue("/monitor");
+    render(
+      <MonitorShell displayName="Morniter Operator">
+        <div>Content</div>
+      </MonitorShell>,
+    );
+
+    expect(screen.getByRole("img", { name: "Project Monitor logo" })).toBeInTheDocument();
+  });
+
   it("marks Logs active on /monitor", () => {
     vi.mocked(usePathname).mockReturnValue("/monitor");
     render(

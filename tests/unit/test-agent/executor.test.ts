@@ -13,6 +13,7 @@ describe("Agent Executor", () => {
       cwd: process.cwd(),
       env: {},
       timeoutSeconds: 20,
+      metadata: { category: "automated", srsIds: [], risk: "safe", databaseTarget: "none" },
     });
 
     expect(result.status).toBe("passed");
@@ -34,6 +35,7 @@ describe("Agent Executor", () => {
         cwd: process.cwd(),
         env: {},
         timeoutSeconds: 30,
+        metadata: { category: "automated", srsIds: [], risk: "safe", databaseTarget: "none" },
       },
       undefined,
       controller.signal,
@@ -53,6 +55,7 @@ describe("Agent Executor", () => {
       cwd: process.cwd(),
       env: {},
       timeoutSeconds: 1, // 1 second timeout
+      metadata: { category: "automated", srsIds: [], risk: "safe", databaseTarget: "none" },
     });
 
     expect(result.status).toBe("timed_out");

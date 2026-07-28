@@ -74,6 +74,8 @@ The Test Runner Console replaces arbitrary shell commands with a secure, preset-
 - **Execution Step-Up Authorization**: Execution requires a dedicated 15-minute `monitor:execute` session (`TEST_RUNNER_PASSWORD_HASH`).
 - **Upstash Redis Queue & Storage**: Job queue (max 10 items), job status, log streaming (max 5,000 lines / 1 MB), catalog, and heartbeat are stored in Upstash Redis.
 
+The Test Runner catalog groups presets into automated testing, execution test and UAT. Execution presets are selected by SRS/BR ID and run one allowlisted ProjectSTS Jest group against Aiven `defaultdb`. UAT presets run the read-only deployment smoke suite and use `STS_UAT_BASE_URL`, `STS_UAT_USERNAME` and `STS_UAT_PASSWORD`; they do not receive a database URL. The browser request remains `{ projectId, presetId }`.
+
 
 ---
 

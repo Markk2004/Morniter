@@ -29,10 +29,24 @@ export function RunProgress({ activeJob, onCancelJob, isSubmitting }: RunProgres
     <div className="p-6 rounded-2xl border border-slate-800 bg-slate-900/80 backdrop-blur-md space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <span className="text-[10px] uppercase font-mono tracking-wider text-slate-400 font-semibold">
-            Active Job Status
-          </span>
-          <h3 className="text-base font-bold text-slate-100 mt-0.5">{presetName}</h3>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] uppercase font-mono tracking-wider text-slate-400 font-semibold">
+              Active Job Status
+            </span>
+            {activeJob.requesterLabel && (
+              <span className="px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 text-[10px] font-mono">
+                {activeJob.requesterLabel}
+              </span>
+            )}
+          </div>
+          <h3 className="text-base font-bold text-slate-100 mt-0.5">
+            {presetName} <span className="text-xs font-normal text-slate-400 font-mono">({activeJob.projectId})</span>
+          </h3>
+          <div className="flex flex-wrap gap-2 mt-2 text-[10px] font-mono text-slate-400">
+            <span>{activeJob.category}</span>
+            {activeJob.srsIds?.length ? <span>{activeJob.srsIds.join(", ")}</span> : null}
+            <span>{activeJob.databaseTarget === "defaultdb" ? "Aiven defaultdb" : activeJob.databaseTarget === "none" ? "No database" : activeJob.databaseTarget}</span>
+          </div>
         </div>
 
         <div className="flex items-center space-x-3">

@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { createHash } from "node:crypto";
 import { SESSION_COOKIE, verifySessionToken } from "@/lib/auth/session";
 import {
   requireExecuteSession,
@@ -11,6 +12,13 @@ import {
   listJobs,
 } from "@/lib/test-runner/store";
 import { TestRunnerError } from "@/lib/test-runner/errors";
+import { getServerEnv } from "@/lib/env/server";
+
+function createRequesterLabel(ip: string): string {
+  const secret = getServerEnv().SESSION_SIGNING_SECRET || "default-signing-secret";
+  const digest = createHash("sha256").update(`${secret}:${ip}`).digest("hex").slice(0, 8);
+  return `Operator ${digest}`;
+}
 
 export async function GET(req: NextRequest) {
   const token = req.cookies.get(SESSION_COOKIE)?.value;
@@ -77,9 +85,10 @@ export async function POST(req: NextRequest) {
   }
 
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0] || "127.0.0.1";
+  const requesterLabel = createRequesterLabel(ip);
 
   try {
-    const job = await enqueueJob(parseResult.data, ip, idempotencyKey);
+    const job = await enqueueJob(parseResult.data, requesterLabel, idempotencyKey);
     const isReplay = job.idempotencyKey === idempotencyKey && job.status !== "queued";
     return NextResponse.json(job, { status: isReplay ? 200 : 201 });
   } catch (err) {

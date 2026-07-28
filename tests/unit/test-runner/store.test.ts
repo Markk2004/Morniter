@@ -5,7 +5,6 @@ import {
   heartbeatJob,
   appendLogBatch,
   readLogPage,
-  completeJob,
   requestCancel,
   reapStaleJobs,
   publishCatalog,
@@ -15,8 +14,6 @@ import {
 } from "@/lib/test-runner/store";
 import {
   ActiveJobExistsError,
-  QueueFullError,
-  UnknownPresetError,
 } from "@/lib/test-runner/errors";
 import type { TestProjectCatalog } from "@/lib/test-runner/types";
 
@@ -26,6 +23,49 @@ const fakeLists = new Map<string, string[]>();
 
 vi.mock("@/lib/test-runner/redis", () => ({
   getRunnerRedis: () => ({
+    eval: vi.fn(async (script: string, keys: string[], args: string[]) => {
+      // RESERVE_SCRIPT
+      if (script.includes("ACQUIRED")) {
+        const [idemKey, activeKey, queueKey] = keys;
+        const [jobId, maxQueue] = args;
+
+        const existing = fakeStore.get(idemKey);
+        if (existing) return ["IDEMPOTENT", existing];
+
+        const active = fakeStore.get(activeKey);
+        if (active) return ["ACTIVE", active];
+
+        const queue = fakeLists.get(queueKey) || [];
+        if (queue.length >= Number(maxQueue)) return ["QUEUE_FULL", ""];
+
+        fakeStore.set(idemKey, jobId);
+        fakeStore.set(activeKey, jobId);
+        return ["ACQUIRED", jobId];
+      }
+
+      // RENEW_SCRIPT
+      if (script.includes("EXPIRE")) {
+        const [activeKey] = keys;
+        const [jobId] = args;
+        const current = fakeStore.get(activeKey);
+        if (current === jobId) return 1;
+        return 0;
+      }
+
+      // RELEASE_SCRIPT
+      if (script.includes("DEL")) {
+        const [activeKey] = keys;
+        const [jobId] = args;
+        const current = fakeStore.get(activeKey);
+        if (current === jobId) {
+          fakeStore.delete(activeKey);
+          return 1;
+        }
+        return 0;
+      }
+
+      return 0;
+    }),
     get: vi.fn(async (key: string) => fakeStore.get(key) ?? null),
     set: vi.fn(async (key: string, val: unknown, opts?: { nx?: boolean }) => {
       if (opts?.nx && fakeStore.has(key)) {
@@ -110,6 +150,10 @@ describe("Test Runner Redis Store (v2)", () => {
             description: "Runs Cypress suite",
             commandPreview: "npx cypress run",
             timeoutSeconds: 300,
+            category: "automated",
+            srsIds: [],
+            risk: "safe",
+            databaseTarget: "none",
           },
         ],
       },
@@ -137,6 +181,8 @@ describe("Test Runner Redis Store (v2)", () => {
     const first = await enqueueJob(jobInput, "requester-1", "run-123", sampleCatalog, "agent-win-1");
     const repeated = await enqueueJob(jobInput, "requester-1", "run-123", sampleCatalog, "agent-win-1");
     expect(repeated.id).toBe(first.id);
+    expect(repeated.category).toBe("automated");
+    expect(repeated.databaseTarget).toBe("none");
   });
 
   it("rejects a second active job for the same agent", async () => {
@@ -186,6 +232,18 @@ describe("Test Runner Redis Store (v2)", () => {
     expect(page.lines).toHaveLength(2);
     expect(page.lines[0].message).toBe("Step 1");
     expect(page.nextSequence).toBe(2);
+  });
+
+  it("creates one job when two users enqueue concurrently", async () => {
+    await publishCatalog(sampleCatalog, "agent-win-1");
+    const attempts = await Promise.allSettled([
+      enqueueJob(jobInput, "Operator a1b2c3d4", "idem-concurrent-a", sampleCatalog, "agent-win-1"),
+      enqueueJob(jobInput, "Operator e5f6g7h8", "idem-concurrent-b", sampleCatalog, "agent-win-1"),
+    ]);
+
+    expect(attempts.filter((item) => item.status === "fulfilled")).toHaveLength(1);
+    const rejected = attempts.find((item) => item.status === "rejected");
+    expect(rejected).toMatchObject({ reason: expect.any(ActiveJobExistsError) });
   });
 
   it("handles job cancellation and completion", async () => {

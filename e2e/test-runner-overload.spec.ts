@@ -26,6 +26,9 @@ test.describe("Test Runner Overload & Security E2E", () => {
         path: "/",
       },
     ]);
+    await page.addInitScript(() => {
+      window.sessionStorage.setItem("project_monitor_tab_session", "e2e-overload");
+    });
 
     const catalogResponsePromise = page.waitForResponse("**/api/test-runner/catalog*");
 

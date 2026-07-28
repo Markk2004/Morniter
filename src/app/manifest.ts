@@ -7,6 +7,7 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "Read-only group telemetry monitor for cloud providers",
     id: "/monitor",
     start_url: "/monitor",
+    scope: "/",
     display: "standalone",
     orientation: "any",
     background_color: "#0a0d14",

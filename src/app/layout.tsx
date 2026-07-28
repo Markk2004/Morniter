@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import PwaRegistration from "@/components/PwaRegistration";
+import PwaInstallPrompt from "@/components/PwaInstallPrompt";
 
 export const metadata: Metadata = {
   title: "Project Monitor",
@@ -33,6 +34,7 @@ export default function RootLayout({
     <html lang="en" className="h-full bg-[#0a0d14] text-slate-100 antialiased">
       <body className="min-h-full flex flex-col">
         <PwaRegistration />
+        <PwaInstallPrompt />
         {children}
       </body>
     </html>

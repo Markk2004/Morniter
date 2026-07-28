@@ -26,6 +26,9 @@ test.describe("Historical Deployments & Adaptive Polling E2E", () => {
         path: "/",
       },
     ]);
+    await page.addInitScript(() => {
+      window.sessionStorage.setItem("project_monitor_tab_session", "e2e-historical");
+    });
 
     // Mock API responses for snapshot and diagnostics
     await page.route("**/api/monitor/snapshot*", async (route) => {
@@ -130,6 +133,9 @@ test.describe("Historical Deployments & Adaptive Polling E2E", () => {
         path: "/",
       },
     ]);
+    await page.addInitScript(() => {
+      window.sessionStorage.setItem("project_monitor_tab_session", "e2e-refresh");
+    });
 
     await page.route("**/api/monitor/snapshot*", async (route) => {
       capturedUrl = route.request().url();
@@ -164,6 +170,9 @@ test.describe("Historical Deployments & Adaptive Polling E2E", () => {
         path: "/",
       },
     ]);
+    await page.addInitScript(() => {
+      window.sessionStorage.setItem("project_monitor_tab_session", "e2e-incident");
+    });
 
     await page.route("**/api/monitor/snapshot*", async (route) => {
       await route.fulfill({

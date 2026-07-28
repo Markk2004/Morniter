@@ -26,6 +26,9 @@ test.describe("Test Runner Agent Recovery E2E", () => {
         path: "/",
       },
     ]);
+    await page.addInitScript(() => {
+      window.sessionStorage.setItem("project_monitor_tab_session", "e2e-recovery");
+    });
 
     const presenceState = "lagging";
 

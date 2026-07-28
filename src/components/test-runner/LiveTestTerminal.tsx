@@ -3,6 +3,8 @@
 import React, { useRef, useEffect, useState } from "react";
 import type { TestLogLine } from "@/lib/test-runner/types";
 
+const MAX_RENDERED_LINES = 300;
+
 interface LiveTestTerminalProps {
   lines: TestLogLine[];
   hasOlder?: boolean;
@@ -15,9 +17,11 @@ export function LiveTestTerminal({ lines, hasOlder = false, onLoadOlder }: LiveT
 
   // Auto-scroll on new log lines if at bottom
   useEffect(() => {
-    if (autoScroll && containerRef.current) {
-      containerRef.current.scrollTop = containerRef.current.scrollHeight;
-    }
+    if (!autoScroll || !containerRef.current) return;
+    const frame = requestAnimationFrame(() => {
+      if (containerRef.current) containerRef.current.scrollTop = containerRef.current.scrollHeight;
+    });
+    return () => cancelAnimationFrame(frame);
   }, [lines, autoScroll]);
 
   const handleScroll = () => {
@@ -27,7 +31,8 @@ export function LiveTestTerminal({ lines, hasOlder = false, onLoadOlder }: LiveT
     setAutoScroll(isAtBottom);
   };
 
-  const visibleLines = lines.slice(-1000);
+  const hiddenLineCount = Math.max(0, lines.length - MAX_RENDERED_LINES);
+  const visibleLines = lines.slice(-MAX_RENDERED_LINES);
 
   return (
     <div className="space-y-2">
@@ -39,6 +44,9 @@ export function LiveTestTerminal({ lines, hasOlder = false, onLoadOlder }: LiveT
         <div className="flex items-center space-x-3 text-[11px] font-mono text-slate-400">
           {!autoScroll && (
             <span className="text-amber-400 font-medium">Auto-scroll paused</span>
+          )}
+          {hiddenLineCount > 0 && (
+            <span data-testid="terminal-hidden-count">{hiddenLineCount} older lines hidden</span>
           )}
           {hasOlder && onLoadOlder && (
             <button

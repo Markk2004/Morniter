@@ -20,6 +20,14 @@ import {
 } from "./errors";
 import { assertTransition, isActiveStatus } from "./lifecycle";
 import { redactText } from "@/lib/monitor/redact";
+import {
+  reserveJobCreation,
+  readActiveLease,
+  renewActiveLease,
+  releaseActiveLease,
+  commitIdempotencyReservation,
+  releaseIdempotencyReservation,
+} from "./active-lease";
 
 export {
   ActiveJobExistsError,
@@ -29,7 +37,14 @@ export {
   AgentJobOwnershipError,
 };
 
-const MAX_QUEUE_SIZE = 10;
+async function waitForReservedJob(jobId: string): Promise<TestJob | null> {
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    const job = await getJob(jobId);
+    if (job) return job;
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  return null;
+}
 
 export async function publishCatalog(
   catalog: TestProjectCatalog,
@@ -42,7 +57,7 @@ export async function publishCatalog(
 
   await redis.set(catKey, catalog, { ex: JOB_TTL_SECONDS });
 
-  const activeJobId = (await redis.get<string>(runnerKeys.active(agentId))) || undefined;
+  const activeJobId = (await readActiveLease(agentId)) || undefined;
   const presence: AgentPresence = {
     agentId,
     state: "online",
@@ -87,41 +102,12 @@ export async function getAgentPresence(
 
 export async function enqueueJob(
   input: { projectId: string; presetId: string },
-  requesterHash: string,
+  requesterLabel: string,
   idempotencyKey: string,
   providedCatalog?: TestProjectCatalog | null,
   agentId = "windows-local-agent-1",
   now: Date = new Date(),
 ): Promise<TestJob> {
-  const redis = getRunnerRedis();
-  const idempKey = runnerKeys.idempotency(idempotencyKey);
-
-  // Check idempotency replay
-  const existingJobId = await redis.get<string>(idempKey);
-  if (existingJobId) {
-    const existingJob = await redis.get<TestJob>(runnerKeys.job(existingJobId));
-    if (existingJob) {
-      return existingJob;
-    }
-  }
-
-  // Check queue size
-  const queueKey = runnerKeys.queue(agentId);
-  const queueLength = await redis.llen(queueKey);
-  if (queueLength >= MAX_QUEUE_SIZE) {
-    throw new QueueFullError();
-  }
-
-  // Check if agent already has an active job running
-  const activeKey = runnerKeys.active(agentId);
-  const currentActiveJobId = await redis.get<string>(activeKey);
-  if (currentActiveJobId) {
-    const currentActiveJob = await redis.get<TestJob>(runnerKeys.job(currentActiveJobId));
-    if (currentActiveJob && isActiveStatus(currentActiveJob.status)) {
-      throw new ActiveJobExistsError(currentActiveJobId, currentActiveJob);
-    }
-  }
-
   const catalog = providedCatalog ?? (await getCatalog(agentId));
   if (!catalog) {
     throw new UnknownPresetError("Catalog unavailable or agent offline");
@@ -135,29 +121,61 @@ export async function enqueueJob(
   }
 
   const jobId = `job-${now.getTime()}-${Math.random().toString(36).substring(2, 8)}`;
+  const reservation = await reserveJobCreation(agentId, idempotencyKey, jobId);
+
+  if (reservation.kind === "idempotent") {
+    const existingJob = await waitForReservedJob(reservation.jobId);
+    if (existingJob) {
+      return existingJob;
+    }
+    await releaseIdempotencyReservation(idempotencyKey, reservation.jobId);
+    throw new UnknownPresetError("Concurrent job creation pending. Please retry.");
+  }
+
+  if (reservation.kind === "active") {
+    const currentActiveJob = await getJob(reservation.jobId);
+    throw new ActiveJobExistsError(reservation.jobId, currentActiveJob ?? undefined);
+  }
+
+  if (reservation.kind === "queue_full") {
+    throw new QueueFullError();
+  }
+
   const nowStr = now.toISOString();
 
   const job: TestJob = {
     id: jobId,
+    requesterLabel,
     idempotencyKey,
     agentId,
     projectId: input.projectId,
     presetId: input.presetId,
     presetName: preset.name,
+    category: preset.category,
+    srsIds: [...preset.srsIds],
+    risk: preset.risk,
+    databaseTarget: preset.databaseTarget,
     status: "queued",
     queuedAt: nowStr,
     logBytes: 0,
     logLines: 0,
   };
 
+  const redis = getRunnerRedis();
   const jobKey = runnerKeys.job(jobId);
-  await redis.set(jobKey, job, { ex: JOB_TTL_SECONDS });
-  await redis.set(idempKey, jobId, { ex: 3600 });
-  await redis.set(activeKey, jobId, { ex: JOB_TTL_SECONDS });
-  await redis.rpush(queueKey, jobId);
-  await redis.zadd(runnerKeys.history, { score: now.getTime(), member: jobId });
+  const queueKey = runnerKeys.queue(agentId);
 
-  return job;
+  try {
+    await redis.set(jobKey, job, { ex: JOB_TTL_SECONDS });
+    await redis.rpush(queueKey, jobId);
+    await redis.zadd(runnerKeys.history, { score: now.getTime(), member: jobId });
+    await commitIdempotencyReservation(idempotencyKey, jobId);
+    return job;
+  } catch (err) {
+    await releaseActiveLease(agentId, jobId);
+    await releaseIdempotencyReservation(idempotencyKey, jobId);
+    throw err;
+  }
 }
 
 export async function claimNextJob(
@@ -212,6 +230,11 @@ export async function heartbeatJob(
   }
 
   if (job.agentId !== agentId) {
+    throw new AgentJobOwnershipError();
+  }
+
+  const renewed = await renewActiveLease(agentId, jobId);
+  if (!renewed) {
     throw new AgentJobOwnershipError();
   }
 
@@ -389,7 +412,7 @@ export async function completeJob(
   };
 
   await redis.set(jobKey, updated, { ex: JOB_TTL_SECONDS });
-  await redis.del(runnerKeys.active(job.agentId));
+  await releaseActiveLease(job.agentId, jobId);
   return updated;
 }
 
@@ -418,7 +441,7 @@ export async function requestCancel(jobId: string): Promise<TestJob> {
 
   await redis.set(jobKey, updated, { ex: JOB_TTL_SECONDS });
   if (newStatus === "cancelled") {
-    await redis.del(runnerKeys.active(job.agentId));
+    await releaseActiveLease(job.agentId, jobId);
   }
   return updated;
 }
@@ -444,7 +467,7 @@ export async function reapStaleJobs(now: Date = new Date()): Promise<string[]> {
         error: "Agent heartbeat lost (lease expired)",
       };
       await redis.set(jobKey, updated, { ex: JOB_TTL_SECONDS });
-      await redis.del(runnerKeys.active(job.agentId));
+      await releaseActiveLease(job.agentId, id);
       reapedIds.push(id);
     }
   }

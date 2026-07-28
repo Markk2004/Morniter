@@ -21,6 +21,7 @@ describe("Agent Runner & Catalog Builder", () => {
               args: ["cypress", "run"],
               cwd: "E:\\project-monitor",
               timeoutSeconds: 300,
+              metadata: { category: "automated", srsIds: [], risk: "safe", databaseTarget: "none" },
             },
           ],
         },

@@ -6,6 +6,7 @@ import { POST as completePost } from "@/app/api/test-runner/agent/jobs/[jobId]/c
 import { NextRequest } from "next/server";
 import { resetServerEnvCache } from "@/lib/env/server";
 import { publishCatalog, enqueueJob, getJob, readLogPage } from "@/lib/test-runner/store";
+import type { TestProjectCatalog } from "@/lib/test-runner/types";
 
 const fakeStore = new Map<string, unknown>();
 const fakeLists = new Map<string, string[]>();
@@ -37,6 +38,45 @@ vi.mock("@/lib/test-runner/redis", () => ({
     llen: vi.fn(async (key: string) => {
       const list = fakeLists.get(key) || [];
       return list.length;
+    }),
+    eval: vi.fn(async (script: string, keys: string[], args: string[]) => {
+      // RESERVE_SCRIPT
+      if (script.includes("ACQUIRED")) {
+        const [idemKey, activeKey, queueKey] = keys;
+        const [, jobId, , , maxQueue] = args;
+
+        const existing = fakeStore.get(idemKey);
+        if (existing) return ["IDEMPOTENT", existing];
+
+        const active = fakeStore.get(activeKey);
+        if (active) return ["ACTIVE", active];
+
+        const queue = fakeLists.get(queueKey) || [];
+        if (queue.length >= Number(maxQueue || 10)) return ["QUEUE_FULL", ""];
+
+        fakeStore.set(idemKey, jobId);
+        fakeStore.set(activeKey, jobId);
+        return ["ACQUIRED", jobId];
+      }
+
+      // RENEW_SCRIPT
+      if (script.includes("EXPIRE")) {
+        const [activeKey] = keys;
+        const [jobId] = args;
+        const current = fakeStore.get(activeKey);
+        if (current === jobId) return 1;
+        return 0;
+      }
+
+      // RELEASE_SCRIPT
+      const [activeKey] = keys;
+      const [jobId] = args;
+      const current = fakeStore.get(activeKey);
+      if (current === jobId) {
+        fakeStore.delete(activeKey);
+        return 1;
+      }
+      return 0;
     }),
     expire: vi.fn(async () => 1),
     lrange: vi.fn(async (key: string, start: number, stop: number) => {
@@ -109,6 +149,10 @@ describe("Agent API Authentication & Flow", () => {
               description: "Run unit",
               commandPreview: "npm test",
               timeoutSeconds: 60,
+              category: "automated",
+              srsIds: [],
+              risk: "safe",
+              databaseTarget: "none",
             },
           ],
         },
@@ -147,7 +191,7 @@ describe("Agent API Authentication & Flow", () => {
   });
 
   it("claims job on poll, appends logs, and completes job", async () => {
-    const catalog = {
+    const catalog: TestProjectCatalog = {
       version: "1.0.0",
       updatedAt: new Date().toISOString(),
       projects: [
@@ -161,6 +205,10 @@ describe("Agent API Authentication & Flow", () => {
               description: "Run unit",
               commandPreview: "npm test",
               timeoutSeconds: 60,
+              category: "automated",
+              srsIds: [],
+              risk: "safe",
+              databaseTarget: "none",
             },
           ],
         },
@@ -189,6 +237,8 @@ describe("Agent API Authentication & Flow", () => {
     const { job } = await pollRes.json();
     expect(job.id).toBe(enqueued.id);
     expect(job.status).toBe("claimed");
+    expect(job.category).toBe("automated");
+    expect(job.srsIds).toEqual([]);
 
     // Append log batch
     const logReq = new NextRequest(

@@ -33,17 +33,26 @@ export async function executeClaimedJob(
 
   const abortController = new AbortController();
 
-  // 5-second heartbeat loop
-  const heartbeatTimer = setInterval(async () => {
-    try {
-      const hb = await client.heartbeat(job.id, parser.consume("stdout", []));
-      if (hb.cancelRequested) {
-        abortController.abort();
+  let heartbeatTimer: NodeJS.Timeout | null = null;
+  let heartbeatStopped = false;
+
+  const scheduleHeartbeat = () => {
+    if (heartbeatStopped) return;
+    heartbeatTimer = setTimeout(async () => {
+      try {
+        const hb = await client.heartbeat(job.id, parser.consume("stdout", []));
+        if (hb.cancelRequested) {
+          abortController.abort();
+        }
+      } catch {
+        // Ignore transient heartbeat failures
+      } finally {
+        scheduleHeartbeat();
       }
-    } catch {
-      // Ignore transient heartbeat failures
-    }
-  }, 5000);
+    }, 5000);
+  };
+
+  scheduleHeartbeat();
 
   try {
     const result = await runPreset(
@@ -65,7 +74,8 @@ export async function executeClaimedJob(
     await logBatcher.drain();
     await client.complete(job.id, result);
   } finally {
-    clearInterval(heartbeatTimer);
+    heartbeatStopped = true;
+    if (heartbeatTimer) clearTimeout(heartbeatTimer);
   }
 }
 

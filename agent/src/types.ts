@@ -1,3 +1,14 @@
+export type TestCategory = "automated" | "execution" | "uat";
+export type TestRisk = "safe" | "mutating" | "read-only";
+export type DatabaseTarget = "none" | "defaultdb" | "production";
+
+export interface TestPresetMetadata {
+  category: TestCategory;
+  srsIds: string[];
+  risk: TestRisk;
+  databaseTarget: DatabaseTarget;
+}
+
 export interface AgentPresetConfig {
   id: string;
   name: string;
@@ -7,6 +18,7 @@ export interface AgentPresetConfig {
   cwd: string;
   env?: Record<string, string>;
   timeoutSeconds?: number;
+  metadata: TestPresetMetadata;
 }
 
 export interface AgentProjectConfig {
@@ -33,6 +45,7 @@ export interface ResolvedPreset {
   cwd: string;
   env: Record<string, string>;
   timeoutSeconds: number;
+  metadata: TestPresetMetadata;
 }
 
 export type TestJobStatus =
@@ -73,6 +86,10 @@ export interface TestPreset {
   description: string;
   commandPreview: string;
   timeoutSeconds: number;
+  category: TestCategory;
+  srsIds: string[];
+  risk: TestRisk;
+  databaseTarget: DatabaseTarget;
 }
 
 export interface TestProject {
@@ -94,6 +111,10 @@ export interface TestJob {
   projectId: string;
   presetId: string;
   presetName: string;
+  category: TestCategory;
+  srsIds: string[];
+  risk: TestRisk;
+  databaseTarget: DatabaseTarget;
   status: TestJobStatus;
   queuedAt: string;
   claimedAt?: string;

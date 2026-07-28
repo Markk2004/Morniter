@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import { TestRunnerWorkspace } from "@/components/test-runner/TestRunnerWorkspace";
 
 afterEach(() => {
@@ -34,6 +34,10 @@ describe("TestRunnerWorkspace", () => {
                         description: "Run Cypress suite",
                         commandPreview: "npx cypress run",
                         timeoutSeconds: 300,
+                        category: "automated",
+                        srsIds: [],
+                        risk: "safe",
+                        databaseTarget: "none",
                       },
                     ],
                   },
@@ -55,11 +59,14 @@ describe("TestRunnerWorkspace", () => {
     );
   });
 
-  it("renders workspace cards, presence, and disabled run button when execution is locked", async () => {
+  it("renders workspace dropdowns, presence, and disabled run button when execution is locked", async () => {
     render(<TestRunnerWorkspace />);
 
     expect(await screen.findByText(/Local Agent Online/i)).toBeInTheDocument();
-    expect(screen.getByText(/Cypress E2E Suite/i)).toBeInTheDocument();
+    expect(screen.getByLabelText("Project")).toHaveValue("student-tracking");
+
+    fireEvent.change(screen.getByLabelText("Test command"), { target: { value: "cypress-e2e" } });
+    expect(screen.getByText(/Run Cypress suite/i)).toBeInTheDocument();
 
     const runBtn = screen.getByRole("button", { name: /Unlock Execution Required/i });
     expect(runBtn).toBeDisabled();

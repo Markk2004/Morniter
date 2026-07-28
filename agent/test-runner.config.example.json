@@ -15,7 +15,8 @@
           "command": "node",
           "args": ["--version"],
           "cwd": "E:\\project-monitor",
-          "timeoutSeconds": 30
+          "timeoutSeconds": 30,
+          "metadata": { "category": "automated", "srsIds": [], "risk": "safe", "databaseTarget": "none" }
         }
       ]
     },
@@ -30,7 +31,8 @@
           "command": "npx",
           "args": ["cypress", "run"],
           "cwd": "E:\\ProjectSTS\\frontend",
-          "timeoutSeconds": 300
+          "timeoutSeconds": 300,
+          "metadata": { "category": "automated", "srsIds": [], "risk": "safe", "databaseTarget": "none" }
         },
         {
           "id": "backend-unit",
@@ -39,7 +41,8 @@
           "command": "npm",
           "args": ["run", "test"],
           "cwd": "E:\\ProjectSTS\\backend",
-          "timeoutSeconds": 600
+          "timeoutSeconds": 600,
+          "metadata": { "category": "automated", "srsIds": [], "risk": "safe", "databaseTarget": "none" }
         },
         {
           "id": "backend-e2e-aiven",
@@ -53,7 +56,8 @@
             "TEST_DATABASE_NAME": "defaultdb",
             "DATABASE_URL": "${STS_TEST_DATABASE_URL}"
           },
-          "timeoutSeconds": 900
+          "timeoutSeconds": 900,
+          "metadata": { "category": "execution", "srsIds": [], "risk": "mutating", "databaseTarget": "defaultdb" }
         },
         {
           "id": "backend-lint",
@@ -62,7 +66,8 @@
           "command": "npm",
           "args": ["run", "lint:check"],
           "cwd": "E:\\ProjectSTS\\backend",
-          "timeoutSeconds": 300
+          "timeoutSeconds": 300,
+          "metadata": { "category": "automated", "srsIds": [], "risk": "safe", "databaseTarget": "none" }
         },
         {
           "id": "backend-build",
@@ -71,7 +76,8 @@
           "command": "npm",
           "args": ["run", "build"],
           "cwd": "E:\\ProjectSTS\\backend",
-          "timeoutSeconds": 600
+          "timeoutSeconds": 600,
+          "metadata": { "category": "automated", "srsIds": [], "risk": "safe", "databaseTarget": "none" }
         },
         {
           "id": "frontend-typecheck",
@@ -80,7 +86,8 @@
           "command": "npm",
           "args": ["run", "typecheck"],
           "cwd": "E:\\ProjectSTS\\frontend",
-          "timeoutSeconds": 300
+          "timeoutSeconds": 300,
+          "metadata": { "category": "automated", "srsIds": [], "risk": "safe", "databaseTarget": "none" }
         },
         {
           "id": "frontend-lint",
@@ -89,7 +96,8 @@
           "command": "npm",
           "args": ["run", "lint"],
           "cwd": "E:\\ProjectSTS\\frontend",
-          "timeoutSeconds": 300
+          "timeoutSeconds": 300,
+          "metadata": { "category": "automated", "srsIds": [], "risk": "safe", "databaseTarget": "none" }
         },
         {
           "id": "frontend-build",
@@ -98,7 +106,195 @@
           "command": "npm",
           "args": ["run", "build"],
           "cwd": "E:\\ProjectSTS\\frontend",
-          "timeoutSeconds": 600
+          "timeoutSeconds": 600,
+          "metadata": { "category": "automated", "srsIds": [], "risk": "safe", "databaseTarget": "none" }
+        },
+        {
+          "id": "execution-fr-auth-001",
+          "name": "Execution FR-AUTH-001",
+          "description": "Authentication login group against Aiven defaultdb",
+          "command": "npx",
+          "args": ["jest", "--config", "src/test/jest-e2e.json", "src/test/e2e/auth.e2e-spec.ts", "--runInBand", "--testNamePattern", "POST /auth/login.*FR-AUTH-001"],
+          "cwd": "E:\\ProjectSTS\\backend",
+          "env": { "NODE_ENV": "test", "TEST_DATABASE_NAME": "defaultdb", "DATABASE_URL": "${STS_TEST_DATABASE_URL}" },
+          "timeoutSeconds": 900,
+          "metadata": { "category": "execution", "srsIds": ["FR-AUTH-001"], "risk": "mutating", "databaseTarget": "defaultdb" }
+        },
+        {
+          "id": "execution-fr-auth-002",
+          "name": "Execution FR-AUTH-002",
+          "description": "Authentication change-password group against Aiven defaultdb",
+          "command": "npx",
+          "args": ["jest", "--config", "src/test/jest-e2e.json", "src/test/e2e/auth.e2e-spec.ts", "--runInBand", "--testNamePattern", "POST /auth/change-password.*FR-AUTH-002"],
+          "cwd": "E:\\ProjectSTS\\backend",
+          "env": { "NODE_ENV": "test", "TEST_DATABASE_NAME": "defaultdb", "DATABASE_URL": "${STS_TEST_DATABASE_URL}" },
+          "timeoutSeconds": 900,
+          "metadata": { "category": "execution", "srsIds": ["FR-AUTH-002"], "risk": "mutating", "databaseTarget": "defaultdb" }
+        },
+        {
+          "id": "execution-fr-auth-003",
+          "name": "Execution FR-AUTH-003",
+          "description": "Authentication reset-password group against Aiven defaultdb",
+          "command": "npx",
+          "args": ["jest", "--config", "src/test/jest-e2e.json", "src/test/e2e/auth.e2e-spec.ts", "--runInBand", "--testNamePattern", "POST /auth/reset-password.*FR-AUTH-003"],
+          "cwd": "E:\\ProjectSTS\\backend",
+          "env": { "NODE_ENV": "test", "TEST_DATABASE_NAME": "defaultdb", "DATABASE_URL": "${STS_TEST_DATABASE_URL}" },
+          "timeoutSeconds": 900,
+          "metadata": { "category": "execution", "srsIds": ["FR-AUTH-003"], "risk": "mutating", "databaseTarget": "defaultdb" }
+        },
+        {
+          "id": "execution-br-att-001",
+          "name": "Execution BR-001",
+          "description": "Attendance daily check-in group against Aiven defaultdb",
+          "command": "npx",
+          "args": ["jest", "--config", "src/test/jest-e2e.json", "src/test/e2e/attendance.e2e-spec.ts", "--runInBand", "--testNamePattern", "BR-001"],
+          "cwd": "E:\\ProjectSTS\\backend",
+          "env": { "NODE_ENV": "test", "TEST_DATABASE_NAME": "defaultdb", "DATABASE_URL": "${STS_TEST_DATABASE_URL}" },
+          "timeoutSeconds": 900,
+          "metadata": { "category": "execution", "srsIds": ["BR-001"], "risk": "mutating", "databaseTarget": "defaultdb" }
+        },
+        {
+          "id": "execution-br-att-002-003",
+          "name": "Execution BR-002 BR-003",
+          "description": "Attendance absence escalation group against Aiven defaultdb",
+          "command": "npx",
+          "args": ["jest", "--config", "src/test/jest-e2e.json", "src/test/e2e/attendance.e2e-spec.ts", "--runInBand", "--testNamePattern", "BR-002, BR-003"],
+          "cwd": "E:\\ProjectSTS\\backend",
+          "env": { "NODE_ENV": "test", "TEST_DATABASE_NAME": "defaultdb", "DATABASE_URL": "${STS_TEST_DATABASE_URL}" },
+          "timeoutSeconds": 900,
+          "metadata": { "category": "execution", "srsIds": ["BR-002", "BR-003"], "risk": "mutating", "databaseTarget": "defaultdb" }
+        },
+        {
+          "id": "execution-fr-att-002",
+          "name": "Execution FR-ATT-002",
+          "description": "Attendance correction group against Aiven defaultdb",
+          "command": "npx",
+          "args": ["jest", "--config", "src/test/jest-e2e.json", "src/test/e2e/attendance.e2e-spec.ts", "--runInBand", "--testNamePattern", "FR-ATT-002"],
+          "cwd": "E:\\ProjectSTS\\backend",
+          "env": { "NODE_ENV": "test", "TEST_DATABASE_NAME": "defaultdb", "DATABASE_URL": "${STS_TEST_DATABASE_URL}" },
+          "timeoutSeconds": 900,
+          "metadata": { "category": "execution", "srsIds": ["FR-ATT-002"], "risk": "mutating", "databaseTarget": "defaultdb" }
+        },
+        {
+          "id": "execution-fr-case-002-br-004",
+          "name": "Execution FR-CASE-002 BR-004",
+          "description": "Case tracking group against Aiven defaultdb",
+          "command": "npx",
+          "args": ["jest", "--config", "src/test/jest-e2e.json", "src/test/e2e/tracking.e2e-spec.ts", "--runInBand", "--testNamePattern", "Tracking \\(e2e\\).*FR-CASE-002, BR-004"],
+          "cwd": "E:\\ProjectSTS\\backend",
+          "env": { "NODE_ENV": "test", "TEST_DATABASE_NAME": "defaultdb", "DATABASE_URL": "${STS_TEST_DATABASE_URL}" },
+          "timeoutSeconds": 900,
+          "metadata": { "category": "execution", "srsIds": ["FR-CASE-002", "BR-004"], "risk": "mutating", "databaseTarget": "defaultdb" }
+        },
+        {
+          "id": "execution-br-case-005",
+          "name": "Execution BR-005",
+          "description": "Case severity group against Aiven defaultdb",
+          "command": "npx",
+          "args": ["jest", "--config", "src/test/jest-e2e.json", "src/test/e2e/cases.e2e-spec.ts", "--runInBand", "--testNamePattern", "BR-005"],
+          "cwd": "E:\\ProjectSTS\\backend",
+          "env": { "NODE_ENV": "test", "TEST_DATABASE_NAME": "defaultdb", "DATABASE_URL": "${STS_TEST_DATABASE_URL}" },
+          "timeoutSeconds": 900,
+          "metadata": { "category": "execution", "srsIds": ["BR-005"], "risk": "mutating", "databaseTarget": "defaultdb" }
+        },
+        {
+          "id": "execution-br-case-006",
+          "name": "Execution BR-006",
+          "description": "Case close group against Aiven defaultdb",
+          "command": "npx",
+          "args": ["jest", "--config", "src/test/jest-e2e.json", "src/test/e2e/cases.e2e-spec.ts", "--runInBand", "--testNamePattern", "BR-006"],
+          "cwd": "E:\\ProjectSTS\\backend",
+          "env": { "NODE_ENV": "test", "TEST_DATABASE_NAME": "defaultdb", "DATABASE_URL": "${STS_TEST_DATABASE_URL}" },
+          "timeoutSeconds": 900,
+          "metadata": { "category": "execution", "srsIds": ["BR-006"], "risk": "mutating", "databaseTarget": "defaultdb" }
+        },
+        {
+          "id": "execution-br-case-007",
+          "name": "Execution BR-007",
+          "description": "Case assistance group against Aiven defaultdb",
+          "command": "npx",
+          "args": ["jest", "--config", "src/test/jest-e2e.json", "src/test/e2e/cases.e2e-spec.ts", "--runInBand", "--testNamePattern", "BR-007"],
+          "cwd": "E:\\ProjectSTS\\backend",
+          "env": { "NODE_ENV": "test", "TEST_DATABASE_NAME": "defaultdb", "DATABASE_URL": "${STS_TEST_DATABASE_URL}" },
+          "timeoutSeconds": 900,
+          "metadata": { "category": "execution", "srsIds": ["BR-007"], "risk": "mutating", "databaseTarget": "defaultdb" }
+        },
+        {
+          "id": "execution-fr-stu-005-010-br-011",
+          "name": "Execution FR-STU-005 to FR-STU-010 BR-011",
+          "description": "Student import group against Aiven defaultdb",
+          "command": "npx",
+          "args": ["jest", "--config", "src/test/jest-e2e.json", "src/test/e2e/import.e2e-spec.ts", "--runInBand", "--testNamePattern", "Student Import \\(e2e\\).*FR-STU-005~010, BR-011"],
+          "cwd": "E:\\ProjectSTS\\backend",
+          "env": { "NODE_ENV": "test", "TEST_DATABASE_NAME": "defaultdb", "DATABASE_URL": "${STS_TEST_DATABASE_URL}" },
+          "timeoutSeconds": 900,
+          "metadata": { "category": "execution", "srsIds": ["FR-STU-005", "FR-STU-006", "FR-STU-007", "FR-STU-008", "FR-STU-009", "FR-STU-010", "BR-011"], "risk": "mutating", "databaseTarget": "defaultdb" }
+        },
+        {
+          "id": "execution-fr-dbr-002-003",
+          "name": "Execution FR-DBR-002 FR-DBR-003",
+          "description": "Reports group against Aiven defaultdb",
+          "command": "npx",
+          "args": ["jest", "--config", "src/test/jest-e2e.json", "src/test/e2e/reports.e2e-spec.ts", "--runInBand", "--testNamePattern", "Reports \\(e2e\\).*FR-DBR-002~003"],
+          "cwd": "E:\\ProjectSTS\\backend",
+          "env": { "NODE_ENV": "test", "TEST_DATABASE_NAME": "defaultdb", "DATABASE_URL": "${STS_TEST_DATABASE_URL}" },
+          "timeoutSeconds": 900,
+          "metadata": { "category": "execution", "srsIds": ["FR-DBR-002", "FR-DBR-003"], "risk": "mutating", "databaseTarget": "defaultdb" }
+        },
+        {
+          "id": "execution-fr-plat-003",
+          "name": "Execution FR-PLAT-003",
+          "description": "Platform administration group against Aiven defaultdb",
+          "command": "npx",
+          "args": ["jest", "--config", "src/test/jest-e2e.json", "src/test/e2e/platform-admin-manager.e2e-spec.ts", "--runInBand", "--testNamePattern", "Platform Admin Manager \\(e2e\\).*FR-PLAT-003"],
+          "cwd": "E:\\ProjectSTS\\backend",
+          "env": { "NODE_ENV": "test", "TEST_DATABASE_NAME": "defaultdb", "DATABASE_URL": "${STS_TEST_DATABASE_URL}" },
+          "timeoutSeconds": 900,
+          "metadata": { "category": "execution", "srsIds": ["FR-PLAT-003"], "risk": "mutating", "databaseTarget": "defaultdb" }
+        },
+        {
+          "id": "uat-auth-readonly",
+          "name": "UAT Authentication Read-only",
+          "description": "Read-only deployment health and login smoke checks",
+          "command": "npm",
+          "args": ["run", "test:uat"],
+          "cwd": "E:\\ProjectSTS\\frontend",
+          "env": { "STS_UAT_BASE_URL": "${STS_UAT_BASE_URL}", "STS_UAT_USERNAME": "${STS_UAT_USERNAME}", "STS_UAT_PASSWORD": "${STS_UAT_PASSWORD}", "STS_UAT_GROUP": "auth" },
+          "timeoutSeconds": 300,
+          "metadata": { "category": "uat", "srsIds": ["FR-AUTH-001"], "risk": "read-only", "databaseTarget": "none" }
+        },
+        {
+          "id": "uat-students-readonly",
+          "name": "UAT Students Read-only",
+          "description": "Read-only deployment student aggregate smoke check",
+          "command": "npm",
+          "args": ["run", "test:uat"],
+          "cwd": "E:\\ProjectSTS\\frontend",
+          "env": { "STS_UAT_BASE_URL": "${STS_UAT_BASE_URL}", "STS_UAT_USERNAME": "${STS_UAT_USERNAME}", "STS_UAT_PASSWORD": "${STS_UAT_PASSWORD}", "STS_UAT_GROUP": "students" },
+          "timeoutSeconds": 300,
+          "metadata": { "category": "uat", "srsIds": ["FR-STU-001"], "risk": "read-only", "databaseTarget": "none" }
+        },
+        {
+          "id": "uat-dashboard-readonly",
+          "name": "UAT Dashboard Read-only",
+          "description": "Read-only deployment province dashboard smoke check",
+          "command": "npm",
+          "args": ["run", "test:uat"],
+          "cwd": "E:\\ProjectSTS\\frontend",
+          "env": { "STS_UAT_BASE_URL": "${STS_UAT_BASE_URL}", "STS_UAT_USERNAME": "${STS_UAT_USERNAME}", "STS_UAT_PASSWORD": "${STS_UAT_PASSWORD}", "STS_UAT_GROUP": "dashboard" },
+          "timeoutSeconds": 300,
+          "metadata": { "category": "uat", "srsIds": ["FR-DBR-001"], "risk": "read-only", "databaseTarget": "none" }
+        },
+        {
+          "id": "uat-reports-readonly",
+          "name": "UAT Reports Read-only",
+          "description": "Read-only deployment province reports smoke check",
+          "command": "npm",
+          "args": ["run", "test:uat"],
+          "cwd": "E:\\ProjectSTS\\frontend",
+          "env": { "STS_UAT_BASE_URL": "${STS_UAT_BASE_URL}", "STS_UAT_USERNAME": "${STS_UAT_USERNAME}", "STS_UAT_PASSWORD": "${STS_UAT_PASSWORD}", "STS_UAT_GROUP": "reports" },
+          "timeoutSeconds": 300,
+          "metadata": { "category": "uat", "srsIds": ["FR-DBR-002"], "risk": "read-only", "databaseTarget": "none" }
         }
       ]
     }

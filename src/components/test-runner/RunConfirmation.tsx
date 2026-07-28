@@ -49,6 +49,20 @@ export function RunConfirmation({
             <span className="text-cyan-400 font-semibold">{preset.name}</span>
           </div>
           <div className="flex justify-between">
+            <span className="text-slate-400">Type:</span>
+            <span className="text-slate-200">{preset.category}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-slate-400">SRS / BR:</span>
+            <span className="text-slate-200">{preset.srsIds.length ? preset.srsIds.join(", ") : "General"}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-slate-400">Target:</span>
+            <span className="text-slate-200">
+              {preset.category === "execution" ? "Aiven defaultdb" : preset.category === "uat" ? "Read-only deployment" : "No database"}
+            </span>
+          </div>
+          <div className="flex justify-between">
             <span className="text-slate-400">Command:</span>
             <span className="text-emerald-400">{preset.commandPreview}</span>
           </div>

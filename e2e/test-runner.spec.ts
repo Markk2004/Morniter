@@ -18,6 +18,7 @@ async function makeValidSessionToken(): Promise<string> {
 test.describe("Test Runner Console E2E", () => {
   test("displays Test Runner workspace and unlocks execution session", async ({ page }) => {
     const token = await makeValidSessionToken();
+    await page.context().clearCookies();
     await page.context().addCookies([
       {
         name: "project_monitor_session",
@@ -26,6 +27,9 @@ test.describe("Test Runner Console E2E", () => {
         path: "/",
       },
     ]);
+    await page.addInitScript(() => {
+      window.sessionStorage.setItem("project_monitor_tab_session", "e2e-test-runner");
+    });
 
     // Mock catalog route
     await page.route("**/api/test-runner/catalog*", async (route) => {
@@ -97,7 +101,9 @@ test.describe("Test Runner Console E2E", () => {
     // Mock auth route
     await page.route("**/api/test-runner/auth*", async (route) => {
       await route.fulfill({
-        status: 204,
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ success: true }),
         headers: {
           "set-cookie": "project_monitor_execute=mock_exec; Path=/; HttpOnly; SameSite=Strict",
         },
@@ -109,13 +115,13 @@ test.describe("Test Runner Console E2E", () => {
     // Verify top navigation links
     await expect(page.getByRole("link", { name: "Tests" })).toHaveAttribute("aria-current", "page");
     await expect(page.getByText(/Local Agent Online/i)).toBeVisible();
-    await expect(page.getByText(/Cypress E2E Suite/i)).toBeVisible();
-    await expect(page.getByText(/npx cypress run/i)).toBeVisible();
+    await page.getByLabel("Test command").selectOption("cypress-e2e");
+    await expect(page.getByRole("heading", { name: "Cypress E2E Suite" })).toBeVisible();
 
     // Verify unlock execution card
     await expect(page.getByText(/Execution Lock Active/i)).toBeVisible();
     await page.getByPlaceholder(/Execution password/i).fill("secret-pass");
-    await page.getByRole("button", { name: "Unlock Execution", exact: true }).click();
+    await page.getByRole("button", { name: "Unlock Execution", exact: true }).click({ noWaitAfter: true });
 
     // Click navigation to Logs and back to Tests
     await page.getByRole("link", { name: "Logs" }).click();

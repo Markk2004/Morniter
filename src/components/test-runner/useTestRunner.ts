@@ -7,7 +7,11 @@ import type {
   TestJob,
   TestLogLine,
 } from "@/lib/test-runner/types";
-import { isActiveStatus } from "@/lib/test-runner/lifecycle";
+import { isActiveStatus, isTerminalStatus } from "@/lib/test-runner/lifecycle";
+import { fetchNoStore } from "@/lib/http/fetch-no-store";
+
+const ACTIVE_POLL_MS = 1_000;
+const IDLE_POLL_MS = 5_000;
 
 export function useTestRunner() {
   const [catalog, setCatalog] = useState<TestProjectCatalog | null>(null);
@@ -25,17 +29,19 @@ export function useTestRunner() {
 
   const isPollingRef = useRef(false);
   const activeJobIdRef = useRef<string | null>(null);
+  const activeJobRef = useRef<TestJob | null>(null);
   const nextSeqRef = useRef(0);
 
   useEffect(() => {
     activeJobIdRef.current = activeJob?.id || null;
+    activeJobRef.current = activeJob;
     nextSeqRef.current = nextSequence;
   }, [activeJob, nextSequence]);
 
   // Check execution unlock status
   const checkUnlockStatus = useCallback(async () => {
     try {
-      const res = await fetch("/api/test-runner/lock");
+      const res = await fetchNoStore("/api/test-runner/lock");
       if (res.ok) {
         const data = await res.json();
         setIsUnlocked(Boolean(data.unlocked));
@@ -46,15 +52,21 @@ export function useTestRunner() {
   }, []);
 
   // Fetch catalog & agent presence
-  const fetchCatalogAndPresence = useCallback(async () => {
+  const fetchCatalogAndPresence = useCallback(async (signal?: AbortSignal) => {
     try {
-      const res = await fetch("/api/test-runner/catalog");
+      const res = await fetchNoStore("/api/test-runner/catalog", { signal });
       if (res.ok) {
         const data = await res.json();
-        setCatalog(data.catalog ?? null);
-        setPresence(data.presence ?? null);
-        if (data.activeJob) {
-          setActiveJob(data.activeJob);
+        setCatalog((prev) =>
+          JSON.stringify(prev) === JSON.stringify(data.catalog) ? prev : data.catalog ?? null,
+        );
+        setPresence((prev) =>
+          JSON.stringify(prev) === JSON.stringify(data.presence) ? prev : data.presence ?? null,
+        );
+        if (data.activeJob !== undefined) {
+          setActiveJob((prev) =>
+            JSON.stringify(prev) === JSON.stringify(data.activeJob) ? prev : data.activeJob ?? null,
+          );
         }
       }
     } catch {
@@ -67,7 +79,7 @@ export function useTestRunner() {
   // Fetch job list history
   const fetchHistory = useCallback(async () => {
     try {
-      const res = await fetch("/api/test-runner/jobs");
+      const res = await fetchNoStore("/api/test-runner/jobs");
       if (res.ok) {
         const data = await res.json();
         setHistory(data.jobs ?? []);
@@ -78,28 +90,40 @@ export function useTestRunner() {
   }, []);
 
   // Poll current active job and log lines
-  const pollActiveJobAndLogs = useCallback(async () => {
+  const pollActiveJobAndLogs = useCallback(async (signal?: AbortSignal) => {
     if (isPollingRef.current) return;
     isPollingRef.current = true;
 
     try {
+      await fetchCatalogAndPresence(signal);
       const currentId = activeJobIdRef.current;
-      if (!currentId) {
-        await fetchCatalogAndPresence();
-        await fetchHistory();
+      if (!currentId || !activeJobRef.current || !isActiveStatus(activeJobRef.current.status)) {
         return;
       }
 
       const seq = nextSeqRef.current;
-      const res = await fetch(`/api/test-runner/jobs/${currentId}?afterSequence=${seq - 1}&limit=200`);
+      const res = await fetchNoStore(
+        `/api/test-runner/jobs/${currentId}?afterSequence=${seq - 1}&limit=200`,
+        { signal },
+      );
       if (res.ok) {
         const data = await res.json();
-        if (data.job) {
-          setActiveJob(data.job);
+        if (data.job !== undefined) {
+          const previousStatus = activeJobRef.current?.status;
+          setActiveJob((prev) =>
+            JSON.stringify(prev) === JSON.stringify(data.job) ? prev : data.job ?? null,
+          );
+          if (previousStatus && isActiveStatus(previousStatus) && isTerminalStatus(data.job.status)) {
+            await fetchHistory();
+          }
         }
         if (data.lines && data.lines.length > 0) {
           setTerminalLines((prev) => {
-            const combined = [...prev, ...data.lines];
+            const known = new Set(prev.map((line) => line.sequence));
+            const incoming = data.lines.filter(
+              (line: TestLogLine) => !known.has(line.sequence),
+            );
+            const combined = [...prev, ...incoming];
             return combined.slice(-1000);
           });
         }
@@ -107,34 +131,68 @@ export function useTestRunner() {
           setNextSequence(data.nextSequence);
         }
       }
-    } catch {
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
       // Network error, keep existing state
     } finally {
       isPollingRef.current = false;
     }
   }, [fetchCatalogAndPresence, fetchHistory]);
 
-  // Main polling interval (2 seconds)
   useEffect(() => {
-    let active = true;
+    let disposed = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let controller: AbortController | null = null;
+
+    const clearScheduledPoll = () => {
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
+    };
+
+    const schedulePoll = (delay = 0) => {
+      if (disposed || document.visibilityState !== "visible" || timer) return;
+      timer = setTimeout(async () => {
+        timer = null;
+        if (disposed || document.visibilityState !== "visible") return;
+        controller = new AbortController();
+        await pollActiveJobAndLogs(controller.signal);
+        controller = null;
+        if (!disposed && document.visibilityState === "visible") {
+          const delayMs = activeJobRef.current && isActiveStatus(activeJobRef.current.status)
+            ? ACTIVE_POLL_MS
+            : IDLE_POLL_MS;
+          schedulePoll(delayMs);
+        }
+      }, delay);
+    };
 
     (async () => {
       await checkUnlockStatus();
-      if (!active) return;
+      if (disposed) return;
       await fetchCatalogAndPresence();
-      if (!active) return;
+      if (disposed) return;
       await fetchHistory();
+      schedulePoll();
     })();
 
-    const interval = setInterval(() => {
-      if (document.visibilityState === "visible") {
-        pollActiveJobAndLogs();
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        clearScheduledPoll();
+        controller?.abort();
+        return;
       }
-    }, 2000);
+      schedulePoll();
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
-      active = false;
-      clearInterval(interval);
+      disposed = true;
+      clearScheduledPoll();
+      controller?.abort();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [checkUnlockStatus, fetchCatalogAndPresence, fetchHistory, pollActiveJobAndLogs]);
 
@@ -146,7 +204,7 @@ export function useTestRunner() {
     const idempotencyKey = `run-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
 
     try {
-      const res = await fetch("/api/test-runner/jobs", {
+      const res = await fetchNoStore("/api/test-runner/jobs", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -185,7 +243,7 @@ export function useTestRunner() {
     setActionError(null);
 
     try {
-      const res = await fetch(`/api/test-runner/jobs/${jobId}/cancel`, {
+      const res = await fetchNoStore(`/api/test-runner/jobs/${jobId}/cancel`, {
         method: "POST",
       });
       const data = await res.json();
@@ -211,7 +269,7 @@ export function useTestRunner() {
     setActionError(null);
 
     try {
-      const res = await fetch("/api/test-runner/auth", {
+      const res = await fetchNoStore("/api/test-runner/auth", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password }),

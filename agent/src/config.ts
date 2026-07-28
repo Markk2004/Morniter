@@ -4,6 +4,26 @@ import { z } from "zod";
 import type { AgentConfig, ResolvedPreset } from "./types.js";
 
 const ID_REGEX = /^[a-z0-9][a-z0-9-]{0,63}$/;
+const SRS_ID_REGEX = /^(?:FR|BR|NFR)-[A-Z0-9]+(?:-[A-Z0-9]+)*$/i;
+
+export const TestPresetMetadataSchema = z
+  .object({
+    category: z.enum(["automated", "execution", "uat"]),
+    srsIds: z.array(z.string().regex(SRS_ID_REGEX, "SRS/BR ID must start with FR-, BR- or NFR-")),
+    risk: z.enum(["safe", "mutating", "read-only"]),
+    databaseTarget: z.enum(["none", "defaultdb", "production"]),
+  })
+  .superRefine((metadata, ctx) => {
+    if (metadata.category === "execution" && (metadata.risk !== "mutating" || metadata.databaseTarget !== "defaultdb")) {
+      ctx.addIssue({ code: "custom", message: "execution presets must be mutating and target defaultdb" });
+    }
+    if (metadata.category === "uat" && (metadata.risk !== "read-only" || metadata.databaseTarget !== "none")) {
+      ctx.addIssue({ code: "custom", message: "uat presets must be read-only and have no database target" });
+    }
+    if (metadata.databaseTarget === "production" && metadata.risk === "mutating") {
+      ctx.addIssue({ code: "custom", message: "mutating presets cannot target production" });
+    }
+  });
 
 export const AgentPresetSchema = z.object({
   id: z.string().regex(ID_REGEX),
@@ -16,6 +36,7 @@ export const AgentPresetSchema = z.object({
   }),
   env: z.record(z.string(), z.string()).default({}),
   timeoutSeconds: z.number().int().min(1).max(1800).default(300),
+  metadata: TestPresetMetadataSchema,
 });
 
 export const AgentProjectSchema = z.object({
@@ -96,6 +117,7 @@ export function resolvePreset(
     cwd: preset.cwd,
     env: expandPresetEnvironment(preset.env ?? {}),
     timeoutSeconds: preset.timeoutSeconds ?? 300,
+    metadata: preset.metadata,
   };
 }
 
@@ -112,6 +134,10 @@ export function buildCatalogFromConfig(config: AgentConfig): import("./types.js"
         description: preset.description,
         commandPreview: `${preset.command} ${(preset.args || []).join(" ")}`.trim(),
         timeoutSeconds: preset.timeoutSeconds ?? 300,
+        category: preset.metadata.category,
+        srsIds: [...preset.metadata.srsIds],
+        risk: preset.metadata.risk,
+        databaseTarget: preset.metadata.databaseTarget,
       })),
     })),
   };

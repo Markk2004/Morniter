@@ -4,6 +4,10 @@ export type { TestJobStatus };
 
 export type TestFramework = "jest" | "cypress" | "vitest" | "unknown";
 
+export type TestCategory = "automated" | "execution" | "uat";
+export type TestRisk = "safe" | "mutating" | "read-only";
+export type DatabaseTarget = "none" | "defaultdb" | "production";
+
 export interface TestProgress {
   framework: TestFramework;
   completed: number | null;
@@ -28,6 +32,10 @@ export interface TestPreset {
   description: string;
   commandPreview: string;
   timeoutSeconds: number;
+  category: TestCategory;
+  srsIds: string[];
+  risk: TestRisk;
+  databaseTarget: DatabaseTarget;
 }
 
 export interface TestProject {
@@ -44,11 +52,16 @@ export interface TestProjectCatalog {
 
 export interface TestJob {
   id: string;
+  requesterLabel: string;
   idempotencyKey: string;
   agentId: string;
   projectId: string;
   presetId: string;
   presetName: string;
+  category: TestCategory;
+  srsIds: string[];
+  risk: TestRisk;
+  databaseTarget: DatabaseTarget;
   status: TestJobStatus;
   queuedAt: string;
   claimedAt?: string;

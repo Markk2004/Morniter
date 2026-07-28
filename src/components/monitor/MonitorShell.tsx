@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { TAB_SESSION_STORAGE_KEY } from "@/lib/auth/tab-session";
+import BrandLogo from "@/components/BrandLogo";
 
 interface MonitorShellProps {
   displayName?: string;
@@ -35,9 +36,7 @@ export function MonitorShell({ displayName = "Morniter Operator", children }: Mo
       <header className="sticky top-0 z-40 border-b border-slate-800 bg-slate-950/80 backdrop-blur-md px-4 lg:px-8 py-3 flex items-center justify-between">
         <div className="flex items-center space-x-6">
           <div className="flex items-center space-x-3">
-            <div className="h-8 w-8 rounded-lg bg-gradient-to-tr from-cyan-500 to-indigo-500 flex items-center justify-center font-bold text-slate-950 text-sm shadow-md shadow-cyan-500/20">
-              M
-            </div>
+            <BrandLogo size="sm" />
             <span className="font-bold text-lg tracking-tight bg-gradient-to-r from-slate-100 to-slate-400 bg-clip-text text-transparent">
               Morniter
             </span>
