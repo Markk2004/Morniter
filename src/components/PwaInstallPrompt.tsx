@@ -74,7 +74,7 @@ export default function PwaInstallPrompt() {
       className="fixed bottom-4 right-4 z-50 flex max-w-sm items-center gap-3 rounded-xl border border-cyan-500/30 bg-slate-900 px-4 py-3 text-slate-100 shadow-xl shadow-cyan-950/30"
     >
       <p className="text-xs leading-5 text-slate-300">
-        Open Morniter as a desktop app.
+        Open Monitor as a desktop app.
       </p>
       <button
         type="button"

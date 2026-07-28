@@ -2,9 +2,9 @@
 
 > **For agentic workers:** Implement this plan task-by-task with a test checkpoint after each task. Do not run Git commands automatically; the workspace owner handles Git operations manually.
 
-**Goal:** ให้ Morniter แสดงประเภท automated testing, execution test และ UAT พร้อมเลือกกลุ่ม SRS/BR ของ ProjectSTS แล้วส่งงานไปยัง Windows Local Agent แบบ allowlist เท่านั้น
+**Goal:** ให้ Monitor แสดงประเภท automated testing, execution test และ UAT พร้อมเลือกกลุ่ม SRS/BR ของ ProjectSTS แล้วส่งงานไปยัง Windows Local Agent แบบ allowlist เท่านั้น
 
-**Architecture:** ProjectSTS จะประกาศ manifest ของ test group ที่มี SRS/BR IDs, Jest file และ test-name pattern ส่วน Local Agent จะเก็บ preset ที่ allowlist ไว้และส่ง catalog metadata ที่ไม่รวม secret ให้ Morniter browser เลือก category/group ได้ Browser ส่งเพียง `projectId` กับ `presetId`; agent เป็นผู้ประกอบคำสั่งและ environment จาก config local โดย execution ใช้ Aiven `defaultdb` และ UAT ใช้ deployment URL แบบ read-only
+**Architecture:** ProjectSTS จะประกาศ manifest ของ test group ที่มี SRS/BR IDs, Jest file และ test-name pattern ส่วน Local Agent จะเก็บ preset ที่ allowlist ไว้และส่ง catalog metadata ที่ไม่รวม secret ให้ Monitor browser เลือก category/group ได้ Browser ส่งเพียง `projectId` กับ `presetId`; agent เป็นผู้ประกอบคำสั่งและ environment จาก config local โดย execution ใช้ Aiven `defaultdb` และ UAT ใช้ deployment URL แบบ read-only
 
 **Tech Stack:** Next.js 16 App Router, React 19, TypeScript, Zod, Upstash Redis, Node.js Local Agent, Jest/ts-jest, Node test runner และ ProjectSTS PostgreSQL `defaultdb`
 
@@ -326,7 +326,7 @@ Document:
 - why UAT is read-only and uses deployment variables
 - how to refresh `defaultdb` manually
 - how to start/restart the Local Agent after environment changes
-- how to select category and group in Morniter
+- how to select category and group in Monitor
 
 Run the verification sequence:
 
@@ -344,7 +344,7 @@ npx jest --runInBand src/test/helpers/test-db-guard.spec.ts
 npm run test-agent
 ```
 
-Then manually run one preset from each category through Morniter:
+Then manually run one preset from each category through Monitor:
 
 1. one automated preset such as backend unit
 2. one execution group such as `BR-006` against `defaultdb`

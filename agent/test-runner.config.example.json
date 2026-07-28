@@ -1,16 +1,16 @@
 {
   "agentId": "windows-local-agent-1",
-  "serverUrl": "http://localhost:3000",
+  "serverUrl": "https://monitorsoftdeath.vercel.app",
   "agentToken": "change-me-to-a-secure-agent-token-with-at-least-32-characters-1234567890",
   "pollIntervalSeconds": 5,
   "projects": [
     {
-      "id": "morniter",
-      "name": "Morniter Local Agent",
+      "id": "monitor",
+      "name": "Monitor Local Agent",
       "presets": [
         {
           "id": "agent-smoke",
-          "name": "Morniter Agent Smoke",
+          "name": "Monitor Agent Smoke",
           "description": "Verify the Local Agent can launch Node and stream output",
           "command": "node",
           "args": ["--version"],

@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use the repository's task execution workflow to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** เปลี่ยน Diagnostic Terminal เป็น Test Runner ที่สั่ง preset test บน Windows Local Agent และแสดงผลผ่าน Morniter อย่างปลอดภัย
+**Goal:** เปลี่ยน Diagnostic Terminal เป็น Test Runner ที่สั่ง preset test บน Windows Local Agent และแสดงผลผ่าน Monitor อย่างปลอดภัย
 
 **Architecture:** Next.js APIs ตรวจ monitor/execute sessions แล้วเก็บ catalog, queue, jobs และ logs ใน Upstash Redis. Local Agent polling งานด้วย token แยก รัน `spawn` แบบไม่ใช้ shell จาก config local และส่ง log/result กลับ ส่วน React panel poll เฉพาะตอนมีงาน active.
 
@@ -131,7 +131,7 @@ expect(() => CreateJobSchema.parse({
 
 - [ ] **Step 1: สร้าง in-memory fake Redis tests สำหรับ queue limit 10, FIFO claim, final status, TTL calls และ cancel flag**
 
-- [ ] **Step 2: implement key helpers ภายใต้ prefix `morniter:test-runner:v1`**
+- [ ] **Step 2: implement key helpers ภายใต้ prefix `monitor:test-runner:v1`**
 
 - [ ] **Step 3: ใช้ Redis list สำหรับ queue, hashes/JSON values สำหรับ job, sorted set สำหรับ history และ list สำหรับ log chunks**
 

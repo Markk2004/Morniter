@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** ปิด blocker ที่ยังทำให้ Morniter ไม่พร้อมใช้งานจริง โดยทำให้ local agent รันคำสั่งบน Windows ได้เสถียร, test suite ไม่ timeout จากการเตรียมข้อมูลทดสอบ, lint ผ่าน, หน้า Logs และ Tests แยกหน้าที่ถูกต้อง และตรวจว่า Vercel provider ชี้ไปยังโปรเจกต์ `ststracking` จริง
+**Goal:** ปิด blocker ที่ยังทำให้ Monitor ไม่พร้อมใช้งานจริง โดยทำให้ local agent รันคำสั่งบน Windows ได้เสถียร, test suite ไม่ timeout จากการเตรียมข้อมูลทดสอบ, lint ผ่าน, หน้า Logs และ Tests แยกหน้าที่ถูกต้อง และตรวจว่า Vercel provider ชี้ไปยังโปรเจกต์ `ststracking` จริง
 
-**Architecture:** คงการรันคำสั่งไว้ที่ local agent ของผู้ใช้ ส่วน Morniter ทำหน้าที่สร้าง job, เก็บสถานะ, แสดงผล และกู้คืนสถานะเมื่อ agent หลุด การแก้รอบนี้ไม่แตะ repository หรือ runtime ของโปรเจกต์ที่ถูก monitor หน้า `/monitor` จะแสดง log อย่างเดียว และหน้า `/monitor/tests` จะใช้ workspace ใหม่สำหรับสั่ง test
+**Architecture:** คงการรันคำสั่งไว้ที่ local agent ของผู้ใช้ ส่วน Monitor ทำหน้าที่สร้าง job, เก็บสถานะ, แสดงผล และกู้คืนสถานะเมื่อ agent หลุด การแก้รอบนี้ไม่แตะ repository หรือ runtime ของโปรเจกต์ที่ถูก monitor หน้า `/monitor` จะแสดง log อย่างเดียว และหน้า `/monitor/tests` จะใช้ workspace ใหม่สำหรับสั่ง test
 
 **Tech Stack:** Next.js, React, TypeScript, Vitest, Playwright, bcrypt, Upstash Redis, cross-spawn, Vercel API, Render API, Aiven API
 
@@ -163,14 +163,14 @@ npx vitest run tests/components/TestRunnerWorkspace.test.tsx tests/components/Te
 - `src/lib/providers/vercel.ts`
 - `src/lib/monitor/aggregate.ts`
 - `src/app/api/monitor/route.ts`
-- Vercel Production Environment Variables ของโปรเจกต์ Morniter
+- Vercel Production Environment Variables ของโปรเจกต์ Monitor
 
 ### ขั้นที่ 5.1 ยืนยันว่า Vercel monitor ชี้ไป `ststracking`
 
-- [ ] ตรวจว่า `VERCEL_PROJECT_IDS` ใช้ mapping ของ project id ไปยัง `ststracking` ไม่ใช่ `morniter`
+- [ ] ตรวจว่า `VERCEL_PROJECT_IDS` ใช้ mapping ของ project id ไปยัง `ststracking` ไม่ใช่ `monitor`
 - [ ] ตรวจว่า `VERCEL_TEAM_ID` เป็น team เดียวกับ project `ststracking`
-- [ ] ตรวจว่า provider ส่ง `projectId` เป็น id ของ `ststracking` ไปยัง Vercel API และใช้ host ของ Morniter เฉพาะเป็น UI/API ของระบบ monitor
-- [ ] ตั้งค่าเดียวกันใน Vercel Production ของ Morniter โดยไม่เปิดเผยค่า token
+- [ ] ตรวจว่า provider ส่ง `projectId` เป็น id ของ `ststracking` ไปยัง Vercel API และใช้ host ของ Monitor เฉพาะเป็น UI/API ของระบบ monitor
+- [ ] ตั้งค่าเดียวกันใน Vercel Production ของ Monitor โดยไม่เปิดเผยค่า token
 - [ ] Redeploy หลังแก้ environment และตรวจ deployment ล่าสุดที่รันด้วยค่าใหม่
 - [ ] ตรวจว่า snapshot cache ประมาณ 30 วินาทีไม่ถูกตีความว่าเป็น log หาย และ refresh หลัง cache window แล้วเห็น deployment ล่าสุด
 
@@ -195,7 +195,7 @@ npx vitest run tests/components/TestRunnerWorkspace.test.tsx tests/components/Te
 - [ ] ทุก task มีไฟล์เป้าหมาย, failing test, คำสั่งรัน, วิธีแก้ และเกณฑ์ผ่านงาน
 - [ ] ไม่มีขั้นตอนที่พึ่ง placeholder, `TODO`, การเพิ่ม timeout เพื่อกลบปัญหา หรือการคัดลอก secret
 - [ ] ชื่อสถานะ `passed`, `failed`, `cancelled`, `timed_out`, `agent_lost` ตรงกับ type และ lifecycle ที่มีอยู่
-- [ ] การตรวจ provider mapping แยก project id ของ `ststracking` ออกจาก deployment host ของ Morniter ชัดเจน
+- [ ] การตรวจ provider mapping แยก project id ของ `ststracking` ออกจาก deployment host ของ Monitor ชัดเจน
 - [ ] งานนี้เป็น follow-up จาก `docs/superpowers/plans/2026-07-28-production-test-runner-navigation.md` และไม่ทำซ้ำงาน feature ที่เสร็จแล้ว
 - [ ] หลัง implementation ผู้ใช้เป็นผู้จัดการ Git เองตามข้อกำหนดของ workspace
 

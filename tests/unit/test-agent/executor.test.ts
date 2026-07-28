@@ -4,7 +4,7 @@ import { runPreset } from "../../../agent/src/executor";
 describe("Agent Executor", () => {
   it.runIf(process.platform === "win32")("runs npm.cmd without spawn EINVAL on Windows", async () => {
     const result = await runPreset({
-      projectId: "morniter",
+      projectId: "monitor",
       presetId: "npm-version",
       name: "npm version",
       description: "",

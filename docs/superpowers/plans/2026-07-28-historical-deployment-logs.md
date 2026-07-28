@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use the repository's task execution workflow to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** ให้ Morniter โหลด deployment และ commit ที่เกิดขึ้นตอนปิดหน้าได้ พร้อมเปิดดู log จริงแบบ on-demand และลด polling ที่ไม่จำเป็น
+**Goal:** ให้ Monitor โหลด deployment และ commit ที่เกิดขึ้นตอนปิดหน้าได้ พร้อมเปิดดู log จริงแบบ on-demand และลด polling ที่ไม่จำเป็น
 
 **Architecture:** Provider snapshot จะดึง deployment metadata ย้อนหลัง 20 รายการต่อ project/service และแปลง Git metadata เข้า `MonitorEvent` ทุกครั้งที่ snapshot ถูกสร้าง ส่วน diagnostic log จะถูกเรียกเมื่อผู้ใช้กดขยายเท่านั้น โดยมี server-side cache และ in-flight dedupe ตาม event ID. Client จะใช้ refresh interval แบบ adaptive: 60 วินาทีเมื่อปกติ และ 20 วินาทีเมื่อมีปัญหา
 
@@ -273,7 +273,7 @@ expect(screen.getByRole("button", { name: /view deployment log/i })).toBeInTheDo
 
 ## Verification checklist
 
-- [ ] ปิดหน้า Morniter แล้วสร้าง deployment ใหม่ใน Vercel จาก Git push
+- [ ] ปิดหน้า Monitor แล้วสร้าง deployment ใหม่ใน Vercel จาก Git push
 - [ ] เปิดหน้า Monitor หลัง deployment เสร็จและตรวจว่ารายการใหม่อยู่ใน history
 - [ ] ตรวจ commit message, branch, SHA และเวลา deployment
 - [ ] เปิด log ของ READY deployment แล้วตรวจว่าเรียก diagnostics ตอนกดเท่านั้น

@@ -10,7 +10,7 @@ export default async function MonitorLayout({
 }) {
   await requireMonitorSession();
 
-  const displayName = process.env.MONITOR_DISPLAY_NAME || "Morniter Operator";
+  const displayName = process.env.MONITOR_DISPLAY_NAME || "Monitor Operator";
 
   return (
     <MonitorShell displayName={displayName}>

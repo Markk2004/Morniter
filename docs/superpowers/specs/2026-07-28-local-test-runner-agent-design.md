@@ -2,7 +2,7 @@
 
 ## เป้าหมาย
 
-เปลี่ยน Diagnostic Terminal จากช่องค้นหา event เป็น Test Runner สำหรับสั่ง Unit, Integration, E2E/UAT, Cypress, Playwright, Type Check, Lint และ Build ของโปรเจกต์บนเครื่อง local แล้วส่งสถานะกับ log กลับมาแสดงใน Morniter
+เปลี่ยน Diagnostic Terminal จากช่องค้นหา event เป็น Test Runner สำหรับสั่ง Unit, Integration, E2E/UAT, Cypress, Playwright, Type Check, Lint และ Build ของโปรเจกต์บนเครื่อง local แล้วส่งสถานะกับ log กลับมาแสดงใน Monitor
 
 หน้าเว็บต้องไม่สามารถรัน shell command อิสระได้ ผู้ใช้เลือกได้เฉพาะ project และ preset ที่ Local Agent ประกาศว่าอนุญาต
 
@@ -10,7 +10,7 @@
 
 - Local Agent ทำงานบน Windows ผ่าน `npm run test-agent`
 - รองรับ Agent หนึ่งตัวและรันงานทีละงาน
-- Morniter บน Vercel ใช้ Upstash Redis เป็น durable queue และเก็บผลชั่วคราว
+- Monitor บน Vercel ใช้ Upstash Redis เป็น durable queue และเก็บผลชั่วคราว
 - มี project selector, preset selector, Run, Cancel, Rerun, status และ streaming-like log polling
 - มี preset สำหรับ Unit, Integration, E2E/UAT, Cypress, Playwright, Type Check, Lint และ Build ตาม config ของแต่ละ project
 - เก็บประวัติงาน 7 วัน
@@ -21,7 +21,7 @@
 ## สถาปัตยกรรม
 
 ```text
-Morniter UI
+Monitor UI
   -> authenticated Test Runner API
   -> Upstash Redis queue/job/log records
   <- Local Agent polls authenticated Agent API
@@ -68,7 +68,7 @@ Agent ใช้ Bearer token แยกจาก `MONITOR_AGENT_INGEST_TOKEN` แ
 ```json
 {
   "agentId": "windows-main",
-  "serverUrl": "https://morniter.vercel.app",
+  "serverUrl": "https://monitorsoftdeath.vercel.app",
   "projects": [
     {
       "id": "student-tracking",
@@ -119,7 +119,7 @@ queued -> running -> passed
 - truncated
 - log sequence ล่าสุด
 
-Redis keys ใช้ namespace `morniter:test-runner:v1:*` และ TTL 7 วันสำหรับ jobs/logs ส่วน catalog/heartbeat หมดอายุ 75 วินาที
+Redis keys ใช้ namespace `monitor:test-runner:v1:*` และ TTL 7 วันสำหรับ jobs/logs ส่วน catalog/heartbeat หมดอายุ 75 วินาที
 
 ## Polling และการควบคุม request
 
@@ -176,7 +176,7 @@ Browser:
 8. token, password และ secret patterns ไม่ปรากฏใน log
 9. reload หน้าแล้วยังเห็น job/history เพราะเก็บใน Redis
 10. Agent idle ไม่ poll ถี่กว่า 30 วินาที และ UI idle ไม่ poll job ทุก 2 วินาที
-11. test, typecheck, lint, build และ E2E ของ Morniter ผ่าน
+11. test, typecheck, lint, build และ E2E ของ Monitor ผ่าน
 
 ## เอกสารอ้างอิงทางเทคนิค
 

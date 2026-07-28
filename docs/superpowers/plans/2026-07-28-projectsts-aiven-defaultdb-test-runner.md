@@ -2,9 +2,9 @@
 
 > **For agentic workers:** Use the existing test-driven workflow and execute these tasks in order. Git operations are intentionally omitted; the repository owner will stage and commit changes manually.
 
-**Goal:** ให้ Local Agent ของ Morniter รันชุดทดสอบ ProjectSTS ผ่าน terminal ได้ โดยให้ Aiven `defaultdb` เป็นฐานสำหรับ E2E ทั้งจาก terminal และ Morniter และรักษา `student_tracking` ไว้เป็นฐานจริงของระบบ
+**Goal:** ให้ Local Agent ของ Monitor รันชุดทดสอบ ProjectSTS ผ่าน terminal ได้ โดยให้ Aiven `defaultdb` เป็นฐานสำหรับ E2E ทั้งจาก terminal และ Monitor และรักษา `student_tracking` ไว้เป็นฐานจริงของระบบ
 
-**Architecture:** Morniter จะส่งเพียง `projectId` และ `presetId` เข้า queue เดิม ส่วน Windows Local Agent จะ resolve คำสั่ง, working directory และ environment จาก config ที่อยู่บนเครื่อง agent แล้วรัน ProjectSTS ในเครื่องนั้น Backend E2E จะต่อ Aiven `defaultdb`; production UAT ไม่อยู่ในชุด mutation test และถ้าจะเพิ่มภายหลังต้องเป็น preset read-only แยกต่างหาก
+**Architecture:** Monitor จะส่งเพียง `projectId` และ `presetId` เข้า queue เดิม ส่วน Windows Local Agent จะ resolve คำสั่ง, working directory และ environment จาก config ที่อยู่บนเครื่อง agent แล้วรัน ProjectSTS ในเครื่องนั้น Backend E2E จะต่อ Aiven `defaultdb`; production UAT ไม่อยู่ในชุด mutation test และถ้าจะเพิ่มภายหลังต้องเป็น preset read-only แยกต่างหาก
 
 **Tech Stack:** Next.js + TypeScript, Vitest, Zod, Node `child_process` ผ่าน `cross-spawn`, NestJS + TypeORM, PostgreSQL/Aiven, PowerShell, Upstash Redis REST queue
 
@@ -15,7 +15,7 @@
 - Browser payload ต้องมีเพียง `{ projectId, presetId }`; ห้ามรับ `DATABASE_URL`, command, args, cwd หรือ environment จาก browser
 - Agent ต้องรัน `shell: false`, จำกัดหนึ่ง job พร้อมกัน และใช้ process-tree termination เดิม
 - Aiven connection URI และ password อยู่ใน environment/config local ที่ถูก ignore เท่านั้น ห้ามใส่ใน tracked example, Redis, log หรือหน้าเว็บ
-- การ refresh ข้อมูลจาก production ไป `defaultdb` เป็นคำสั่ง manual ที่ต้องรันบนเครื่องผู้ดูแล ไม่เปิดเป็น Morniter preset
+- การ refresh ข้อมูลจาก production ไป `defaultdb` เป็นคำสั่ง manual ที่ต้องรันบนเครื่องผู้ดูแล ไม่เปิดเป็น Monitor preset
 - ทุก test guard ต้อง fail closed เมื่อชื่อ database ไม่ตรงกับ target ที่กำหนด
 - ห้ามใช้ `defaultdb` เป็น fallback ของ production runtime หรือ deployment config
 
@@ -174,7 +174,7 @@ JWT_REFRESH_SECRET=test-refresh-secret-key-for-e2e-only
 JWT_REFRESH_EXPIRATION=7d
 ```
 
-Document that the real `.env.test` remains ignored and that the Morniter preset overrides these values for Aiven.
+Document that the real `.env.test` remains ignored and that the Monitor preset overrides these values for Aiven.
 
 - [ ] **Step 2: Remove hardcoded database URLs from package scripts**
 
@@ -213,11 +213,11 @@ Document two supported modes:
 
 ```text
 Terminal mode: DATABASE_URL -> defaultdb, TEST_DATABASE_NAME=defaultdb
-Morniter mode: DATABASE_URL -> defaultdb, TEST_DATABASE_NAME=defaultdb
+Monitor mode: DATABASE_URL -> defaultdb, TEST_DATABASE_NAME=defaultdb
 Production mode: DATABASE_URL -> student_tracking, NODE_ENV=production, no E2E seed/mutation command
 ```
 
-State that `test:e2e` starts the ProjectSTS app/test harness locally; the Aiven database is remote, while Morniter only queues the job.
+State that `test:e2e` starts the ProjectSTS app/test harness locally; the Aiven database is remote, while Monitor only queues the job.
 
 ---
 
@@ -372,7 +372,7 @@ Expected: PASS, including Windows `npm.cmd` resolution and existing cancellation
 
 ---
 
-### Task 5: Keep the Morniter UI database-safe and add acceptance coverage
+### Task 5: Keep the Monitor UI database-safe and add acceptance coverage
 
 **Files:**
 
@@ -435,13 +435,13 @@ Expected: guard passes, E2E runs against `defaultdb`, and no log contains a conn
 
 - [ ] **Step 3: Start the Local Agent and verify catalog**
 
-Start the agent with the ignored local config and `STS_TEST_DATABASE_URL` in its process environment. Confirm Morniter shows the new `STS Backend E2E (Aiven defaultdb)` preset and leaves Run disabled when the agent is offline.
+Start the agent with the ignored local config and `STS_TEST_DATABASE_URL` in its process environment. Confirm Monitor shows the new `STS Backend E2E (Aiven defaultdb)` preset and leaves Run disabled when the agent is offline.
 
-- [ ] **Step 4: Run one E2E job through Morniter**
+- [ ] **Step 4: Run one E2E job through Monitor**
 
 Authenticate the execution session, run the preset, observe queued → running → passed/failed, and verify stdout/stderr are streamed without environment dumps. Confirm the job history survives a page reload.
 
-- [ ] **Step 5: Run the existing Morniter validation suite**
+- [ ] **Step 5: Run the existing Monitor validation suite**
 
 From `E:\project-monitor`:
 
@@ -465,7 +465,7 @@ Attempt to run the test guard with a `student_tracking` URI and `TEST_DATABASE_N
 
 - Production target is consistently `student_tracking`; no task changes deployment to `defaultdb`.
 - Aiven test target is consistently `defaultdb`; no task creates `student_tracking_test` on Aiven.
-- No third local database is required for the supported workflow; terminal and Morniter both use Aiven `defaultdb` for E2E.
+- No third local database is required for the supported workflow; terminal and Monitor both use Aiven `defaultdb` for E2E.
 - The only destructive database operation is the manual, `-Force`-protected refresh script, which validates both database names before running.
 - No browser/API payload contains credentials, raw commands, cwd, or environment values.
 - No tracked file contains an Aiven URI, password, token, or environment dump.

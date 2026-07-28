@@ -2,7 +2,7 @@
 
 ## Goal
 
-ให้ Morniter แสดงประเภทการทดสอบและหัวข้อย่อยตาม SRS/BR ของ ProjectSTS เพื่อให้ผู้ใช้เลือกทดสอบเป็นกลุ่มได้ โดยไม่ต้องกรอก shell command เอง
+ให้ Monitor แสดงประเภทการทดสอบและหัวข้อย่อยตาม SRS/BR ของ ProjectSTS เพื่อให้ผู้ใช้เลือกทดสอบเป็นกลุ่มได้ โดยไม่ต้องกรอก shell command เอง
 
 ประเภทที่รองรับมีสามแบบ:
 
@@ -14,7 +14,7 @@
 
 ProjectSTS มีรหัส SRS/BR อยู่ในชื่อ `describe`, `it`, controller และ service comments เช่น `FR-AUTH-001`, `FR-CASE-003`, `BR-006` และ `FR-LOG-002` ชุด E2E ปัจจุบันเป็น mutation-capable และใช้ฐานข้อมูลทดสอบ `defaultdb` จึงไม่ควรถูกเรียกว่า UAT โดยตรง
 
-Morniter มี catalog ของ project/preset และ Local Agent เป็นผู้ resolve command, working directory และ environment จากไฟล์ local ที่ allowlist ไว้แล้ว การเพิ่มประเภทและ SRS group ต้องรักษาขอบเขตนี้ไว้
+Monitor มี catalog ของ project/preset และ Local Agent เป็นผู้ resolve command, working directory และ environment จากไฟล์ local ที่ allowlist ไว้แล้ว การเพิ่มประเภทและ SRS group ต้องรักษาขอบเขตนี้ไว้
 
 ## User experience
 
@@ -100,7 +100,7 @@ UAT ต้องเป็นชุด read-only ที่รันกับ depl
 - Browser ส่งได้แค่ ID ไม่รับ command, path, environment หรือ regex
 - Local Agent ปฏิเสธ preset ที่ไม่มีใน local config
 - ProjectSTS guard ปฏิเสธ E2E ที่ไม่ใช่ `defaultdb`
-- Refresh `defaultdb` เป็นคำสั่ง manual แยกจาก Morniter และต้องใช้ `-Force`
+- Refresh `defaultdb` เป็นคำสั่ง manual แยกจาก Monitor และต้องใช้ `-Force`
 - UAT ที่พบ mutation หรือไม่มี base URL จะ fail ก่อนเริ่ม test
 - Catalog ไม่เผยแพร่ค่าของ environment ที่เป็น secret
 

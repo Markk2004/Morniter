@@ -2,7 +2,7 @@
 
 ## เป้าหมาย
 
-เมื่อมีการ push หรือ deployment ระหว่างที่ไม่ได้เปิด Morniter ผู้ใช้ต้องเปิดหน้า Monitor ภายหลังแล้วเห็น deployment ที่เกิดขึ้นย้อนหลัง พร้อม commit message, branch และสถานะจาก provider ได้ โดยไม่ต้องพึ่ง browser event ที่เกิดขึ้นตอนหน้าเว็บเปิดอยู่
+เมื่อมีการ push หรือ deployment ระหว่างที่ไม่ได้เปิด Monitor ผู้ใช้ต้องเปิดหน้า Monitor ภายหลังแล้วเห็น deployment ที่เกิดขึ้นย้อนหลัง พร้อม commit message, branch และสถานะจาก provider ได้ โดยไม่ต้องพึ่ง browser event ที่เกิดขึ้นตอนหน้าเว็บเปิดอยู่
 
 ## ปัญหาปัจจุบัน
 
@@ -16,7 +16,7 @@
 
 รวม Vercel และ Render deployment history, commit metadata, on-demand diagnostic log, adaptive refresh และการจัดการ rate limit
 
-ไม่รวมการเก็บ log ถาวรของ Morniter, การแก้ไขหรือสั่ง deploy โปรเจกต์ที่ถูก Monitor, webhook ที่ต้องเพิ่มในทุก repository และการดึง raw log ของทุก deployment อัตโนมัติ
+ไม่รวมการเก็บ log ถาวรของ Monitor, การแก้ไขหรือสั่ง deploy โปรเจกต์ที่ถูก Monitor, webhook ที่ต้องเพิ่มในทุก repository และการดึง raw log ของทุก deployment อัตโนมัติ
 
 ## การออกแบบ
 
@@ -27,7 +27,7 @@ Provider snapshot ดึง deployment ล่าสุด 20 รายการ�
 - Vercel: `GET /v6/deployments?projectId=...&limit=20`
 - Render: `/v1/services/:serviceId/deploys?limit=20`
 - รวมรายการจาก provider แล้วเรียงด้วย `occurredAt` ใหม่สุดก่อน
-- เมื่อเปิด Morniter หลังปิดไปหลายชั่วโมง ระบบจะดึงชุดล่าสุดจาก provider ใหม่ จึงเห็น deployment ที่เกิดระหว่างปิดหน้าได้
+- เมื่อเปิด Monitor หลังปิดไปหลายชั่วโมง ระบบจะดึงชุดล่าสุดจาก provider ใหม่ จึงเห็น deployment ที่เกิดระหว่างปิดหน้าได้
 - ประวัติที่เกิน provider limit 20 รายการไม่รับประกันว่าจะอยู่ในหน้า Monitor
 
 เพิ่ม metadata แบบ optional ใน `MonitorEvent`:
@@ -95,7 +95,7 @@ Snapshot memory cache ใช้ TTL 30 วินาทีเพื่อป้�
 
 ## Acceptance criteria
 
-1. สร้าง deployment ใหม่ขณะปิดหน้า Morniter แล้วเปิดภายหลัง เห็น deployment นั้นใน 20 รายการล่าสุด
+1. สร้าง deployment ใหม่ขณะปิดหน้า Monitor แล้วเปิดภายหลัง เห็น deployment นั้นใน 20 รายการล่าสุด
 2. Vercel event แสดง commit message, branch หรือ SHA เมื่อ metadata มีค่า
 3. Render event แสดง commit message และ SHA เมื่อ response มีค่า
 4. Deployment `READY` และ `LIVE` มีปุ่มเปิด log และเรียก provider diagnostics เฉพาะเมื่อกด

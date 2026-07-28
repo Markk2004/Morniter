@@ -2,7 +2,7 @@
 
 ## Goal
 
-ทำให้ Morniter รองรับผู้ใช้หลายคนเปิดพร้อมกันได้โดยไม่ยิง provider API หรือ test-runner API ซ้ำเกินจำเป็น ป้องกันการสร้าง test job พร้อมกันมากกว่าหนึ่งงานต่อ local agent และเปลี่ยน shortcut cards เป็น Project dropdown + Test dropdown + Run button เดียว
+ทำให้ Monitor รองรับผู้ใช้หลายคนเปิดพร้อมกันได้โดยไม่ยิง provider API หรือ test-runner API ซ้ำเกินจำเป็น ป้องกันการสร้าง test job พร้อมกันมากกว่าหนึ่งงานต่อ local agent และเปลี่ยน shortcut cards เป็น Project dropdown + Test dropdown + Run button เดียว
 
 ## Scope
 
@@ -215,8 +215,8 @@ State ภายใน:
 
 1. POST `/api/auth/logout`
 2. ลบ Cache Storage keys ที่ขึ้นต้น `project-monitor-`
-3. Unregister service worker ของ Morniter origin
-4. ลบ local/session storage keys ที่ขึ้นต้น `morniter:` หรือ `project_monitor_`
+3. Unregister service worker ของ Monitor origin
+4. ลบ local/session storage keys ที่ขึ้นต้น `monitor:` หรือ `project_monitor_`
 5. Redirect `/login?reset=1`
 
 การ reset ห้ามลบ Redis jobs, provider history, database, API token, environment variables หรือไฟล์ local agent

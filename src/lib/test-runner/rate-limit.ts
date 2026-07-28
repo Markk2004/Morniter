@@ -1,6 +1,6 @@
 import { getRunnerRedis } from "./redis";
 
-const RATE_LIMIT_PREFIX = "morniter:test-runner:v1:rate-limit:";
+const RATE_LIMIT_PREFIX = "monitor:test-runner:v1:rate-limit:";
 const WINDOW_SECONDS = 600; // 10 minutes
 const MAX_ATTEMPTS = 5;
 

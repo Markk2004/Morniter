@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Split Morniter into a Logs-first monitor and a production-safe Test Runner with preset shortcuts, live framework progress, bounded logs, recoverable Agent execution, and future runner portability.
+**Goal:** Split Monitor into a Logs-first monitor and a production-safe Test Runner with preset shortcuts, live framework progress, bounded logs, recoverable Agent execution, and future runner portability.
 
 **Architecture:** A shared `/monitor` layout owns authentication and navigation while `/monitor` and `/monitor/tests` load independent data. Redis owns the canonical Agent presence, job state, idempotency, lease, progress, cursor-paged logs, and seven-day retention. The Local Agent executes one allowlisted preset at a time, reports heartbeat/progress/logs through a runner-neutral protocol, and uses a Windows-safe process adapter.
 
@@ -368,15 +368,15 @@ export const MAX_LOG_LINES = 5_000;
 export const MAX_LOG_BYTES = 1_048_576;
 
 export const runnerKeys = {
-  catalog: (agentId: string) => `morniter:test-runner:v2:agent:${agentId}:catalog`,
-  presence: (agentId: string) => `morniter:test-runner:v2:agent:${agentId}:presence`,
-  queue: (agentId: string) => `morniter:test-runner:v2:agent:${agentId}:queue`,
-  active: (agentId: string) => `morniter:test-runner:v2:agent:${agentId}:active`,
-  job: (jobId: string) => `morniter:test-runner:v2:job:${jobId}`,
-  logs: (jobId: string) => `morniter:test-runner:v2:job:${jobId}:logs`,
-  logSequences: (jobId: string) => `morniter:test-runner:v2:job:${jobId}:sequences`,
-  idempotency: (key: string) => `morniter:test-runner:v2:idempotency:${key}`,
-  history: "morniter:test-runner:v2:history",
+  catalog: (agentId: string) => `monitor:test-runner:v2:agent:${agentId}:catalog`,
+  presence: (agentId: string) => `monitor:test-runner:v2:agent:${agentId}:presence`,
+  queue: (agentId: string) => `monitor:test-runner:v2:agent:${agentId}:queue`,
+  active: (agentId: string) => `monitor:test-runner:v2:agent:${agentId}:active`,
+  job: (jobId: string) => `monitor:test-runner:v2:job:${jobId}`,
+  logs: (jobId: string) => `monitor:test-runner:v2:job:${jobId}:logs`,
+  logSequences: (jobId: string) => `monitor:test-runner:v2:job:${jobId}:sequences`,
+  idempotency: (key: string) => `monitor:test-runner:v2:idempotency:${key}`,
+  history: "monitor:test-runner:v2:history",
 };
 ```
 
@@ -649,7 +649,7 @@ it.runIf(process.platform === "win32")(
   "runs npm.cmd without spawn EINVAL",
   async () => {
     const result = await runPreset({
-      projectId: "morniter",
+      projectId: "monitor",
       presetId: "npm-version",
       name: "npm version",
       description: "",
@@ -942,7 +942,7 @@ Suggested message: `feat: stream bounded test progress from local agent`
 ```tsx
 it("marks Logs active on /monitor", () => {
   vi.mocked(usePathname).mockReturnValue("/monitor");
-  render(<MonitorShell displayName="Morniter"><div>content</div></MonitorShell>);
+  render(<MonitorShell displayName="Monitor"><div>content</div></MonitorShell>);
   expect(screen.getByRole("link", { name: "Logs" })).toHaveAttribute(
     "aria-current",
     "page",
@@ -954,7 +954,7 @@ it("marks Logs active on /monitor", () => {
 
 it("marks Tests active and keeps logout visible", () => {
   vi.mocked(usePathname).mockReturnValue("/monitor/tests");
-  render(<MonitorShell displayName="Morniter"><div>content</div></MonitorShell>);
+  render(<MonitorShell displayName="Monitor"><div>content</div></MonitorShell>);
   expect(screen.getByRole("link", { name: "Tests" })).toHaveAttribute(
     "aria-current",
     "page",
@@ -1290,8 +1290,8 @@ The example config must include a harmless smoke preset and representative proje
 
 ```json
 {
-  "id": "morniter-smoke",
-  "name": "Morniter Agent Smoke",
+  "id": "monitor-smoke",
+  "name": "Monitor Agent Smoke",
   "description": "Verify the Local Agent can launch Node",
   "command": "node",
   "args": ["--version"],
@@ -1351,7 +1351,7 @@ pass 258
 fail 0
 ```
 
-- [ ] **Step 5: Run deployed Morniter smoke through the UI**
+- [ ] **Step 5: Run deployed Monitor smoke through the UI**
 
 Prerequisites:
 
@@ -1360,14 +1360,14 @@ Prerequisites:
 - Local Agent token matches Vercel.
 - Agent is running with the production server URL.
 
-Execute `Morniter Agent Smoke` from `/monitor/tests`. Expected:
+Execute `Monitor Agent Smoke` from `/monitor/tests`. Expected:
 
 ```text
 queued → claimed → running → passed
 exit code 0
 ```
 
-- [ ] **Step 6: Run STS frontend through deployed Morniter**
+- [ ] **Step 6: Run STS frontend through deployed Monitor**
 
 Select `STS Frontend Tests`. Expected final state:
 

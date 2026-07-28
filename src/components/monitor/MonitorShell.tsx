@@ -11,7 +11,7 @@ interface MonitorShellProps {
   children: React.ReactNode;
 }
 
-export function MonitorShell({ displayName = "Morniter Operator", children }: MonitorShellProps) {
+export function MonitorShell({ displayName = "Monitor Operator", children }: MonitorShellProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
@@ -38,7 +38,7 @@ export function MonitorShell({ displayName = "Morniter Operator", children }: Mo
           <div className="flex items-center space-x-3">
             <BrandLogo size="sm" />
             <span className="font-bold text-lg tracking-tight bg-gradient-to-r from-slate-100 to-slate-400 bg-clip-text text-transparent">
-              Morniter
+              Monitor
             </span>
           </div>
 

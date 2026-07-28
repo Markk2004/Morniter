@@ -84,18 +84,18 @@ export async function runAgent(config: AgentConfig): Promise<void> {
   const catalog = buildCatalogFromConfig(config);
   const pollIntervalMs = (config.pollIntervalSeconds ?? 5) * 1000;
 
-  console.log(`[Morniter Local Agent] Agent "${config.agentId}" started polling ${config.serverUrl}`);
+    console.log(`[Monitor Local Agent] Agent "${config.agentId}" started polling ${config.serverUrl}`);
 
   while (true) {
     try {
       const job = await client.poll("1.0.0", catalog);
       if (job) {
-        console.log(`[Morniter Local Agent] Claimed job ${job.id} (${job.projectId}:${job.presetId})`);
+      console.log(`[Monitor Local Agent] Claimed job ${job.id} (${job.projectId}:${job.presetId})`);
         await executeClaimedJob(config, job, client);
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Polling error";
-      console.error(`[Morniter Local Agent] Poll error: ${msg}`);
+      console.error(`[Monitor Local Agent] Poll error: ${msg}`);
     }
 
     await new Promise((r) => setTimeout(r, pollIntervalMs));

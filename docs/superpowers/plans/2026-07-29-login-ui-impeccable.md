@@ -2,7 +2,7 @@
 
 > **For agentic workers:** Use this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking. Git operations are intentionally omitted; the user manages Git manually.
 
-**Goal:** ปรับหน้า login ของ Morniter ให้เป็น production auth surface ที่อ่านง่าย ใช้งานได้บน desktop และมือถือ ไม่มี gradient color และยังคง authentication flow เดิม
+**Goal:** ปรับหน้า login ของ Monitor ให้เป็น production auth surface ที่อ่านง่าย ใช้งานได้บน desktop และมือถือ ไม่มี gradient color และยังคง authentication flow เดิม
 
 **Architecture:** คง `LoginPage` เป็น client component เดิมและใช้ `BrandLogo` ที่มีอยู่ ไม่เพิ่ม UI dependency หรือแยก form เป็น abstraction ใหม่เพราะ flow มีเพียงชุดเดียว การเปลี่ยนแปลงจะจำกัดอยู่ที่โครงสร้างและ state presentation ของหน้า login ส่วน POST `/api/auth/login`, tab-session marker และ redirect ไป `/monitor` ต้องทำงานเหมือนเดิม
 
@@ -32,7 +32,7 @@
 
 ## Impeccable Design Direction
 
-Physical scene: ผู้ใช้เปิด Morniter บนจอ desktop หรือ laptop ในห้องทำงานที่แสงไม่คงที่ ต้องเห็นช่อง password และสถานะการเข้าสู่ระบบชัดเจนทันทีโดยไม่ถูกรบกวนด้วยเอฟเฟกต์ตกแต่ง
+Physical scene: ผู้ใช้เปิด Monitor บนจอ desktop หรือ laptop ในห้องทำงานที่แสงไม่คงที่ ต้องเห็นช่อง password และสถานะการเข้าสู่ระบบชัดเจนทันทีโดยไม่ถูกรบกวนด้วยเอฟเฟกต์ตกแต่ง
 
 Color strategy: restrained product UI. ใช้ `#0a0d14` เป็นพื้นหลัง, `#111827` เป็น form surface, `#253044` เป็น border, `#22d3ee` เป็น primary accent และสี error rose ที่มี contrast เพียงพอ ใช้สี accent เฉพาะปุ่ม, focus ring และสถานะสำคัญ
 
@@ -151,7 +151,7 @@ return (
           <div>
             <BrandLogo size="md" />
             <p className="mt-8 font-mono text-[11px] uppercase tracking-[0.18em] text-cyan-300">
-              Morniter / Workspace access
+              Monitor / Workspace access
             </p>
             <h1 className="mt-4 max-w-md text-3xl font-semibold tracking-tight text-white sm:text-4xl">
               See what changed before it becomes a problem.

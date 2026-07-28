@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Make Morniter suitable for production use as a read-only deployment monitor plus a controlled test runner. Logs remain the default view. Test execution moves to a separate route with preset-only commands, live progress, bounded resource use, recoverable jobs, and a Local Agent protocol that can later be implemented by GitHub or GitLab runners.
+Make Monitor suitable for production use as a read-only deployment monitor plus a controlled test runner. Logs remain the default view. Test execution moves to a separate route with preset-only commands, live progress, bounded resource use, recoverable jobs, and a Local Agent protocol that can later be implemented by GitHub or GitLab runners.
 
 ## Approved product decisions
 
@@ -136,7 +136,7 @@ Redis operations use pipelines for batch append, expiry, byte-count, and job met
 The shared header contains:
 
 ```text
-[Logo] Morniter        Logs | Tests        Context actions        Logout
+[Logo] Monitor        Logs | Tests        Context actions        Logout
 ```
 
 The Logs page keeps provider incidents, service cards, filters, and the deployment terminal. Its refresh control does not appear on the Tests page.
@@ -187,7 +187,7 @@ Required automated coverage:
 
 Production acceptance requires:
 
-- a safe `node --version` smoke preset passes through the deployed Morniter and Local Agent;
+- a safe `node --version` smoke preset passes through the deployed Monitor and Local Agent;
 - the STS frontend suite reports 258 passing tests and zero failures;
 - typecheck, lint, unit tests, production build, and Playwright E2E all pass;
 - no secret appears in browser responses, stored logs, or rendered terminal output;

@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** ทำให้ Morniter แสดงข้อมูลและ log ได้ลื่นบน production โดยข้อมูลไม่ค้างจาก cache, ไม่มี request ซ้อน, terminal ไม่หน่วงเมื่อ log เยอะ และผู้ใช้กู้แอปจาก cache/session เสียได้โดยไม่แตะข้อมูลบน server
+**Goal:** ทำให้ Monitor แสดงข้อมูลและ log ได้ลื่นบน production โดยข้อมูลไม่ค้างจาก cache, ไม่มี request ซ้อน, terminal ไม่หน่วงเมื่อ log เยอะ และผู้ใช้กู้แอปจาก cache/session เสียได้โดยไม่แตะข้อมูลบน server
 
 **Architecture:** ใช้ stale-while-revalidate เฉพาะ snapshot ฝั่ง server พร้อม single-flight เพื่อรวม provider requests ที่เกิดพร้อมกัน ส่วน API, HTML, auth และ test logs ใช้ `private, no-store` เสมอ ฝั่ง client ใช้ adaptive polling, AbortController, loading ที่ไม่ล้างข้อมูลเดิม และจำกัดจำนวน DOM nodes ของ terminal ขณะที่ service worker cache เฉพาะ static brand assets
 
@@ -16,7 +16,7 @@
 - Terminal เก็บใน React state ไม่เกิน 1,000 lines และ render ใน DOM ไม่เกิน 300 lines
 - Poll job ทุก 1 วินาทีเฉพาะตอน job active, ทุก 5 วินาทีตอน idle และหยุด poll เมื่อ tab hidden
 - ห้ามเพิ่ม dependency สำหรับ virtualization, cache หรือ polling
-- `Reset app data` ล้างเฉพาะข้อมูล browser ของ Morniter และห้ามลบ job, provider log, database หรือ environment variables
+- `Reset app data` ล้างเฉพาะข้อมูล browser ของ Monitor และห้ามลบ job, provider log, database หรือ environment variables
 - งาน Git เป็นของผู้ใช้ ทุก task จบด้วย user-managed Git checkpoint และไม่มีคำสั่ง Git ในแผนนี้
 
 ---
@@ -26,7 +26,7 @@
 - Create `src/lib/http/fetch-no-store.ts`: wrapper สำหรับ browser fetch ที่บังคับ `cache: "no-store"` และรับ AbortSignal
 - Create `src/lib/monitor/snapshot-coordinator.ts`: fresh/stale cache และ single-flight refresh ของ monitor snapshot
 - Create `src/components/monitor/MonitorLoadingState.tsx`: skeleton และข้อความ loading/error ที่ไม่แทนข้อมูลเดิมตอน background refresh
-- Create `src/components/settings/ResetAppDataButton.tsx`: logout และล้าง browser data เฉพาะ Morniter
+- Create `src/components/settings/ResetAppDataButton.tsx`: logout และล้าง browser data เฉพาะ Monitor
 - Create `tests/unit/monitor/snapshot-coordinator.test.ts`: ทดสอบ fresh, stale, expiry และ request deduplication
 - Create `tests/unit/http/fetch-no-store.test.ts`: ทดสอบ fetch options
 - Create `tests/components/MonitorLoadingState.test.tsx`: ทดสอบ initial loading และ background refresh
@@ -444,14 +444,14 @@ Review polling frequency, cleanup, line dedupe and DOM cap before the user commi
 - Test: `tests/integration/auth-routes.test.ts`
 
 **Interfaces:**
-- Produces: `resetMorniterBrowserData(): Promise<void>`
+- Produces: `resetMonitorBrowserData(): Promise<void>`
 - Consumes: `/api/auth/logout`, Cache Storage, service worker registrations, prefixed local/session storage
 
 - [ ] **Step 1: Write the reset boundary test**
 
 ```tsx
-it("logs out and clears only Morniter browser data", async () => {
-  localStorage.setItem("morniter:filters", "all");
+it("logs out and clears only Monitor browser data", async () => {
+  localStorage.setItem("monitor:filters", "all");
   localStorage.setItem("other-app", "keep");
   sessionStorage.setItem("project_monitor_tab_session", "active");
 
@@ -463,7 +463,7 @@ it("logs out and clears only Morniter browser data", async () => {
     "/api/auth/logout",
     expect.objectContaining({ method: "POST" }),
   ));
-  expect(localStorage.getItem("morniter:filters")).toBeNull();
+  expect(localStorage.getItem("monitor:filters")).toBeNull();
   expect(localStorage.getItem("other-app")).toBe("keep");
   expect(sessionStorage.getItem("project_monitor_tab_session")).toBeNull();
 });
@@ -499,7 +499,7 @@ for (const registration of await navigator.serviceWorker.getRegistrations()) {
 for (const storage of [localStorage, sessionStorage]) {
   for (let index = storage.length - 1; index >= 0; index -= 1) {
     const key = storage.key(index);
-    if (key?.startsWith("morniter:") || key?.startsWith("project_monitor_")) {
+    if (key?.startsWith("monitor:") || key?.startsWith("project_monitor_")) {
       storage.removeItem(key);
     }
   }

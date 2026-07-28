@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** ทำให้ Morniter ที่ deploy บน Vercel ติดตั้งเป็น PWA บน desktop ผ่าน Chrome และ Edge ได้จริง โดยเปิดเป็นหน้าต่างแยก, ใช้ logo ที่ถูกต้อง และไม่ติดปัญหา service worker หรือ cache เก่า
+**Goal:** ทำให้ Monitor ที่ deploy บน Vercel ติดตั้งเป็น PWA บน desktop ผ่าน Chrome และ Edge ได้จริง โดยเปิดเป็นหน้าต่างแยก, ใช้ logo ที่ถูกต้อง และไม่ติดปัญหา service worker หรือ cache เก่า
 
 **Architecture:** Vercel ให้บริการหน้าเว็บผ่าน HTTPS และ static PWA assets จาก `public/` ส่วน browser ตรวจ `manifest.webmanifest`, service worker และ icon ก่อนแสดงปุ่ม Install การ login ยังคงทำงานตามเดิม โดย PWA เปิดที่ `/monitor` แล้ว redirect ไป `/login` เมื่อยังไม่มี session
 
@@ -97,9 +97,9 @@ npx playwright test e2e/pwa-installability.spec.ts
 
 ### ขั้นที่ 3.2 ตรวจด้วย browser จริง
 
-- [ ] เปิด `https://morniter.vercel.app` ใน Chrome desktop
+- [ ] เปิด `https://monitorsoftdeath.vercel.app` ใน Chrome desktop
 - [ ] เปิด DevTools > Application > Manifest และตรวจว่าไม่มี installability error
-- [ ] ตรวจ Application > Service Workers ว่า `/sw.js` มีสถานะ activated และ scope เป็น domain ของ Morniter
+- [ ] ตรวจ Application > Service Workers ว่า `/sw.js` มีสถานะ activated และ scope เป็น domain ของ Monitor
 - [ ] กดไอคอน Install ใน address bar หรือเมนู Chrome > Save and share > Install page as app
 - [ ] เปิดแอปจาก Start Menu/Desktop และตรวจว่าเปิดเป็นหน้าต่าง standalone ไม่แสดง browser tab bar
 - [ ] ทำขั้นตอนเดียวกันใน Microsoft Edge
@@ -172,7 +172,7 @@ npx playwright test e2e/pwa-installability.spec.ts
 - [ ] เพิ่ม test ว่า reset ไม่แตะ API token, ไม่แตะไฟล์เครื่อง และไม่ล้าง storage ข้าม origin
 - [ ] เพิ่มคู่มือ manual recovery สำหรับ Chrome/Edge: DevTools > Application > Storage > Clear site data, Service Workers > Unregister แล้ว login ใหม่
 
-จุดผ่านงาน: terminal แสดง log ต่อเนื่องโดยไม่ค้างเมื่อ output เยอะ, network ไม่มี request ซ้อนหรือ cache response, และผู้ใช้กู้หน้า PWA ที่ค้างด้วยการ reset เฉพาะ Morniter ได้
+จุดผ่านงาน: terminal แสดง log ต่อเนื่องโดยไม่ค้างเมื่อ output เยอะ, network ไม่มี request ซ้อนหรือ cache response, และผู้ใช้กู้หน้า PWA ที่ค้างด้วยการ reset เฉพาะ Monitor ได้
 
 ## Self-review ก่อนเริ่ม implementation
 

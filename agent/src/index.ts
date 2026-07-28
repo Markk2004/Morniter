@@ -17,7 +17,7 @@ async function main() {
     await runAgent(config);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown initialization error";
-    console.error(`[Morniter Local Agent] Fatal startup error: ${message}`);
+    console.error(`[Monitor Local Agent] Fatal startup error: ${message}`);
     process.exit(1);
   }
 }

@@ -2,7 +2,7 @@
 
 ## Overview
 
-Morniter is split into two dedicated operational views sharing a common header & session navigation shell (`/app/monitor/layout.tsx`):
+Monitor is split into two dedicated operational views sharing a common header & session navigation shell (`/app/monitor/layout.tsx`):
 
 1. **Logs Workspace (`/monitor`)**: Provider-only read-only telemetry dashboard (Render, Vercel, Supabase, Upstash, GitHub, Aiven) displaying real-time metrics, service health cards, and diagnostic error logs.
 2. **Production Test Runner Workspace (`/monitor/tests`)**: Isolated, production-safe test runner interface backed by a secure Windows Local Test Agent and Upstash Redis REST queueing.
@@ -43,14 +43,14 @@ Morniter is split into two dedicated operational views sharing a common header &
 
 ## Redis v2 Data Structure & Leases
 
-- `morniter:test-runner:v2:agent:<id>:catalog` - Agent preset catalog (7-day TTL).
-- `morniter:test-runner:v2:agent:<id>:presence` - Agent presence heartbeat state (`online`, `lagging`, `offline`).
-- `morniter:test-runner:v2:agent:<id>:queue` - FIFO job queue (`LPOP`, max 10 jobs).
-- `morniter:test-runner:v2:agent:<id>:active` - Atomic active job lock (`SET NX EX`).
-- `morniter:test-runner:v2:job:<id>` - Canonical job state & progress metadata.
-- `morniter:test-runner:v2:job:<id>:logs` - Cursor-paged log sorted set scored by line sequence.
-- `morniter:test-runner:v2:idempotency:<key>` - Deduplication key mapping `Idempotency-Key` headers to job IDs.
-- `morniter:test-runner:v2:history` - Sorted set history of 20 most recent execution jobs.
+- `monitor:test-runner:v2:agent:<id>:catalog` - Agent preset catalog (7-day TTL).
+- `monitor:test-runner:v2:agent:<id>:presence` - Agent presence heartbeat state (`online`, `lagging`, `offline`).
+- `monitor:test-runner:v2:agent:<id>:queue` - FIFO job queue (`LPOP`, max 10 jobs).
+- `monitor:test-runner:v2:agent:<id>:active` - Atomic active job lock (`SET NX EX`).
+- `monitor:test-runner:v2:job:<id>` - Canonical job state & progress metadata.
+- `monitor:test-runner:v2:job:<id>:logs` - Cursor-paged log sorted set scored by line sequence.
+- `monitor:test-runner:v2:idempotency:<key>` - Deduplication key mapping `Idempotency-Key` headers to job IDs.
+- `monitor:test-runner:v2:history` - Sorted set history of 20 most recent execution jobs.
 
 ## Log & Progress Limits
 

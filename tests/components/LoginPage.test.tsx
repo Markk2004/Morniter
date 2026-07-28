@@ -11,19 +11,46 @@ describe("LoginPage UI", () => {
   it("renders group password field and submit button", () => {
     render(<LoginPage />);
     expect(screen.getByLabelText(/group password/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /sign in/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /access workspace/i })).toBeInTheDocument();
+    expect(screen.getByText("Softdeath Monitor")).toBeInTheDocument();
   });
 
   it("keeps the password input accessible and the submit state explicit", () => {
     render(<LoginPage />);
 
     const input = screen.getByLabelText(/group password/i);
-    const button = screen.getByRole("button", { name: /sign in/i });
+    const button = screen.getByRole("button", { name: /access workspace/i });
 
     expect(input).toHaveAttribute("type", "password");
     expect(input).toHaveAttribute("autocomplete", "current-password");
     expect(input).toHaveAttribute("aria-describedby", "group-password-help");
     expect(button).toBeDisabled();
+  });
+
+  it("toggles password visibility", () => {
+    render(<LoginPage />);
+
+    const input = screen.getByLabelText(/group password/i);
+    fireEvent.change(input, { target: { value: "secret" } });
+
+    fireEvent.click(screen.getByRole("button", { name: /show password/i }));
+    expect(input).toHaveAttribute("type", "text");
+
+    fireEvent.click(screen.getByRole("button", { name: /hide password/i }));
+    expect(input).toHaveAttribute("type", "password");
+  });
+
+  it("shows an explicit pending state while authenticating", async () => {
+    const mockFetch = vi.fn().mockReturnValue(new Promise(() => undefined));
+    vi.stubGlobal("fetch", mockFetch);
+
+    render(<LoginPage />);
+
+    fireEvent.change(screen.getByLabelText(/group password/i), { target: { value: "secret" } });
+    fireEvent.click(screen.getByRole("button", { name: /access workspace/i }));
+
+    expect(await screen.findByRole("button", { name: /authenticating/i })).toBeDisabled();
+    vi.unstubAllGlobals();
   });
 
   it("does not use gradient classes on the login surface", () => {
@@ -42,7 +69,7 @@ describe("LoginPage UI", () => {
     render(<LoginPage />);
 
     const input = screen.getByLabelText(/group password/i);
-    const submitBtn = screen.getByRole("button", { name: /sign in/i });
+    const submitBtn = screen.getByRole("button", { name: /access workspace/i });
 
     fireEvent.change(input, { target: { value: "wrongpass" } });
     fireEvent.click(submitBtn);

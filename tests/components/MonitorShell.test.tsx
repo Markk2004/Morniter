@@ -21,7 +21,7 @@ describe("MonitorShell", () => {
   it("renders the cat logo in the header", () => {
     vi.mocked(usePathname).mockReturnValue("/monitor");
     render(
-      <MonitorShell displayName="Morniter Operator">
+      <MonitorShell displayName="Monitor Operator">
         <div>Content</div>
       </MonitorShell>,
     );
@@ -32,7 +32,7 @@ describe("MonitorShell", () => {
   it("marks Logs active on /monitor", () => {
     vi.mocked(usePathname).mockReturnValue("/monitor");
     render(
-      <MonitorShell displayName="Morniter Operator">
+      <MonitorShell displayName="Monitor Operator">
         <div>Content</div>
       </MonitorShell>,
     );
@@ -47,7 +47,7 @@ describe("MonitorShell", () => {
   it("marks Tests active on /monitor/tests", () => {
     vi.mocked(usePathname).mockReturnValue("/monitor/tests");
     render(
-      <MonitorShell displayName="Morniter Operator">
+      <MonitorShell displayName="Monitor Operator">
         <div>Content</div>
       </MonitorShell>,
     );
