@@ -5,7 +5,7 @@ import { POST as logsPost } from "@/app/api/test-runner/agent/jobs/[jobId]/logs/
 import { POST as completePost } from "@/app/api/test-runner/agent/jobs/[jobId]/complete/route";
 import { NextRequest } from "next/server";
 import { resetServerEnvCache } from "@/lib/env/server";
-import { publishCatalog, enqueueJob, getJobWithLogs } from "@/lib/test-runner/store";
+import { publishCatalog, enqueueJob, getJob, readLogPage } from "@/lib/test-runner/store";
 
 const fakeStore = new Map<string, unknown>();
 const fakeLists = new Map<string, string[]>();
@@ -50,6 +50,29 @@ vi.mock("@/lib/test-runner/redis", () => ({
       fakeStore.set(key, set);
       return 1;
     }),
+    zrange: vi.fn(
+      async (
+        key: string,
+        min: number | string,
+        max: number | string,
+        opts?: { rev?: boolean; byScore?: boolean },
+      ) => {
+        const set = (fakeStore.get(key) as Array<{ score: number; member: string }>) || [];
+        if (opts?.byScore) {
+          const minScore = typeof min === "number" ? min : -Infinity;
+          const maxScore = typeof max === "number" ? max : Infinity;
+          const filtered = set.filter((item) => item.score >= minScore && item.score <= maxScore);
+          const sorted = [...filtered].sort((a, b) => (opts?.rev ? b.score - a.score : a.score - b.score));
+          return sorted.map((item) => item.member);
+        }
+
+        const sorted = [...set].sort((a, b) => (opts?.rev ? b.score - a.score : a.score - b.score));
+        const start = typeof min === "number" ? min : 0;
+        const stop = typeof max === "number" ? max : -1;
+        const end = stop < 0 ? sorted.length + stop + 1 : stop + 1;
+        return sorted.slice(start, end).map((item) => item.member);
+      },
+    ),
     zrevrange: vi.fn(async (key: string, start: number, stop: number) => {
       const set = (fakeStore.get(key) as Array<{ score: number; member: string }>) || [];
       const sorted = [...set].sort((a, b) => b.score - a.score);
@@ -116,7 +139,7 @@ describe("Agent API Authentication & Flow", () => {
         authorization: authHeader,
         "content-type": "application/json",
       },
-      body: JSON.stringify({ agentId: "agent-1" }),
+      body: JSON.stringify({ agentId: "agent-1", catalogVersion: "1.0.0" }),
     });
 
     const res = await pollPost(req);
@@ -144,7 +167,12 @@ describe("Agent API Authentication & Flow", () => {
       ],
     };
 
-    const enqueued = await enqueueJob({ projectId: "sys", presetId: "unit" }, "req", catalog);
+    const enqueued = await enqueueJob(
+      { projectId: "sys", presetId: "unit" },
+      "req",
+      "run-test-idempotency-123",
+      catalog,
+    );
 
     // Poll
     const pollReq = new NextRequest("http://localhost:3000/api/test-runner/agent/poll", {
@@ -153,16 +181,16 @@ describe("Agent API Authentication & Flow", () => {
         authorization: authHeader,
         "content-type": "application/json",
       },
-      body: JSON.stringify({ agentId: "agent-1" }),
+      body: JSON.stringify({ agentId: "windows-local-agent-1", catalogVersion: "1.0.0" }),
     });
 
     const pollRes = await pollPost(pollReq);
     expect(pollRes.status).toBe(200);
     const { job } = await pollRes.json();
     expect(job.id).toBe(enqueued.id);
-    expect(job.status).toBe("running");
+    expect(job.status).toBe("claimed");
 
-    // Append log
+    // Append log batch
     const logReq = new NextRequest(
       `http://localhost:3000/api/test-runner/agent/jobs/${job.id}/logs`,
       {
@@ -172,16 +200,17 @@ describe("Agent API Authentication & Flow", () => {
           "content-type": "application/json",
         },
         body: JSON.stringify({
-          jobId: job.id,
-          sequence: 0,
-          stream: "stdout",
-          lines: ["Running tests...", "PASS test/1.js"],
+          sequenceStart: 0,
+          entries: [
+            { stream: "stdout", message: "Running tests..." },
+            { stream: "stdout", message: "PASS test/1.js" },
+          ],
         }),
       },
     );
 
     const logRes = await logsPost(logReq, { params: Promise.resolve({ jobId: job.id }) });
-    expect(logRes.status).toBe(204);
+    expect(logRes.status).toBe(200);
 
     // Complete job
     const completeReq = new NextRequest(
@@ -206,8 +235,9 @@ describe("Agent API Authentication & Flow", () => {
     expect(completeRes.status).toBe(200);
 
     // Verify stored job details & logs
-    const result = await getJobWithLogs(job.id);
-    expect(result?.job.status).toBe("passed");
-    expect(result?.lines).toHaveLength(2);
+    const jobDetail = await getJob(job.id);
+    const logPage = await readLogPage(job.id);
+    expect(jobDetail?.status).toBe("passed");
+    expect(logPage.lines).toHaveLength(2);
   });
 });

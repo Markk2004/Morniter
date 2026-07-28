@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { resolveExecutable, parseAgentConfig } from "../../../agent/src/config";
+import {
+  expandPresetEnvironment,
+  resolveExecutable,
+  parseAgentConfig,
+  resolvePreset,
+} from "../../../agent/src/config";
 
 describe("Local Agent Config & Resolver", () => {
   it("resolves npm and npx to .cmd on Windows", () => {
@@ -61,5 +66,57 @@ describe("Local Agent Config & Resolver", () => {
     };
 
     expect(() => parseAgentConfig(raw)).toThrow();
+  });
+
+  it("expands preset environment references before execution", () => {
+    expect(expandPresetEnvironment(
+      { NODE_ENV: "test", DATABASE_URL: "${STS_TEST_DATABASE_URL}" },
+      { STS_TEST_DATABASE_URL: "postgres://secret@host/defaultdb" },
+    )).toEqual({
+      NODE_ENV: "test",
+      DATABASE_URL: "postgres://secret@host/defaultdb",
+    });
+  });
+
+  it("rejects a missing environment reference", () => {
+    expect(() => expandPresetEnvironment(
+      { DATABASE_URL: "${MISSING_DATABASE_URL}" },
+      {},
+    )).toThrow("MISSING_DATABASE_URL");
+  });
+
+  it("resolves preset environment references without exposing them in the catalog", () => {
+    const originalTestUrl = process.env.STS_TEST_DATABASE_URL;
+    process.env.STS_TEST_DATABASE_URL = "postgres://secret@host/defaultdb";
+
+    const config = parseAgentConfig({
+      agentId: "agent-win-1",
+      serverUrl: "http://localhost:3000",
+      agentToken: "secret-token-32-chars-at-least-123",
+      projects: [{
+        id: "student-tracking",
+        name: "Student Tracking System",
+        presets: [{
+          id: "backend-e2e-aiven",
+          name: "STS Backend E2E",
+          description: "Run E2E",
+          command: "npm",
+          args: ["run", "test:e2e"],
+          cwd: "E:\\ProjectSTS\\backend",
+          env: { DATABASE_URL: "${STS_TEST_DATABASE_URL}" },
+        }],
+      }],
+    });
+
+    try {
+      expect(resolvePreset(config, "student-tracking", "backend-e2e-aiven").env)
+        .toEqual({ DATABASE_URL: "postgres://secret@host/defaultdb" });
+    } finally {
+      if (originalTestUrl === undefined) {
+        delete process.env.STS_TEST_DATABASE_URL;
+      } else {
+        process.env.STS_TEST_DATABASE_URL = originalTestUrl;
+      }
+    }
   });
 });

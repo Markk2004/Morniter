@@ -1,3 +1,27 @@
+import type { TestJobStatus } from "./lifecycle";
+
+export type { TestJobStatus };
+
+export type TestFramework = "jest" | "cypress" | "vitest" | "unknown";
+
+export interface TestProgress {
+  framework: TestFramework;
+  completed: number | null;
+  total: number | null;
+  percentage: number | null;
+  currentLabel?: string;
+  updatedAt: string;
+}
+
+export type AgentPresenceState = "online" | "lagging" | "offline";
+
+export interface AgentPresence {
+  agentId: string;
+  state: AgentPresenceState;
+  lastHeartbeatAt: string;
+  activeJobId?: string;
+}
+
 export interface TestPreset {
   id: string;
   name: string;
@@ -18,27 +42,26 @@ export interface TestProjectCatalog {
   projects: TestProject[];
 }
 
-export type TestJobStatus =
-  | "queued"
-  | "running"
-  | "passed"
-  | "failed"
-  | "cancelled"
-  | "timed_out";
-
 export interface TestJob {
   id: string;
+  idempotencyKey: string;
+  agentId: string;
   projectId: string;
   presetId: string;
   presetName: string;
   status: TestJobStatus;
   queuedAt: string;
+  claimedAt?: string;
   startedAt?: string;
   finishedAt?: string;
+  leaseExpiresAt?: string;
+  lastHeartbeatAt?: string;
+  progress?: TestProgress;
   exitCode?: number | null;
-  agentId?: string;
   cancelRequested?: boolean;
   truncated?: boolean;
+  logBytes?: number;
+  logLines?: number;
   error?: string;
 }
 
@@ -51,8 +74,10 @@ export interface TestLogLine {
   timestamp: string;
 }
 
-export interface TestLogChunk {
+export interface TestLogPage {
   jobId: string;
   lines: TestLogLine[];
+  nextSequence: number;
+  hasMore: boolean;
   truncated?: boolean;
 }

@@ -5,7 +5,7 @@ import { getServerEnv } from "@/lib/env/server";
 import type { SessionPayload } from "./session";
 
 export const EXECUTE_SESSION_COOKIE = "project_monitor_execute";
-export const EXECUTE_SESSION_DURATION_SECONDS = 15 * 60; // 15 minutes
+export const EXECUTE_SESSION_DURATION_SECONDS = 30 * 60; // 30 minutes
 
 export async function createExecuteSessionToken(now: Date = new Date()): Promise<string> {
   const env = getServerEnv();

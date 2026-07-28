@@ -124,6 +124,7 @@ describe("Browser-Facing Test Runner APIs", () => {
         origin: "http://localhost:3000",
         cookie: monitorCookie, // missing executeCookie
         "content-type": "application/json",
+        "idempotency-key": "run-test-idempotency-key-12345",
       },
       body: JSON.stringify({ projectId: "frontend", presetId: "vitest-unit" }),
     });
@@ -137,6 +138,7 @@ describe("Browser-Facing Test Runner APIs", () => {
         origin: "http://localhost:3000",
         cookie: `${monitorCookie}; ${executeCookie}`,
         "content-type": "application/json",
+        "idempotency-key": "run-test-idempotency-key-12345",
       },
       body: JSON.stringify({ projectId: "frontend", presetId: "vitest-unit" }),
     });
@@ -154,6 +156,7 @@ describe("Browser-Facing Test Runner APIs", () => {
         origin: "http://localhost:3000",
         cookie: `${monitorCookie}; ${executeCookie}`,
         "content-type": "application/json",
+        "idempotency-key": "run-test-idempotency-key-67890",
       },
       body: JSON.stringify({ projectId: "frontend", presetId: "unknown-preset" }),
     });

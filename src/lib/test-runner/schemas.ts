@@ -2,6 +2,26 @@ import { z } from "zod";
 
 export const ID_REGEX = /^[a-z0-9][a-z0-9-]{0,63}$/;
 
+export const TestPresetSchema = z.object({
+  id: z.string().regex(ID_REGEX),
+  name: z.string().min(1).max(128),
+  description: z.string().max(500),
+  commandPreview: z.string().min(1).max(256),
+  timeoutSeconds: z.number().int().min(1).max(1800),
+});
+
+export const TestProjectSchema = z.object({
+  id: z.string().regex(ID_REGEX),
+  name: z.string().min(1).max(128),
+  presets: z.array(TestPresetSchema).min(1),
+});
+
+export const TestProjectCatalogSchema = z.object({
+  version: z.string().min(1).max(64),
+  updatedAt: z.string().datetime(),
+  projects: z.array(TestProjectSchema),
+});
+
 export const CreateJobSchema = z
   .object({
     projectId: z
@@ -10,39 +30,67 @@ export const CreateJobSchema = z
     presetId: z
       .string()
       .regex(ID_REGEX, "presetId must consist of lowercase letters, digits, and hyphens"),
+    agentId: z.string().min(1).max(128).optional(),
   })
   .strict();
 
 export type CreateJobInput = z.infer<typeof CreateJobSchema>;
 
+export const TestProgressSchema = z.object({
+  framework: z.enum(["jest", "cypress", "vitest", "unknown"]),
+  completed: z.number().int().nonnegative().nullable(),
+  total: z.number().int().positive().nullable(),
+  percentage: z.number().min(0).max(100).nullable(),
+  currentLabel: z.string().max(300).optional(),
+  updatedAt: z.string().datetime(),
+});
+
+export type TestProgressInput = z.infer<typeof TestProgressSchema>;
+
 export const PollRequestSchema = z
   .object({
     agentId: z.string().min(1).max(128),
-    catalogVersion: z.string().optional(),
-    catalog: z.unknown().optional(),
+    catalogVersion: z.string().min(1).max(64),
+    catalog: TestProjectCatalogSchema.optional(),
   })
   .strict();
 
 export type PollRequestInput = z.infer<typeof PollRequestSchema>;
 
-export const AppendLogsSchema = z
+export const AgentHeartbeatSchema = z
   .object({
-    jobId: z.string().min(1),
-    sequence: z.number().int().nonnegative(),
-    stream: z.enum(["stdout", "stderr", "system"]),
-    lines: z.array(z.string()),
+    observedAt: z.string().datetime(),
+    progress: TestProgressSchema.optional(),
   })
   .strict();
 
-export type AppendLogsInput = z.infer<typeof AppendLogsSchema>;
+export type AgentHeartbeatInput = z.infer<typeof AgentHeartbeatSchema>;
+
+export const AppendLogBatchSchema = z
+  .object({
+    sequenceStart: z.number().int().nonnegative(),
+    entries: z
+      .array(
+        z.object({
+          stream: z.enum(["stdout", "stderr", "system"]),
+          message: z.string().max(32768),
+        }),
+      )
+      .min(1)
+      .max(100),
+    progress: TestProgressSchema.optional(),
+  })
+  .strict();
+
+export type AppendLogBatchInput = z.infer<typeof AppendLogBatchSchema>;
 
 export const CompleteJobSchema = z
   .object({
-    jobId: z.string().min(1),
+    jobId: z.string().optional(),
     status: z.enum(["passed", "failed", "cancelled", "timed_out"]),
     exitCode: z.number().int().nullable().optional(),
-    startedAt: z.string().optional(),
-    finishedAt: z.string().optional(),
+    startedAt: z.string().datetime().optional(),
+    finishedAt: z.string().datetime().optional(),
     error: z.string().optional(),
   })
   .strict();

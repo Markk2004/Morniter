@@ -5,21 +5,30 @@ import { POST as lockPost } from "@/app/api/test-runner/lock/route";
 import { NextRequest } from "next/server";
 import { resetServerEnvCache } from "@/lib/env/server";
 import { createSessionToken } from "@/lib/auth/session";
-import bcrypt from "bcryptjs";
+
+// Pre-computed low-cost bcrypt hash of "execute-secret-123" for deterministic test performance
+const VALID_PASSWORD_HASH = "$2b$04$RlXxHNPOt0IMHz0F7KuhYu0NsEzLhUMeoeexhqPWv9e6fDGITXvz2";
+
+vi.mock("@/lib/test-runner/redis", () => ({
+  getRunnerRedis: () => ({
+    get: vi.fn(async () => null),
+    set: vi.fn(async () => "OK"),
+    incr: vi.fn(async () => 1),
+    expire: vi.fn(async () => 1),
+  }),
+}));
 
 describe("Test Runner Execution Auth APIs", () => {
   const secret = "a".repeat(48);
-  let validPasswordHash = "";
   let validMonitorToken = "";
 
   beforeEach(async () => {
-    resetServerEnvCache();
-    validPasswordHash = await bcrypt.hash("execute-secret-123", 10);
-    vi.stubEnv("GROUP_ACCESS_PASSWORD_HASH", "$2b$12$hash");
+    vi.stubEnv("GROUP_ACCESS_PASSWORD_HASH", "$2b$04$hash");
     vi.stubEnv("SESSION_SIGNING_SECRET", secret);
-    vi.stubEnv("TEST_RUNNER_PASSWORD_HASH", validPasswordHash);
+    vi.stubEnv("TEST_RUNNER_PASSWORD_HASH", VALID_PASSWORD_HASH);
     vi.stubEnv("UPSTASH_REDIS_REST_URL", "https://mock-redis.upstash.io");
     vi.stubEnv("UPSTASH_REDIS_REST_TOKEN", "mock-token");
+    resetServerEnvCache();
     validMonitorToken = await createSessionToken();
   });
 

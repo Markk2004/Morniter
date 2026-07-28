@@ -1,157 +1,117 @@
-import child_process from "node:child_process";
-import { resolveExecutable } from "./config.js";
-import { redactLogLine } from "./redact.js";
-import type { ResolvedPreset, ExecutionResult, ExecutionStatus } from "./types.js";
+import { spawnPresetProcess, terminateProcessTree } from "./process-adapter";
+import { redactText } from "./redact";
+import type { ResolvedPreset, ExecutionResult } from "./types";
 
-export function killProcessTree(pid: number, platform = process.platform): void {
-  if (platform === "win32") {
-    try {
-      child_process.execSync(`taskkill /F /T /PID ${pid}`, { stdio: "ignore" });
-    } catch {
-      // Ignore if process already exited
-    }
-  } else {
-    try {
-      process.kill(-pid, "SIGKILL");
-    } catch {
-      try {
-        process.kill(pid, "SIGKILL");
-      } catch {
-        // Ignore
-      }
-    }
-  }
+export interface LogCallback {
+  onLines?: (stream: "stdout" | "stderr" | "system", lines: string[]) => void;
 }
 
 export async function runPreset(
   preset: ResolvedPreset,
-  callbacks: {
-    onLines: (stream: "stdout" | "stderr" | "system", lines: string[]) => void;
-    onStarted?: (pid: number) => void;
-  },
+  callback?: LogCallback,
   signal?: AbortSignal,
 ): Promise<ExecutionResult> {
-  const startedAt = new Date().toISOString();
-  const startTimeMs = Date.now();
-  const executable = resolveExecutable(preset.command);
+  const startedAtDate = new Date();
+  const startedAt = startedAtDate.toISOString();
 
-  let status: ExecutionStatus = "passed";
-  let exitCode: number | null = null;
-  const truncated = false;
-  let errorMessage: string | undefined;
+  let child: ReturnType<typeof spawnPresetProcess>;
+  try {
+    child = spawnPresetProcess(preset);
+  } catch (err) {
+    const finishedAt = new Date().toISOString();
+    const errorMessage = err instanceof Error ? err.message : "Failed to spawn process";
+    if (callback?.onLines) {
+      callback.onLines("stderr", [errorMessage]);
+    }
+    return {
+      status: "failed",
+      exitCode: null,
+      startedAt,
+      finishedAt,
+      durationMs: Date.now() - startedAtDate.getTime(),
+      truncated: false,
+      error: errorMessage,
+    };
+  }
 
-  const secretsToRedact = Object.values(preset.env);
-
-  let isAborted = false;
-  let isTimedOut = false;
+  let isFinished = false;
+  let timeoutTimer: NodeJS.Timeout | undefined;
+  let abortListener: (() => void) | undefined;
 
   return new Promise<ExecutionResult>((resolve) => {
-    callbacks.onLines("system", [
-      `[Morniter] Executing preset "${preset.name}" (${preset.command} ${preset.args.join(" ")})`,
-      `[Morniter] Working directory: ${preset.cwd}`,
-    ]);
+    function finish(
+      finalStatus: ExecutionResult["status"],
+      code: number | null,
+      errMessage?: string,
+      shouldKill = false,
+    ) {
+      if (isFinished) return;
+      isFinished = true;
 
-    const child = child_process.spawn(executable, preset.args, {
-      cwd: preset.cwd,
-      env: { ...process.env, ...preset.env },
-      shell: false,
-    });
-
-    if (child.pid && callbacks.onStarted) {
-      callbacks.onStarted(child.pid);
-    }
-
-    // Line buffering for stdout & stderr
-    let stdoutBuffer = "";
-    let stderrBuffer = "";
-
-    const flushStream = (stream: "stdout" | "stderr", text: string, isFinal = false) => {
-      const rawLines = text.split(/\r?\n/);
-      if (!isFinal) {
-        const remainder = rawLines.pop() ?? "";
-        if (stream === "stdout") stdoutBuffer = remainder;
-        if (stream === "stderr") stderrBuffer = remainder;
+      if (timeoutTimer) clearTimeout(timeoutTimer);
+      if (abortListener && signal) {
+        signal.removeEventListener("abort", abortListener);
       }
-      const validLines = rawLines.filter((l) => l.trim().length > 0);
-      if (validLines.length > 0) {
-        const redacted = validLines.map((line) => redactLogLine(line, secretsToRedact));
-        callbacks.onLines(stream, redacted);
+
+      if (shouldKill && child.pid) {
+        terminateProcessTree(child.pid);
       }
-    };
 
-    child.stdout?.on("data", (chunk: Buffer) => {
-      stdoutBuffer += chunk.toString("utf-8");
-      flushStream("stdout", stdoutBuffer);
-    });
-
-    child.stderr?.on("data", (chunk: Buffer) => {
-      stderrBuffer += chunk.toString("utf-8");
-      flushStream("stderr", stderrBuffer);
-    });
-
-    const timeoutTimer = setTimeout(() => {
-      isTimedOut = true;
-      status = "timed_out";
-      errorMessage = `Execution timed out after ${preset.timeoutSeconds} seconds`;
-      callbacks.onLines("system", [`[Morniter] ${errorMessage}`]);
-      if (child.pid) {
-        killProcessTree(child.pid);
-      }
-    }, preset.timeoutSeconds * 1000);
-
-    const onSignalAbort = () => {
-      isAborted = true;
-      status = "cancelled";
-      errorMessage = "Execution cancelled by request";
-      callbacks.onLines("system", [`[Morniter] ${errorMessage}`]);
-      if (child.pid) {
-        killProcessTree(child.pid);
-      }
-    };
-
-    if (signal) {
-      if (signal.aborted) {
-        onSignalAbort();
-      } else {
-        signal.addEventListener("abort", onSignalAbort, { once: true });
-      }
-    }
-
-    child.on("error", (err) => {
-      status = "failed";
-      errorMessage = `Failed to spawn executable "${executable}": ${err.message}`;
-      callbacks.onLines("system", [`[Morniter] ${errorMessage}`]);
-    });
-
-    child.on("close", (code) => {
-      clearTimeout(timeoutTimer);
-
-      if (stdoutBuffer) flushStream("stdout", stdoutBuffer, true);
-      if (stderrBuffer) flushStream("stderr", stderrBuffer, true);
-
-      exitCode = code;
-      const finishedAt = new Date().toISOString();
-      const durationMs = Date.now() - startTimeMs;
-
-      if (!isAborted && !isTimedOut) {
-        if (code === 0) {
-          status = "passed";
-          callbacks.onLines("system", [`[Morniter] Process exited successfully with code 0 (${durationMs}ms)`]);
-        } else {
-          status = "failed";
-          callbacks.onLines("system", [`[Morniter] Process exited with failure code ${code} (${durationMs}ms)`]);
-        }
-      }
+      const finishedAtDate = new Date();
+      const finishedAt = finishedAtDate.toISOString();
+      const durationMs = finishedAtDate.getTime() - startedAtDate.getTime();
 
       resolve({
-        status,
-        exitCode,
+        status: finalStatus,
+        exitCode: code,
         startedAt,
         finishedAt,
         durationMs,
-        truncated,
-        error: errorMessage,
+        truncated: false,
+        error: errMessage,
       });
+    }
+
+    if (signal) {
+      if (signal.aborted) {
+        finish("cancelled", null, "Execution cancelled by caller", true);
+        return;
+      }
+      abortListener = () => finish("cancelled", null, "Execution cancelled by caller", true);
+      signal.addEventListener("abort", abortListener);
+    }
+
+    if (preset.timeoutSeconds > 0) {
+      timeoutTimer = setTimeout(() => {
+        finish("timed_out", null, `Execution timed out after ${preset.timeoutSeconds} seconds`, true);
+      }, preset.timeoutSeconds * 1000);
+    }
+
+    function processStream(stream: "stdout" | "stderr", data: Buffer) {
+      if (isFinished) return;
+      const text = data.toString("utf-8");
+      const lines = text.split(/\r?\n/).filter((line) => line.length > 0);
+      const redacted = lines.map((l) => redactText(l));
+      if (redacted.length > 0 && callback?.onLines) {
+        callback.onLines(stream, redacted);
+      }
+    }
+
+    if (child.stdout) {
+      child.stdout.on("data", (data: Buffer) => processStream("stdout", data));
+    }
+    if (child.stderr) {
+      child.stderr.on("data", (data: Buffer) => processStream("stderr", data));
+    }
+
+    child.on("error", (err: Error) => {
+      processStream("stderr", Buffer.from(err.message));
+      finish("failed", null, err.message, false);
+    });
+
+    child.on("close", (code: number | null) => {
+      const finalStatus = code === 0 ? "passed" : "failed";
+      finish(finalStatus, code, undefined, false);
     });
   });
 }

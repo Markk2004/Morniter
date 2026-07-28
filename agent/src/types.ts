@@ -35,10 +35,30 @@ export interface ResolvedPreset {
   timeoutSeconds: number;
 }
 
-export type ExecutionStatus = "passed" | "failed" | "cancelled" | "timed_out";
+export type TestJobStatus =
+  | "queued"
+  | "claimed"
+  | "running"
+  | "passed"
+  | "failed"
+  | "cancel_requested"
+  | "cancelled"
+  | "timed_out"
+  | "agent_lost";
+
+export type TestFramework = "jest" | "cypress" | "vitest" | "unknown";
+
+export interface TestProgress {
+  framework: TestFramework;
+  completed: number | null;
+  total: number | null;
+  percentage: number | null;
+  currentLabel?: string;
+  updatedAt: string;
+}
 
 export interface ExecutionResult {
-  status: ExecutionStatus;
+  status: "passed" | "failed" | "cancelled" | "timed_out";
   exitCode: number | null;
   startedAt: string;
   finishedAt: string;
@@ -69,16 +89,23 @@ export interface TestProjectCatalog {
 
 export interface TestJob {
   id: string;
+  idempotencyKey: string;
+  agentId: string;
   projectId: string;
   presetId: string;
   presetName: string;
-  status: ExecutionStatus | "queued" | "running";
+  status: TestJobStatus;
   queuedAt: string;
+  claimedAt?: string;
   startedAt?: string;
   finishedAt?: string;
+  leaseExpiresAt?: string;
+  lastHeartbeatAt?: string;
+  progress?: TestProgress;
   exitCode?: number | null;
-  agentId?: string;
   cancelRequested?: boolean;
   truncated?: boolean;
+  logBytes?: number;
+  logLines?: number;
   error?: string;
 }

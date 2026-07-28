@@ -1,18 +1,38 @@
 "use client";
 
+import React from "react";
 import type { TestJob } from "@/lib/test-runner/types";
 
 interface JobHistoryProps {
-  jobs: TestJob[];
+  jobs?: TestJob[];
+  history?: TestJob[];
   activeJobId?: string | null;
-  onSelectJob: (job: TestJob) => void;
+  onSelectJob?: (job: TestJob) => void;
+  onRefresh?: () => void;
 }
 
-export default function JobHistory({ jobs, activeJobId, onSelectJob }: JobHistoryProps) {
-  if (jobs.length === 0) {
+export function JobHistory({
+  jobs,
+  history,
+  activeJobId,
+  onSelectJob,
+  onRefresh,
+}: JobHistoryProps) {
+  const list = jobs || history || [];
+
+  if (list.length === 0) {
     return (
-      <div className="p-4 bg-slate-900 border border-slate-800 rounded-xl text-center text-xs text-slate-500 italic">
-        No past test execution jobs recorded yet.
+      <div className="p-4 bg-slate-900 border border-slate-800 rounded-xl text-center text-xs text-slate-500 italic flex items-center justify-between">
+        <span>No past test execution jobs recorded yet.</span>
+        {onRefresh && (
+          <button
+            type="button"
+            onClick={onRefresh}
+            className="text-[11px] text-cyan-400 hover:underline font-mono"
+          >
+            Refresh
+          </button>
+        )}
       </div>
     );
   }
@@ -38,17 +58,28 @@ export default function JobHistory({ jobs, activeJobId, onSelectJob }: JobHistor
 
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
-      <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-        Job Execution History (Last {jobs.length})
-      </h4>
+      <div className="flex items-center justify-between">
+        <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+          Job Execution History (Last {list.length})
+        </h4>
+        {onRefresh && (
+          <button
+            type="button"
+            onClick={onRefresh}
+            className="text-[11px] text-cyan-400 hover:underline font-mono"
+          >
+            Refresh
+          </button>
+        )}
+      </div>
 
       <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-        {jobs.map((job) => {
+        {list.map((job) => {
           const isSelected = job.id === activeJobId;
           return (
             <button
               key={job.id}
-              onClick={() => onSelectJob(job)}
+              onClick={() => onSelectJob?.(job)}
               className={`w-full text-left p-3 rounded-lg border text-xs transition-colors flex items-center justify-between gap-3 ${
                 isSelected
                   ? "bg-slate-800 border-sky-500/50 text-slate-100"
@@ -75,3 +106,5 @@ export default function JobHistory({ jobs, activeJobId, onSelectJob }: JobHistor
     </div>
   );
 }
+
+export default JobHistory;

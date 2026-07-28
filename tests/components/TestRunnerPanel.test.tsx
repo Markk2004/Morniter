@@ -34,6 +34,7 @@ describe("TestRunnerPanel Component", () => {
         return new Response(
           JSON.stringify({
             online: true,
+            presence: { state: "online", agentId: "agent-win-1" },
             catalog: {
               version: "1.0.0",
               updatedAt: new Date().toISOString(),

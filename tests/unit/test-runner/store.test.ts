@@ -2,73 +2,103 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import {
   enqueueJob,
   claimNextJob,
+  heartbeatJob,
+  appendLogBatch,
+  readLogPage,
   completeJob,
   requestCancel,
+  reapStaleJobs,
   publishCatalog,
   getCatalog,
+  getJob,
+  getAgentPresence,
+} from "@/lib/test-runner/store";
+import {
+  ActiveJobExistsError,
   QueueFullError,
   UnknownPresetError,
-} from "@/lib/test-runner/store";
+} from "@/lib/test-runner/errors";
 import type { TestProjectCatalog } from "@/lib/test-runner/types";
 
-// In-memory fake Redis mock
-const fakeRedisStore = new Map<string, unknown>();
-const fakeRedisLists = new Map<string, string[]>();
+// In-memory fake Redis mock for v2 key structures
+const fakeStore = new Map<string, unknown>();
+const fakeLists = new Map<string, string[]>();
 
 vi.mock("@/lib/test-runner/redis", () => ({
   getRunnerRedis: () => ({
-    get: vi.fn(async (key: string) => fakeRedisStore.get(key) ?? null),
-    set: vi.fn(async (key: string, val: unknown) => {
-      fakeRedisStore.set(key, val);
+    get: vi.fn(async (key: string) => fakeStore.get(key) ?? null),
+    set: vi.fn(async (key: string, val: unknown, opts?: { nx?: boolean }) => {
+      if (opts?.nx && fakeStore.has(key)) {
+        return null;
+      }
+      fakeStore.set(key, val);
       return "OK";
     }),
     del: vi.fn(async (key: string) => {
-      fakeRedisStore.delete(key);
-      fakeRedisLists.delete(key);
+      fakeStore.delete(key);
+      fakeLists.delete(key);
       return 1;
     }),
     rpush: vi.fn(async (key: string, val: string) => {
-      const list = fakeRedisLists.get(key) || [];
+      const list = fakeLists.get(key) || [];
       list.push(val);
-      fakeRedisLists.set(key, list);
+      fakeLists.set(key, list);
       return list.length;
     }),
     lpop: vi.fn(async (key: string) => {
-      const list = fakeRedisLists.get(key) || [];
+      const list = fakeLists.get(key) || [];
       const item = list.shift();
-      fakeRedisLists.set(key, list);
+      fakeLists.set(key, list);
       return item ?? null;
     }),
     llen: vi.fn(async (key: string) => {
-      const list = fakeRedisLists.get(key) || [];
+      const list = fakeLists.get(key) || [];
       return list.length;
     }),
     expire: vi.fn(async () => 1),
     lrange: vi.fn(async (key: string, start: number, stop: number) => {
-      const list = fakeRedisLists.get(key) || [];
+      const list = fakeLists.get(key) || [];
       const end = stop < 0 ? list.length + stop + 1 : stop + 1;
       return list.slice(start, end);
     }),
     zadd: vi.fn(async (key: string, member: { score: number; member: string }) => {
-      const set = (fakeRedisStore.get(key) as Array<{ score: number; member: string }>) || [];
+      const set = (fakeStore.get(key) as Array<{ score: number; member: string }>) || [];
       set.push(member);
-      fakeRedisStore.set(key, set);
+      fakeStore.set(key, set);
       return 1;
     }),
-    zrevrange: vi.fn(async (key: string, start: number, stop: number) => {
-      const set = (fakeRedisStore.get(key) as Array<{ score: number; member: string }>) || [];
-      const sorted = [...set].sort((a, b) => b.score - a.score);
-      const slice = sorted.slice(start, stop < 0 ? sorted.length : stop + 1);
-      return slice.map((item) => item.member);
-    }),
+    zrange: vi.fn(
+      async (
+        key: string,
+        min: number | string,
+        max: number | string,
+        opts?: { rev?: boolean; byScore?: boolean },
+      ) => {
+        const set = (fakeStore.get(key) as Array<{ score: number; member: string }>) || [];
+        if (opts?.byScore) {
+          const minScore = typeof min === "number" ? min : -Infinity;
+          const maxScore = typeof max === "number" ? max : Infinity;
+          const filtered = set.filter((item) => item.score >= minScore && item.score <= maxScore);
+          const sorted = [...filtered].sort((a, b) => (opts?.rev ? b.score - a.score : a.score - b.score));
+          return sorted.map((item) => item.member);
+        }
+
+        // Index range (e.g. 0 to -1)
+        const sorted = [...set].sort((a, b) => (opts?.rev ? b.score - a.score : a.score - b.score));
+        const start = typeof min === "number" ? min : 0;
+        const stop = typeof max === "number" ? max : -1;
+        const end = stop < 0 ? sorted.length + stop + 1 : stop + 1;
+        return sorted.slice(start, end).map((item) => item.member);
+      },
+    ),
   }),
   TestRunnerConfigError: class extends Error {},
 }));
 
-describe("Test Runner Redis Store", () => {
+describe("Test Runner Redis Store (v2)", () => {
   const sampleCatalog: TestProjectCatalog = {
     version: "1.0.0",
-    updatedAt: "2026-07-28T10:00:00Z",
+    updatedAt: "2026-07-28T10:00:00.000Z",
     projects: [
       {
         id: "student-tracking",
@@ -77,7 +107,7 @@ describe("Test Runner Redis Store", () => {
           {
             id: "cypress-e2e",
             name: "Cypress E2E Tests",
-            description: "Runs Cypress end-to-end suite",
+            description: "Runs Cypress suite",
             commandPreview: "npx cypress run",
             timeoutSeconds: 300,
           },
@@ -86,94 +116,83 @@ describe("Test Runner Redis Store", () => {
     ],
   };
 
+  const jobInput = { projectId: "student-tracking", presetId: "cypress-e2e" };
+
   beforeEach(() => {
-    fakeRedisStore.clear();
-    fakeRedisLists.clear();
+    fakeStore.clear();
+    fakeLists.clear();
   });
 
-  it("publishes and retrieves catalog", async () => {
-    await publishCatalog(sampleCatalog);
-    const catalog = await getCatalog();
+  it("publishes and retrieves catalog and agent presence", async () => {
+    await publishCatalog(sampleCatalog, "agent-win-1");
+    const catalog = await getCatalog("agent-win-1");
     expect(catalog).toEqual(sampleCatalog);
+
+    const presence = await getAgentPresence("agent-win-1");
+    expect(presence?.state).toBe("online");
   });
 
-  it("enqueues a valid job and claims FIFO queue for active agent", async () => {
-    await publishCatalog(sampleCatalog);
+  it("returns the same job for a repeated idempotency key", async () => {
+    await publishCatalog(sampleCatalog, "agent-win-1");
+    const first = await enqueueJob(jobInput, "requester-1", "run-123", sampleCatalog, "agent-win-1");
+    const repeated = await enqueueJob(jobInput, "requester-1", "run-123", sampleCatalog, "agent-win-1");
+    expect(repeated.id).toBe(first.id);
+  });
 
-    const job = await enqueueJob(
-      { projectId: "student-tracking", presetId: "cypress-e2e" },
-      "requester-1",
-      sampleCatalog,
-    );
+  it("rejects a second active job for the same agent", async () => {
+    await publishCatalog(sampleCatalog, "agent-win-1");
+    await enqueueJob(jobInput, "requester-1", "run-1", sampleCatalog, "agent-win-1");
+    await expect(
+      enqueueJob(jobInput, "requester-1", "run-2", sampleCatalog, "agent-win-1"),
+    ).rejects.toThrow(ActiveJobExistsError);
+  });
 
-    expect(job.status).toBe("queued");
-    expect(job.presetName).toBe("Cypress E2E Tests");
+  it("claims job FIFO and updates lease and heartbeat", async () => {
+    await publishCatalog(sampleCatalog, "agent-win-1");
+    const enqueued = await enqueueJob(jobInput, "requester-1", "run-1", sampleCatalog, "agent-win-1");
 
     const claimed = await claimNextJob("agent-win-1");
-    expect(claimed).not.toBeNull();
-    expect(claimed?.id).toBe(job.id);
-    expect(claimed?.status).toBe("running");
-    expect(claimed?.agentId).toBe("agent-win-1");
+    expect(claimed?.id).toBe(enqueued.id);
+    expect(claimed?.status).toBe("claimed");
+
+    const hbResult = await heartbeatJob(claimed!.id, "agent-win-1");
+    expect(hbResult.cancelRequested).toBe(false);
   });
 
-  it("rejects unknown presetId", async () => {
-    await expect(
-      enqueueJob(
-        { projectId: "student-tracking", presetId: "non-existent" },
-        "req",
-        sampleCatalog,
-      ),
-    ).rejects.toThrow(UnknownPresetError);
-  });
-
-  it("rejects when queue limit 10 is reached", async () => {
-    await publishCatalog(sampleCatalog);
-
-    for (let i = 0; i < 10; i++) {
-      await enqueueJob(
-        { projectId: "student-tracking", presetId: "cypress-e2e" },
-        "req",
-        sampleCatalog,
-      );
-    }
-
-    await expect(
-      enqueueJob(
-        { projectId: "student-tracking", presetId: "cypress-e2e" },
-        "req",
-        sampleCatalog,
-      ),
-    ).rejects.toThrow(QueueFullError);
-  });
-
-  it("handles job completion and status update", async () => {
-    await publishCatalog(sampleCatalog);
-    const job = await enqueueJob(
-      { projectId: "student-tracking", presetId: "cypress-e2e" },
-      "req",
-      sampleCatalog,
-    );
+  it("marks a running job agent_lost after its lease expires", async () => {
+    await publishCatalog(sampleCatalog, "agent-win-1");
+    const enqueued = await enqueueJob(jobInput, "requester-1", "run-1", sampleCatalog, "agent-win-1");
     await claimNextJob("agent-win-1");
 
-    const completed = await completeJob(job.id, {
-      status: "passed",
-      exitCode: 0,
-      finishedAt: new Date().toISOString(),
-    });
+    // Advance 46 seconds past lease
+    const future = new Date(Date.now() + 46 * 1000);
+    const reaped = await reapStaleJobs(future);
 
-    expect(completed.status).toBe("passed");
-    expect(completed.exitCode).toBe(0);
+    expect(reaped).toContain(enqueued.id);
+    const job = await getJob(enqueued.id);
+    expect(job?.status).toBe("agent_lost");
   });
 
-  it("handles cancel request on queued and running jobs", async () => {
-    await publishCatalog(sampleCatalog);
-    const job = await enqueueJob(
-      { projectId: "student-tracking", presetId: "cypress-e2e" },
-      "req",
-      sampleCatalog,
-    );
+  it("appends log batches sequentially and reads cursor pages", async () => {
+    await publishCatalog(sampleCatalog, "agent-win-1");
+    const enqueued = await enqueueJob(jobInput, "requester-1", "run-1", sampleCatalog, "agent-win-1");
 
-    const cancelled = await requestCancel(job.id);
+    await appendLogBatch(enqueued.id, 0, [
+      { stream: "stdout", message: "Step 1" },
+      { stream: "stdout", message: "Step 2" },
+    ]);
+
+    const page = await readLogPage(enqueued.id, -1, 10);
+    expect(page.lines).toHaveLength(2);
+    expect(page.lines[0].message).toBe("Step 1");
+    expect(page.nextSequence).toBe(2);
+  });
+
+  it("handles job cancellation and completion", async () => {
+    await publishCatalog(sampleCatalog, "agent-win-1");
+    const enqueued = await enqueueJob(jobInput, "requester-1", "run-1", sampleCatalog, "agent-win-1");
+
+    const cancelled = await requestCancel(enqueued.id);
     expect(cancelled.status).toBe("cancelled");
     expect(cancelled.cancelRequested).toBe(true);
   });

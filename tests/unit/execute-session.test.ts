@@ -34,11 +34,11 @@ describe("Execute Session Token", () => {
     expect(payload?.iss).toBe("project-monitor");
   });
 
-  it("rejects expired token after 15 minutes", async () => {
+  it("rejects expired token after 30 minutes", async () => {
     const now = new Date();
     const token = await createExecuteSessionToken(now);
 
-    const future = new Date(now.getTime() + 16 * 60 * 1000);
+    const future = new Date(now.getTime() + 31 * 60 * 1000); // 31 minutes later
     const payload = await verifyExecuteSessionToken(token, future);
 
     expect(payload).toBeNull();

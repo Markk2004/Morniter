@@ -1,83 +1,93 @@
-import { AgentClient } from "./client.js";
-import { resolvePreset } from "./config.js";
-import { runPreset } from "./executor.js";
-import type { AgentConfig, TestProjectCatalog } from "./types.js";
+import { createProgressParser } from "./progress";
+import { LogBatcher } from "./log-batcher";
+import { runPreset } from "./executor";
+import { resolvePreset, buildCatalogFromConfig } from "./config";
+import type { AgentConfig } from "./types";
+import { AgentClient } from "./client";
 
-const ACTIVE_POLL_INTERVAL_MS = 5000;
-const IDLE_POLL_INTERVAL_MS = 30000;
+export { buildCatalogFromConfig };
 
-export function buildCatalogFromConfig(config: AgentConfig): TestProjectCatalog {
-  return {
-    version: "1.0.0",
-    updatedAt: new Date().toISOString(),
-    projects: config.projects.map((project) => ({
-      id: project.id,
-      name: project.name,
-      presets: project.presets.map((preset) => ({
-        id: preset.id,
-        name: preset.name,
-        description: preset.description,
-        commandPreview: `${preset.command} ${(preset.args || []).join(" ")}`.trim(),
-        timeoutSeconds: preset.timeoutSeconds ?? 300,
-      })),
-    })),
-  };
+export async function executeClaimedJob(
+  config: AgentConfig,
+  job: import("./types").TestJob,
+  client: AgentClient,
+): Promise<void> {
+  const preset = resolvePreset(config, job.projectId, job.presetId);
+  if (!preset) {
+    await client.complete(job.id, {
+      status: "failed",
+      exitCode: 1,
+      startedAt: new Date().toISOString(),
+      finishedAt: new Date().toISOString(),
+      durationMs: 0,
+      truncated: false,
+      error: `Preset ${job.presetId} not found in agent configuration`,
+    });
+    return;
+  }
+
+  const parser = createProgressParser(preset.name || preset.command);
+  const logBatcher = new LogBatcher(async (seqStart, entries, progress) => {
+    await client.appendLogs(job.id, seqStart, entries, progress);
+  });
+
+  const abortController = new AbortController();
+
+  // 5-second heartbeat loop
+  const heartbeatTimer = setInterval(async () => {
+    try {
+      const hb = await client.heartbeat(job.id, parser.consume("stdout", []));
+      if (hb.cancelRequested) {
+        abortController.abort();
+      }
+    } catch {
+      // Ignore transient heartbeat failures
+    }
+  }, 5000);
+
+  try {
+    const result = await runPreset(
+      preset,
+      {
+        onLines: (stream: "stdout" | "stderr" | "system", lines: string[]) => {
+          if (stream === "stdout" || stream === "stderr") {
+            const progress = parser.consume(stream, lines);
+            logBatcher.push(stream, lines, progress);
+          } else {
+            logBatcher.push(stream, lines);
+          }
+        },
+      },
+      abortController.signal,
+    );
+
+    // Drain pending logs before completion
+    await logBatcher.drain();
+    await client.complete(job.id, result);
+  } finally {
+    clearInterval(heartbeatTimer);
+  }
 }
 
-export async function runAgent(config: AgentConfig, signal?: AbortSignal): Promise<void> {
-  const client = new AgentClient(config.serverUrl, config.agentToken);
+export async function runAgent(config: AgentConfig): Promise<void> {
+  const client = new AgentClient(config.serverUrl, config.agentToken, config.agentId);
   const catalog = buildCatalogFromConfig(config);
+  const pollIntervalMs = (config.pollIntervalSeconds ?? 5) * 1000;
 
-  console.log(`[Morniter Local Agent] Initialized agentId="${config.agentId}" server="${config.serverUrl}"`);
+  console.log(`[Morniter Local Agent] Agent "${config.agentId}" started polling ${config.serverUrl}`);
 
-  let nextPollInterval = IDLE_POLL_INTERVAL_MS;
-
-  while (!signal?.aborted) {
+  while (true) {
     try {
-      const pollResult = await client.poll(config.agentId, catalog.version, catalog);
-
-      if (pollResult && pollResult.job) {
-        const job = pollResult.job;
-        console.log(`[Morniter Local Agent] Claimed job ${job.id} (${job.projectId}/${job.presetId})`);
-
-        let sequence = 0;
-        try {
-          const resolved = resolvePreset(config, job.projectId, job.presetId);
-          const execAbortController = new AbortController();
-
-          const result = await runPreset(
-            resolved,
-            {
-              onLines: (stream, lines) => {
-                client
-                  .appendLogs(job.id, sequence, stream, lines)
-                  .catch((err) =>
-                    console.error(`[Morniter Local Agent] Failed to send logs: ${err.message}`),
-                  );
-                sequence += lines.length;
-              },
-            },
-            execAbortController.signal,
-          );
-
-          await client.complete(job.id, result);
-          console.log(`[Morniter Local Agent] Completed job ${job.id} with status "${result.status}"`);
-        } catch (execErr) {
-          const errMsg = execErr instanceof Error ? execErr.message : "Execution failed";
-          console.error(`[Morniter Local Agent] Job ${job.id} error: ${errMsg}`);
-          await client.complete(job.id, { status: "failed", error: errMsg });
-        }
-
-        nextPollInterval = ACTIVE_POLL_INTERVAL_MS;
-      } else {
-        nextPollInterval = IDLE_POLL_INTERVAL_MS;
+      const job = await client.poll("1.0.0", catalog);
+      if (job) {
+        console.log(`[Morniter Local Agent] Claimed job ${job.id} (${job.projectId}:${job.presetId})`);
+        await executeClaimedJob(config, job, client);
       }
-    } catch (pollErr) {
-      const errMsg = pollErr instanceof Error ? pollErr.message : "Polling error";
-      console.error(`[Morniter Local Agent] ${errMsg}. Retrying in 30s...`);
-      nextPollInterval = IDLE_POLL_INTERVAL_MS;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Polling error";
+      console.error(`[Morniter Local Agent] Poll error: ${msg}`);
     }
 
-    await new Promise((res) => setTimeout(res, nextPollInterval));
+    await new Promise((r) => setTimeout(r, pollIntervalMs));
   }
 }

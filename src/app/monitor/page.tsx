@@ -1,23 +1,14 @@
-import { redirect } from "next/navigation";
-import { requireMonitorSession } from "@/lib/auth/session";
+import React from "react";
 import { getMonitorSnapshot } from "@/lib/monitor/aggregate";
-import { getServerEnv } from "@/lib/env/server";
-import MonitorDashboard from "@/components/monitor/MonitorDashboard";
+import { MonitorLogsPage } from "@/components/monitor/MonitorLogsPage";
 
 export default async function MonitorPage() {
+  let initialSnapshot = null;
   try {
-    await requireMonitorSession();
+    initialSnapshot = await getMonitorSnapshot();
   } catch {
-    redirect("/login");
+    // Aggregator fallback
   }
 
-  const env = getServerEnv();
-  const initialSnapshot = await getMonitorSnapshot().catch(() => null);
-
-  return (
-    <MonitorDashboard
-      initialSnapshot={initialSnapshot}
-      displayName={env.MONITOR_DISPLAY_NAME}
-    />
-  );
+  return <MonitorLogsPage initialSnapshot={initialSnapshot} />;
 }

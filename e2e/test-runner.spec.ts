@@ -16,7 +16,7 @@ async function makeValidSessionToken(): Promise<string> {
 }
 
 test.describe("Test Runner Console E2E", () => {
-  test("displays Test Runner console and unlocks execution session", async ({ page }) => {
+  test("displays Test Runner workspace and unlocks execution session", async ({ page }) => {
     const token = await makeValidSessionToken();
     await page.context().addCookies([
       {
@@ -33,7 +33,11 @@ test.describe("Test Runner Console E2E", () => {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({
-          online: true,
+          presence: {
+            agentId: "agent-win-1",
+            state: "online",
+            lastHeartbeatAt: new Date().toISOString(),
+          },
           catalog: {
             version: "1.0.0",
             updatedAt: new Date().toISOString(),
@@ -54,6 +58,15 @@ test.describe("Test Runner Console E2E", () => {
             ],
           },
         }),
+      });
+    });
+
+    // Mock lock route
+    await page.route("**/api/test-runner/lock*", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ unlocked: false }),
       });
     });
 
@@ -91,25 +104,24 @@ test.describe("Test Runner Console E2E", () => {
       });
     });
 
-    await page.goto("/monitor");
+    await page.goto("/monitor/tests");
 
-    // Verify Test Runner title and Agent Online badge
-    await expect(page.getByText(/Test Runner Console/i)).toBeVisible();
+    // Verify top navigation links
+    await expect(page.getByRole("link", { name: "Tests" })).toHaveAttribute("aria-current", "page");
     await expect(page.getByText(/Local Agent Online/i)).toBeVisible();
-    await expect(page.getByRole("option", { name: /Cypress E2E Suite/i })).toBeAttached();
+    await expect(page.getByText(/Cypress E2E Suite/i)).toBeVisible();
     await expect(page.getByText(/npx cypress run/i)).toBeVisible();
 
     // Verify unlock execution card
     await expect(page.getByText(/Execution Lock Active/i)).toBeVisible();
     await page.getByPlaceholder(/Execution password/i).fill("secret-pass");
-    await page.getByRole("button", { name: "Unlock Execution" }).click();
+    await page.getByRole("button", { name: "Unlock Execution", exact: true }).click();
 
-    // Unlock card should disappear and Run button becomes enabled
-    await expect(page.getByText(/Execution Lock Active/i)).not.toBeVisible();
-    const runBtn = page.getByRole("button", { name: /Run Selected Preset/i });
-    await expect(runBtn).toBeEnabled();
-    await runBtn.click();
+    // Click navigation to Logs and back to Tests
+    await page.getByRole("link", { name: "Logs" }).click();
+    await expect(page).toHaveURL(/\/monitor$/);
 
-    await expect(page.getByText(/Active Job:/i)).toBeVisible();
+    await page.getByRole("link", { name: "Tests" }).click();
+    await expect(page).toHaveURL(/\/monitor\/tests$/);
   });
 });

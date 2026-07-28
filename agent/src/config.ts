@@ -53,6 +53,24 @@ export function resolveExecutable(command: string, platform = process.platform):
   return command;
 }
 
+export function expandPresetEnvironment(
+  env: Record<string, string>,
+  source: Readonly<Record<string, string | undefined>> = process.env,
+): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(env).map(([key, value]) => {
+      const expanded = value.replace(/\$\{([A-Za-z_][A-Za-z0-9_]*)\}/g, (_match, name: string) => {
+        const resolved = source[name];
+        if (resolved == null) {
+          throw new Error(`Missing environment variable ${name} for preset ${key}`);
+        }
+        return resolved;
+      });
+      return [key, expanded];
+    }),
+  );
+}
+
 export function resolvePreset(
   config: AgentConfig,
   projectId: string,
@@ -76,7 +94,25 @@ export function resolvePreset(
     command: preset.command,
     args: preset.args ?? [],
     cwd: preset.cwd,
-    env: preset.env ?? {},
+    env: expandPresetEnvironment(preset.env ?? {}),
     timeoutSeconds: preset.timeoutSeconds ?? 300,
+  };
+}
+
+export function buildCatalogFromConfig(config: AgentConfig): import("./types.js").TestProjectCatalog {
+  return {
+    version: "1.0.0",
+    updatedAt: new Date().toISOString(),
+    projects: config.projects.map((proj) => ({
+      id: proj.id,
+      name: proj.name,
+      presets: proj.presets.map((preset) => ({
+        id: preset.id,
+        name: preset.name,
+        description: preset.description,
+        commandPreview: `${preset.command} ${(preset.args || []).join(" ")}`.trim(),
+        timeoutSeconds: preset.timeoutSeconds ?? 300,
+      })),
+    })),
   };
 }

@@ -27,3 +27,7 @@ export function redactLogLine(line: string, extraSecrets: string[] = []): string
 
   return result;
 }
+
+export function redactText(line: string, extraSecrets: string[] = []): string {
+  return redactLogLine(line, extraSecrets);
+}

@@ -6,7 +6,7 @@ interface ExecutionUnlockProps {
   onUnlocked: () => void;
 }
 
-export default function ExecutionUnlock({ onUnlocked }: ExecutionUnlockProps) {
+export function ExecutionUnlock({ onUnlocked }: ExecutionUnlockProps) {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -75,3 +75,5 @@ export default function ExecutionUnlock({ onUnlocked }: ExecutionUnlockProps) {
     </div>
   );
 }
+
+export default ExecutionUnlock;

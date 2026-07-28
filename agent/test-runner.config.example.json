@@ -1,8 +1,24 @@
 {
   "agentId": "windows-local-agent-1",
   "serverUrl": "http://localhost:3000",
-  "agentToken": "REPLACE_WITH_YOUR_32_BYTE_AGENT_TOKEN",
+  "agentToken": "change-me-to-a-secure-agent-token-with-at-least-32-characters-1234567890",
+  "pollIntervalSeconds": 5,
   "projects": [
+    {
+      "id": "morniter",
+      "name": "Morniter Local Agent",
+      "presets": [
+        {
+          "id": "agent-smoke",
+          "name": "Morniter Agent Smoke",
+          "description": "Verify the Local Agent can launch Node and stream output",
+          "command": "node",
+          "args": ["--version"],
+          "cwd": "E:\\project-monitor",
+          "timeoutSeconds": 30
+        }
+      ]
+    },
     {
       "id": "student-tracking",
       "name": "Student Tracking System",
@@ -10,20 +26,79 @@
         {
           "id": "cypress-e2e",
           "name": "Cypress E2E Suite",
-          "description": "Run full Cypress integration & E2E suite",
+          "description": "Run Cypress end-to-end test suite",
           "command": "npx",
           "args": ["cypress", "run"],
-          "cwd": "E:\\project-monitor",
+          "cwd": "E:\\ProjectSTS\\frontend",
+          "timeoutSeconds": 300
+        },
+        {
+          "id": "backend-unit",
+          "name": "STS Backend Unit Tests",
+          "description": "Run backend unit tests without a production database",
+          "command": "npm",
+          "args": ["run", "test"],
+          "cwd": "E:\\ProjectSTS\\backend",
           "timeoutSeconds": 600
         },
         {
-          "id": "vitest-unit",
-          "name": "Vitest Unit Tests",
-          "description": "Run Vitest unit test suite",
-          "command": "npx",
-          "args": ["vitest", "run"],
-          "cwd": "E:\\project-monitor",
+          "id": "backend-e2e-aiven",
+          "name": "STS Backend E2E (Aiven defaultdb)",
+          "description": "Run mutation-capable backend E2E against Aiven defaultdb; never use student_tracking.",
+          "command": "npm",
+          "args": ["run", "test:e2e"],
+          "cwd": "E:\\ProjectSTS\\backend",
+          "env": {
+            "NODE_ENV": "test",
+            "TEST_DATABASE_NAME": "defaultdb",
+            "DATABASE_URL": "${STS_TEST_DATABASE_URL}"
+          },
+          "timeoutSeconds": 900
+        },
+        {
+          "id": "backend-lint",
+          "name": "STS Backend Lint",
+          "description": "Run backend ESLint checks without a database",
+          "command": "npm",
+          "args": ["run", "lint:check"],
+          "cwd": "E:\\ProjectSTS\\backend",
           "timeoutSeconds": 300
+        },
+        {
+          "id": "backend-build",
+          "name": "STS Backend Build",
+          "description": "Compile the backend without changing production data",
+          "command": "npm",
+          "args": ["run", "build"],
+          "cwd": "E:\\ProjectSTS\\backend",
+          "timeoutSeconds": 600
+        },
+        {
+          "id": "frontend-typecheck",
+          "name": "STS Frontend Type Check",
+          "description": "Run frontend TypeScript checks",
+          "command": "npm",
+          "args": ["run", "typecheck"],
+          "cwd": "E:\\ProjectSTS\\frontend",
+          "timeoutSeconds": 300
+        },
+        {
+          "id": "frontend-lint",
+          "name": "STS Frontend Lint",
+          "description": "Run frontend ESLint checks",
+          "command": "npm",
+          "args": ["run", "lint"],
+          "cwd": "E:\\ProjectSTS\\frontend",
+          "timeoutSeconds": 300
+        },
+        {
+          "id": "frontend-build",
+          "name": "STS Frontend Build",
+          "description": "Build the frontend application",
+          "command": "npm",
+          "args": ["run", "build"],
+          "cwd": "E:\\ProjectSTS\\frontend",
+          "timeoutSeconds": 600
         }
       ]
     }

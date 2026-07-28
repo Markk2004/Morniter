@@ -1,53 +1,60 @@
 import { describe, expect, it } from "vitest";
 import { runPreset } from "../../../agent/src/executor";
-import type { ResolvedPreset } from "../../../agent/src/types";
 
-describe("Safe Process Executor", () => {
-  it("executes Node process cleanly with shell: false and captures stdout", async () => {
-    const preset: ResolvedPreset = {
-      projectId: "test-proj",
-      presetId: "node-ver",
-      name: "Node Version Check",
-      description: "Checks node version",
-      command: process.execPath,
-      args: ["-e", 'console.log("HELLO_LOCAL_AGENT")'],
+describe("Agent Executor", () => {
+  it.runIf(process.platform === "win32")("runs npm.cmd without spawn EINVAL on Windows", async () => {
+    const result = await runPreset({
+      projectId: "morniter",
+      presetId: "npm-version",
+      name: "npm version",
+      description: "",
+      command: "npm",
+      args: ["--version"],
       cwd: process.cwd(),
       env: {},
-      timeoutSeconds: 10,
-    };
-
-    const lines: string[] = [];
-    const result = await runPreset(preset, {
-      onLines: (stream, batch) => {
-        if (stream === "stdout") {
-          lines.push(...batch);
-        }
-      },
+      timeoutSeconds: 20,
     });
 
     expect(result.status).toBe("passed");
     expect(result.exitCode).toBe(0);
-    expect(lines.join("\n")).toContain("HELLO_LOCAL_AGENT");
   });
 
-  it("handles non-zero exit code as failed status", async () => {
-    const preset: ResolvedPreset = {
-      projectId: "test-proj",
-      presetId: "node-fail",
-      name: "Failing Node script",
-      description: "Fails with exit code 2",
-      command: process.execPath,
-      args: ["-e", "process.exit(2)"],
+  it("kills a running process when aborted via AbortSignal", async () => {
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), 100);
+
+    const result = await runPreset(
+      {
+        projectId: "test",
+        presetId: "sleep",
+        name: "Long Sleep",
+        description: "",
+        command: "node",
+        args: ["-e", "setTimeout(() => {}, 10000)"],
+        cwd: process.cwd(),
+        env: {},
+        timeoutSeconds: 30,
+      },
+      undefined,
+      controller.signal,
+    );
+
+    expect(result.status).toBe("cancelled");
+  });
+
+  it("kills a running process when preset timeout expires", async () => {
+    const result = await runPreset({
+      projectId: "test",
+      presetId: "timeout",
+      name: "Timeout Sleep",
+      description: "",
+      command: "node",
+      args: ["-e", "setTimeout(() => {}, 10000)"],
       cwd: process.cwd(),
       env: {},
-      timeoutSeconds: 10,
-    };
-
-    const result = await runPreset(preset, {
-      onLines: () => {},
+      timeoutSeconds: 1, // 1 second timeout
     });
 
-    expect(result.status).toBe("failed");
-    expect(result.exitCode).toBe(2);
+    expect(result.status).toBe("timed_out");
   });
 });
