@@ -8,6 +8,7 @@ import ProviderErrors from "./ProviderErrors";
 import ProviderIncidentAlerts from "./ProviderIncidentAlerts";
 import SourceFilters from "./SourceFilters";
 import TerminalPanel from "./TerminalPanel";
+import { hasRecoveredToHealthy } from "@/lib/monitor/recovery";
 
 interface MonitorLogsPageProps {
   initialSnapshot?: MonitorSnapshot | null;
@@ -24,34 +25,57 @@ export function MonitorLogsPage({ initialSnapshot = null }: MonitorLogsPageProps
 
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isMountedRef = useRef(true);
+  const snapshotRef = useRef<MonitorSnapshot | null>(initialSnapshot);
 
   const activeSnapshot = snapshot;
   const allServices = activeSnapshot?.providers.flatMap((p) => p.services) || [];
   const rawEvents = activeSnapshot?.events || [];
+
+  const requestSnapshot = useCallback(async (force: boolean): Promise<MonitorSnapshot | null> => {
+    const url = force ? "/api/monitor/snapshot?force=1" : "/api/monitor/snapshot";
+
+    try {
+      const res = await fetch(url, { cache: "no-store" });
+      if (res.ok || res.status === 503) {
+        return (await res.json()) as MonitorSnapshot;
+      }
+      if (res.status === 401) {
+        window.location.href = "/login";
+      }
+    } catch {
+      // Keep the current snapshot on transient network error.
+    }
+
+    return null;
+  }, []);
 
   const fetchLatestSnapshot = useCallback(async (force = false) => {
     if (isRefreshing) return;
     setIsRefreshing(true);
 
     try {
-      const url = force ? "/api/monitor/snapshot?force=1" : "/api/monitor/snapshot";
-      const res = await fetch(url);
-      if (res.ok || res.status === 503) {
-        const data: MonitorSnapshot = await res.json();
-        if (isMountedRef.current) {
-          setSnapshot(data);
+      const previousSnapshot = snapshotRef.current;
+      const data = await requestSnapshot(force);
+      if (data && isMountedRef.current) {
+        snapshotRef.current = data;
+        setSnapshot(data);
+
+        // A normal poll may return the first healthy snapshot after a warning.
+        // Bypass the server cache once to pick up the final terminal event immediately.
+        if (!force && hasRecoveredToHealthy(previousSnapshot, data)) {
+          const freshData = await requestSnapshot(true);
+          if (freshData && isMountedRef.current) {
+            snapshotRef.current = freshData;
+            setSnapshot(freshData);
+          }
         }
-      } else if (res.status === 401) {
-        window.location.href = "/login";
       }
-    } catch {
-      // Keep existing snapshot on transient network error
     } finally {
       if (isMountedRef.current) {
         setIsRefreshing(false);
       }
     }
-  }, [isRefreshing]);
+  }, [isRefreshing, requestSnapshot]);
 
   const scheduleNextFetchRef = useRef<() => void>(() => {});
 

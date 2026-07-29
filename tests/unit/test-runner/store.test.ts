@@ -11,6 +11,7 @@ import {
   getCatalog,
   getJob,
   getAgentPresence,
+  completeJob,
 } from "@/lib/test-runner/store";
 import {
   ActiveJobExistsError,
@@ -232,6 +233,43 @@ describe("Test Runner Redis Store (v2)", () => {
     expect(page.lines).toHaveLength(2);
     expect(page.lines[0].message).toBe("Step 1");
     expect(page.nextSequence).toBe(2);
+  });
+
+  it("persists a rules-based failure analysis when a job fails", async () => {
+    await publishCatalog(sampleCatalog, "agent-win-1");
+    const enqueued = await enqueueJob(jobInput, "requester-1", "run-failure-analysis", sampleCatalog, "agent-win-1");
+    const claimed = await claimNextJob("agent-win-1");
+    await heartbeatJob(claimed!.id, "agent-win-1");
+
+    await appendLogBatch(enqueued.id, 0, [
+      { stream: "stderr", message: "Redis connection error: ECONNREFUSED" },
+    ]);
+
+    const completed = await completeJob(enqueued.id, {
+      status: "failed",
+      exitCode: 1,
+      error: "Command exited with code 1",
+    });
+
+    expect(completed.failureAnalysis).toMatchObject({
+      category: "connection",
+      confidence: "high",
+    });
+    expect(completed.failureAnalysis?.evidence.join(" ")).toContain("ECONNREFUSED");
+  });
+
+  it("does not add failure analysis to a passed job", async () => {
+    await publishCatalog(sampleCatalog, "agent-win-1");
+    const enqueued = await enqueueJob(jobInput, "requester-1", "run-passed-analysis", sampleCatalog, "agent-win-1");
+    const claimed = await claimNextJob("agent-win-1");
+    await heartbeatJob(claimed!.id, "agent-win-1");
+
+    const completed = await completeJob(enqueued.id, {
+      status: "passed",
+      exitCode: 0,
+    });
+
+    expect(completed.failureAnalysis).toBeUndefined();
   });
 
   it("creates one job when two users enqueue concurrently", async () => {

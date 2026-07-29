@@ -8,7 +8,7 @@
 
 - นับ commands ของแอปตามชนิดคำสั่ง เช่น `GET`, `SET`, `ZADD`, `EVAL`
 - แสดงจำนวนรวมของ app commands ในช่วงเวลาที่กำหนด และแยกจำนวนตาม command type
-- อ่าน Redis status รวม เช่น total commands processed, memory, uptime และ latency
+- อ่าน Redis status รวม เช่น total commands processed, memory, total keys และ latency
 - แสดงสถานะ `HEALTHY`, `DEGRADED` หรือ `UNAVAILABLE`
 - เพิ่ม API และ UI ในระบบเดิม โดยไม่เพิ่ม dependency ใหม่
 - ไม่แสดง Redis URL, token, password หรือ raw response ที่อาจมีข้อมูลภายใน
@@ -44,7 +44,7 @@ endpoint จะ:
 1. อ่าน app command snapshot จาก counter ใน process
 2. วัด latency ของคำสั่ง status ที่ใช้ตรวจ Redis
 3. เรียก Redis `INFO` หรือคำสั่ง status ที่รองรับเพื่ออ่าน total commands, memory และ uptime
-4. แปลง raw info เป็น response schema ที่จำกัด field
+4. แปลง raw info เป็น response schema ที่จำกัด field โดยรองรับ field ที่ Upstash ส่งจริง เช่น `total_commands_processed`, `used_memory` และ `total_keys`
 5. คืนสถานะ `HEALTHY` เมื่อ Redis ตอบและ latency อยู่ในเกณฑ์ปกติ, `DEGRADED` เมื่อ Redis ตอบแต่ latency สูงหรือข้อมูลบางส่วนหาย, และ `UNAVAILABLE` เมื่อเชื่อมต่อไม่ได้
 
 response ไม่ส่ง raw Redis INFO กลับ client และไม่รวม environment values

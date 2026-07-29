@@ -94,6 +94,12 @@ export function JobHistory({
                 <div className="text-[10px] text-slate-400 font-mono">
                   {new Date(job.queuedAt).toLocaleString()}
                 </div>
+                {job.failureAnalysis && ["failed", "timed_out", "agent_lost"].includes(job.status) && (
+                  <div className="mt-2 max-w-2xl text-[10px] leading-relaxed">
+                    <p className="text-rose-300">Failure summary: {job.failureAnalysis.title}</p>
+                    <p className="text-slate-500">Fix: {job.failureAnalysis.fixLocation}</p>
+                  </div>
+                )}
               </div>
 
               <div className="shrink-0 flex items-center gap-2">

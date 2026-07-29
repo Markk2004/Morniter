@@ -13,6 +13,7 @@ export function RunProgress({ activeJob, onCancelJob, isSubmitting }: RunProgres
   if (!activeJob) return null;
 
   const { status, progress, presetName, cancelRequested, error } = activeJob;
+  const failureAnalysis = activeJob.failureAnalysis;
 
   const completed = progress?.completed;
   const total = progress?.total;
@@ -90,6 +91,55 @@ export function RunProgress({ activeJob, onCancelJob, isSubmitting }: RunProgres
         <div className="p-3 rounded-xl bg-rose-950/40 border border-rose-800/80 text-xs font-mono text-rose-300">
           <strong>Failure Error:</strong> {error}
         </div>
+      )}
+
+      {failureAnalysis && ["failed", "timed_out", "agent_lost"].includes(status) && (
+        <section
+          aria-live="polite"
+          aria-label="Failure summary"
+          className="rounded-xl border border-rose-500/30 bg-slate-950/70 p-4 space-y-3"
+        >
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="text-[10px] uppercase tracking-wider font-mono font-semibold text-rose-300">
+                Failure summary
+              </p>
+              <h4 className="mt-1 text-sm font-semibold text-slate-100">{failureAnalysis.title}</h4>
+            </div>
+            <span className="w-fit rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[10px] font-mono uppercase text-amber-300">
+              {failureAnalysis.confidence} confidence
+            </span>
+          </div>
+
+          <dl className="grid gap-3 text-xs sm:grid-cols-2">
+            <div>
+              <dt className="font-mono text-[10px] uppercase tracking-wider text-slate-500">Likely cause</dt>
+              <dd className="mt-1 text-slate-200">{failureAnalysis.cause}</dd>
+            </div>
+            <div>
+              <dt className="font-mono text-[10px] uppercase tracking-wider text-slate-500">Where to fix</dt>
+              <dd className="mt-1 text-slate-200">{failureAnalysis.fixLocation}</dd>
+            </div>
+          </dl>
+
+          <div className="rounded-lg border border-cyan-500/20 bg-cyan-500/5 p-3 text-xs text-cyan-100">
+            <span className="font-mono text-[10px] uppercase tracking-wider text-cyan-300">Recommended next step</span>
+            <p className="mt-1">{failureAnalysis.recommendation}</p>
+          </div>
+
+          {failureAnalysis.evidence.length > 0 && (
+            <div>
+              <p className="font-mono text-[10px] uppercase tracking-wider text-slate-500">Evidence</p>
+              <ul className="mt-1.5 space-y-1 text-xs text-slate-400">
+                {failureAnalysis.evidence.map((entry, index) => (
+                  <li key={`${entry}-${index}`} className="rounded-md bg-slate-900 px-2.5 py-1.5 font-mono break-all">
+                    {entry}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </section>
       )}
     </div>
   );

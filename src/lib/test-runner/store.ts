@@ -20,6 +20,7 @@ import {
 } from "./errors";
 import { assertTransition, isActiveStatus } from "./lifecycle";
 import { redactText } from "@/lib/monitor/redact";
+import { analyzeTestFailure } from "./failure-analysis";
 import {
   reserveJobCreation,
   readActiveLease,
@@ -402,6 +403,15 @@ export async function completeJob(
 
   assertTransition(job.status, result.status);
 
+  const failureAnalysis = ["failed", "timed_out", "agent_lost"].includes(result.status)
+    ? analyzeTestFailure({
+        status: result.status,
+        exitCode: result.exitCode,
+        error: result.error,
+        lines: (await readLogPage(jobId, -1, MAX_LOG_LINES)).lines,
+      })
+    : undefined;
+
   const updated: TestJob = {
     ...job,
     status: result.status,
@@ -409,6 +419,7 @@ export async function completeJob(
     startedAt: result.startedAt ?? job.startedAt,
     finishedAt: result.finishedAt ?? new Date().toISOString(),
     error: result.error,
+    failureAnalysis,
   };
 
   await redis.set(jobKey, updated, { ex: JOB_TTL_SECONDS });
@@ -465,6 +476,11 @@ export async function reapStaleJobs(now: Date = new Date()): Promise<string[]> {
         status: "agent_lost",
         finishedAt: now.toISOString(),
         error: "Agent heartbeat lost (lease expired)",
+        failureAnalysis: analyzeTestFailure({
+          status: "agent_lost",
+          error: "Agent heartbeat lost (lease expired)",
+          lines: [],
+        }),
       };
       await redis.set(jobKey, updated, { ex: JOB_TTL_SECONDS });
       await releaseActiveLease(job.agentId, id);

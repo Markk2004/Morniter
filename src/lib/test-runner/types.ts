@@ -4,6 +4,29 @@ export type { TestJobStatus };
 
 export type TestFramework = "jest" | "cypress" | "vitest" | "unknown";
 
+export type FailureAnalysisCategory =
+  | "assertion"
+  | "connection"
+  | "dependency"
+  | "environment"
+  | "permission"
+  | "syntax"
+  | "timeout"
+  | "agent"
+  | "unknown";
+
+export type FailureAnalysisConfidence = "high" | "medium" | "low";
+
+export interface FailureAnalysis {
+  category: FailureAnalysisCategory;
+  title: string;
+  cause: string;
+  fixLocation: string;
+  recommendation: string;
+  evidence: string[];
+  confidence: FailureAnalysisConfidence;
+}
+
 export type TestCategory = "automated" | "execution" | "uat";
 export type TestRisk = "safe" | "mutating" | "read-only";
 export type DatabaseTarget = "none" | "defaultdb" | "production";
@@ -76,6 +99,7 @@ export interface TestJob {
   logBytes?: number;
   logLines?: number;
   error?: string;
+  failureAnalysis?: FailureAnalysis;
 }
 
 export type TestLogStream = "stdout" | "stderr" | "system";

@@ -1,6 +1,7 @@
 import "server-only";
 import { Redis } from "@upstash/redis";
 import { getServerEnv } from "@/lib/env/server";
+import { recordRedisCommand } from "./redis-command-counter";
 
 export class TestRunnerConfigError extends Error {
   constructor(message: string) {
@@ -10,6 +11,7 @@ export class TestRunnerConfigError extends Error {
 }
 
 let redisClient: Redis | null = null;
+let redisProxy: Redis | null = null;
 
 export function getRunnerRedis(): Redis {
   const env = getServerEnv();
@@ -24,9 +26,24 @@ export function getRunnerRedis(): Redis {
     });
   }
 
-  return redisClient;
+  if (!redisProxy) {
+    redisProxy = new Proxy(redisClient, {
+      get(target, property, receiver) {
+        const value = Reflect.get(target, property, receiver);
+        if (typeof value !== "function") return value;
+
+        return (...args: unknown[]) => {
+          recordRedisCommand(String(property));
+          return Reflect.apply(value, target, args);
+        };
+      },
+    });
+  }
+
+  return redisProxy;
 }
 
 export function resetRunnerRedis(): void {
   redisClient = null;
+  redisProxy = null;
 }
