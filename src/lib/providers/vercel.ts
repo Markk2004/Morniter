@@ -86,8 +86,12 @@ export function normalizeVercelState(rawState: string): {
   return { status: "unknown", severity: "warning", normalizedState };
 }
 
-function vercelEventMessage(payload: Record<string, unknown>): string {
-  for (const key of ["text", "message", "error", "output"]) {
+function vercelEventMessage(
+  type: string,
+  payload: Record<string, unknown>,
+  level: MonitorDiagnostic["level"],
+): string {
+  for (const key of ["text", "message", "error", "output", "reason", "details"]) {
     const value = payload[key];
     if (typeof value === "string" && value.trim()) return value;
   }
@@ -100,7 +104,20 @@ function vercelEventMessage(payload: Record<string, unknown>): string {
     }
   }
 
-  return JSON.stringify(payload);
+  const scalarDetails = Object.entries(payload)
+    .filter(([, value]) => ["string", "number", "boolean"].includes(typeof value))
+    .map(([key, value]) => `${key}=${String(value)}`)
+    .join(", ");
+
+  if (scalarDetails) {
+    return `Vercel ${type} event: ${scalarDetails}`;
+  }
+
+  if (level === "error") {
+    return `Vercel build error (${type}) did not include a message.`;
+  }
+
+  return `Vercel ${type} build event did not include a message.`;
 }
 
 function vercelEventStage(type: string): DiagnosticStage {
@@ -242,18 +259,22 @@ export class VercelProvider implements MonitorProvider {
     );
 
     const rawLines: MonitorDiagnostic[] = data.length > 0
-      ? data.map((item, index) => ({
-          id: `vercel-log-${item.created}-${index}`,
-          stage: vercelEventStage(item.type),
-          level:
+      ? data.map((item, index) => {
+          const level: MonitorDiagnostic["level"] =
             item.type === "fatal" || item.type === "stderr" || item.type === "exit"
               ? "error"
               : item.payload.level === "warning"
                 ? "warning"
-                : "info",
-          message: vercelEventMessage(item.payload),
-          occurredAt: new Date(item.created).toISOString(),
-        }))
+                : "info";
+
+          return {
+            id: `vercel-log-${item.created}-${index}`,
+            stage: vercelEventStage(item.type),
+            level,
+            message: vercelEventMessage(item.type, item.payload, level),
+            occurredAt: new Date(item.created).toISOString(),
+          };
+        })
       : [{
           id: `${event.id}-no-build-logs`,
           stage: "build",

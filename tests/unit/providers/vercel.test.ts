@@ -175,4 +175,39 @@ describe("VercelProvider", () => {
 
     vi.unstubAllGlobals();
   });
+
+  it("describes empty Vercel error events instead of rendering an empty object", async () => {
+    const envWithToken: ServerEnv = {
+      ...baseEnv,
+      VERCEL_API_TOKEN: "vcl_token_123",
+    };
+
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => [
+        { type: "exit", created: 1785000002000, payload: {} },
+      ],
+    }));
+
+    const provider = new VercelProvider(envWithToken);
+    const result = await provider.fetchDiagnostics({
+      id: "vercel-dep_789",
+      source: "vercel",
+      service: "frontend",
+      type: "deployment",
+      severity: "error",
+      status: "ERROR",
+      message: "Deployment failed",
+      occurredAt: "2026-07-28T03:00:00Z",
+      resourceId: "prj_1",
+      deploymentId: "dep_789",
+      diagnosticAvailable: true,
+    });
+
+    expect(result.lines[0].message).toContain("Vercel build error (exit)");
+    expect(result.lines[0].message).not.toBe("{}");
+
+    vi.unstubAllGlobals();
+  });
 });
