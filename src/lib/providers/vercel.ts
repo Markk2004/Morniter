@@ -32,10 +32,13 @@ const vercelDeploymentsResponseSchema = z.object({
 const vercelDeploymentEventSchema = z.object({
   type: z.string(),
   created: z.number(),
-  payload: z.record(z.string(), z.unknown()),
+  payload: z.record(z.string(), z.unknown()).default({}),
 });
 
-const vercelDeploymentEventsSchema = z.array(vercelDeploymentEventSchema);
+const vercelDeploymentEventsSchema = z
+  .array(vercelDeploymentEventSchema)
+  .nullable()
+  .transform((events) => events ?? []);
 
 export function extractVercelGitMetadata(meta?: Record<string, string | number>): {
   commitSha?: string;
@@ -84,10 +87,19 @@ export function normalizeVercelState(rawState: string): {
 }
 
 function vercelEventMessage(payload: Record<string, unknown>): string {
-  for (const key of ["text", "message", "error"]) {
+  for (const key of ["text", "message", "error", "output"]) {
     const value = payload[key];
     if (typeof value === "string" && value.trim()) return value;
   }
+
+  const info = payload.info;
+  if (info && typeof info === "object") {
+    for (const key of ["text", "message", "name", "step"]) {
+      const value = (info as Record<string, unknown>)[key];
+      if (typeof value === "string" && value.trim()) return value;
+    }
+  }
+
   return JSON.stringify(payload);
 }
 
@@ -216,8 +228,8 @@ export class VercelProvider implements MonitorProvider {
     }
 
     const params = new URLSearchParams({
-      direction: "backward",
-      limit: "20",
+      direction: "forward",
+      limit: "-1",
       builds: "1",
     });
     if (this.env.VERCEL_TEAM_ID) params.set("teamId", this.env.VERCEL_TEAM_ID);
@@ -229,22 +241,33 @@ export class VercelProvider implements MonitorProvider {
       signal,
     );
 
-    const rawLines: MonitorDiagnostic[] = data.map((item, index) => ({
-      id: `vercel-log-${item.created}-${index}`,
-      stage: vercelEventStage(item.type),
-      level:
-        item.type === "fatal" || item.type === "stderr" || item.type === "exit"
-          ? "error"
-          : "info",
-      message: vercelEventMessage(item.payload),
-      occurredAt: new Date(item.created).toISOString(),
-    }));
+    const rawLines: MonitorDiagnostic[] = data.length > 0
+      ? data.map((item, index) => ({
+          id: `vercel-log-${item.created}-${index}`,
+          stage: vercelEventStage(item.type),
+          level:
+            item.type === "fatal" || item.type === "stderr" || item.type === "exit"
+              ? "error"
+              : item.payload.level === "warning"
+                ? "warning"
+                : "info",
+          message: vercelEventMessage(item.payload),
+          occurredAt: new Date(item.created).toISOString(),
+        }))
+      : [{
+          id: `${event.id}-no-build-logs`,
+          stage: "build",
+          level: "warning",
+          message: "Vercel returned no build log entries for this deployment.",
+          occurredAt: event.occurredAt,
+        }];
     const limited = limitDiagnostics(rawLines);
     const firstError = limited.lines.find((line) => line.level === "error");
 
     return {
       eventId: event.id,
-      summary: firstError?.message ?? `Vercel deployment status is ${event.status}`,
+      summary: firstError?.message
+        ?? (data.length === 0 ? rawLines[0].message : `Vercel deployment status is ${event.status}`),
       lines: limited.lines,
       truncated: limited.truncated,
     };

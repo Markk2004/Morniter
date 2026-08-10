@@ -42,10 +42,16 @@ export default function EventDiagnosticDetails({ eventId, eventType }: Props) {
         setError("Provider rate limit reached. Try again later.");
         return;
       }
-      if (!response.ok) throw new Error("diagnostics request failed");
-      setResult((await response.json()) as MonitorDiagnosticsResult);
-    } catch {
-      setError("Unable to load diagnostic logs");
+      const data = (await response.json().catch(() => null)) as
+        | (MonitorDiagnosticsResult & { error?: string })
+        | { error?: string }
+        | null;
+      if (!response.ok) {
+        throw new Error(data && "error" in data && data.error ? data.error : "diagnostics request failed");
+      }
+      setResult(data as MonitorDiagnosticsResult);
+    } catch (error) {
+      setError(error instanceof Error && error.message ? error.message : "Unable to load diagnostic logs");
     } finally {
       setLoading(false);
     }

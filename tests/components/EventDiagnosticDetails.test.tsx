@@ -47,12 +47,14 @@ describe("EventDiagnosticDetails", () => {
   });
 
   it("shows a generic load error", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 502 }));
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: false,
+      status: 502,
+      json: async () => ({ error: "Upstream unauthorized (403)" }),
+    }));
     render(<EventDiagnosticDetails eventId="render-dep_1" />);
     fireEvent.click(screen.getByRole("button", { name: /view diagnostic details/i }));
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Unable to load diagnostic logs",
-    );
+    expect(await screen.findByRole("alert")).toHaveTextContent("Upstream unauthorized (403)");
   });
 
   it("collapses without refetching loaded diagnostics", async () => {

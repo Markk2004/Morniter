@@ -134,6 +134,44 @@ describe("VercelProvider", () => {
       expect.stringContaining("/v3/deployments/dep_123/events"),
       expect.any(Object),
     );
+    expect(mockFetch.mock.calls[0][0]).toContain("builds=1");
+    expect(mockFetch.mock.calls[0][0]).toContain("limit=-1");
+
+    vi.unstubAllGlobals();
+  });
+
+  it("returns a visible fallback when Vercel has no build log entries", async () => {
+    const envWithToken: ServerEnv = {
+      ...baseEnv,
+      VERCEL_API_TOKEN: "vcl_token_123",
+    };
+
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => null,
+    }));
+
+    const provider = new VercelProvider(envWithToken);
+    const result = await provider.fetchDiagnostics({
+      id: "vercel-dep_456",
+      source: "vercel",
+      service: "frontend",
+      type: "deployment",
+      severity: "error",
+      status: "ERROR",
+      message: "Deployment failed",
+      occurredAt: "2026-07-28T03:00:00Z",
+      resourceId: "prj_1",
+      deploymentId: "dep_456",
+      diagnosticAvailable: true,
+    });
+
+    expect(result.lines[0]).toMatchObject({
+      level: "warning",
+      stage: "build",
+    });
+    expect(result.summary).toContain("no build log entries");
 
     vi.unstubAllGlobals();
   });
