@@ -1,8 +1,4 @@
 import { z } from "zod";
-// TODO: fix this import path to wherever the legacy preset schemas actually
-// live in the repo (the module that exports ID_REGEX, CreateJobSchema,
-// TestPresetSchema, etc.) — path below is a placeholder.
-import { ID_REGEX } from "@/lib/test-runner/schemas";
 
 /**
  * Playwright Automation Workspace — request validation.
@@ -15,17 +11,26 @@ import { ID_REGEX } from "@/lib/test-runner/schemas";
  *   - project-test requires testIds (and forbids code)
  *   - source determines which of the above two applies (mutual exclusion)
  *
- * projectId reuses ID_REGEX from the legacy preset-based test runner
- * (src/lib/test-runner/schemas.ts) rather than redeclaring an equivalent
- * pattern here, so the two systems can never drift apart on what counts
- * as a valid project id.
+ * DUPLICATION NOTE: the legacy preset-based test runner exports an
+ * identically-defined `ID_REGEX` (confirmed by pasted content — same
+ * pattern below), but its file path in the repo hasn't been located yet.
+ * This is redeclared locally for now rather than left on a guessed import
+ * path. Once the legacy file is located, replace this with:
+ *   import { ID_REGEX } from "<real path>";
+ * and delete PROJECT_ID_PATTERN below, so there's one source of truth.
+ * To find it: `grep -rn "export const ID_REGEX" --include="*.ts" .`
  */
+
+// Matches the existing catalog project id format, e.g. "projectsts".
+// Lowercase alphanumeric + hyphens, no path separators, no whitespace.
+// Kept identical to the legacy ID_REGEX on purpose (see note above).
+const PROJECT_ID_PATTERN = /^[a-z0-9][a-z0-9-]{0,63}$/;
 
 export const ProjectIdSchema = z
   .string()
   .min(1, "projectId is required")
   .max(64, "projectId is too long")
-  .regex(ID_REGEX, "projectId has an invalid format");
+  .regex(PROJECT_ID_PATTERN, "projectId has an invalid format");
 
 export const BrowserNameSchema = z.enum(["chromium", "firefox", "webkit"]);
 

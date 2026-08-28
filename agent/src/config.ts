@@ -5,23 +5,46 @@ import type { AgentConfig, ResolvedPreset } from "./types.js";
 
 const ID_REGEX = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const SRS_ID_REGEX = /^(?:FR|BR|NFR)-[A-Z0-9]+(?:-[A-Z0-9]+)*$/i;
+const ENV_VAR_NAME_PATTERN = /^[A-Z_][A-Z0-9_]*$/;
 
 export const TestPresetMetadataSchema = z
   .object({
     category: z.enum(["automated", "execution", "uat"]),
-    srsIds: z.array(z.string().regex(SRS_ID_REGEX, "SRS/BR ID must start with FR-, BR- or NFR-")),
+    srsIds: z.array(
+      z
+        .string()
+        .regex(SRS_ID_REGEX, "SRS/BR ID must start with FR-, BR- or NFR-"),
+    ),
     risk: z.enum(["safe", "mutating", "read-only"]),
     databaseTarget: z.enum(["none", "defaultdb", "production"]),
   })
   .superRefine((metadata, ctx) => {
-    if (metadata.category === "execution" && (metadata.risk !== "mutating" || metadata.databaseTarget !== "defaultdb")) {
-      ctx.addIssue({ code: "custom", message: "execution presets must be mutating and target defaultdb" });
+    if (
+      metadata.category === "execution" &&
+      (metadata.risk !== "mutating" || metadata.databaseTarget !== "defaultdb")
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        message: "execution presets must be mutating and target defaultdb",
+      });
     }
-    if (metadata.category === "uat" && (metadata.risk !== "read-only" || metadata.databaseTarget !== "none")) {
-      ctx.addIssue({ code: "custom", message: "uat presets must be read-only and have no database target" });
+    if (
+      metadata.category === "uat" &&
+      (metadata.risk !== "read-only" || metadata.databaseTarget !== "none")
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        message: "uat presets must be read-only and have no database target",
+      });
     }
-    if (metadata.databaseTarget === "production" && metadata.risk === "mutating") {
-      ctx.addIssue({ code: "custom", message: "mutating presets cannot target production" });
+    if (
+      metadata.databaseTarget === "production" &&
+      metadata.risk === "mutating"
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        message: "mutating presets cannot target production",
+      });
     }
   });
 
@@ -39,10 +62,33 @@ export const AgentPresetSchema = z.object({
   metadata: TestPresetMetadataSchema,
 });
 
+export const PlaywrightBrowserNameSchema = z.enum([
+  "chromium",
+  "firefox",
+  "webkit",
+]);
+
+export const AgentPlaywrightConfigSchema = z.object({
+  testDir: z.string().refine((val) => path.isAbsolute(val), {
+    message: "testDir must be an absolute path",
+  }),
+  allowedBrowsers: z.array(PlaywrightBrowserNameSchema).min(1),
+  allowHeaded: z.boolean().default(false),
+  maxTimeoutSeconds: z.number().int().min(1).max(1800).default(300),
+  envAllowlist: z
+    .array(
+      z
+        .string()
+        .regex(ENV_VAR_NAME_PATTERN, "env var names must be UPPER_SNAKE_CASE"),
+    )
+    .default([]),
+});
+
 export const AgentProjectSchema = z.object({
   id: z.string().regex(ID_REGEX),
   name: z.string().min(1),
   presets: z.array(AgentPresetSchema).min(1),
+  playwright: AgentPlaywrightConfigSchema.optional(),
 });
 
 export const AgentConfigSchema = z.object({
@@ -57,17 +103,26 @@ export function parseAgentConfig(raw: unknown): AgentConfig {
   return AgentConfigSchema.parse(raw);
 }
 
-export async function loadAgentConfig(configPath: string): Promise<AgentConfig> {
+export async function loadAgentConfig(
+  configPath: string,
+): Promise<AgentConfig> {
   const absolutePath = path.resolve(configPath);
   const content = await fs.readFile(absolutePath, "utf-8");
   const raw = JSON.parse(content);
   return parseAgentConfig(raw);
 }
 
-export function resolveExecutable(command: string, platform = process.platform): string {
+export function resolveExecutable(
+  command: string,
+  platform = process.platform,
+): string {
   if (platform === "win32") {
     const lower = command.toLowerCase();
-    if ((lower === "npm" || lower === "npx") && !lower.endsWith(".cmd") && !lower.endsWith(".exe")) {
+    if (
+      (lower === "npm" || lower === "npx") &&
+      !lower.endsWith(".cmd") &&
+      !lower.endsWith(".exe")
+    ) {
       return `${command}.cmd`;
     }
   }
@@ -80,13 +135,18 @@ export function expandPresetEnvironment(
 ): Record<string, string> {
   return Object.fromEntries(
     Object.entries(env).map(([key, value]) => {
-      const expanded = value.replace(/\$\{([A-Za-z_][A-Za-z0-9_]*)\}/g, (_match, name: string) => {
-        const resolved = source[name];
-        if (resolved == null) {
-          throw new Error(`Missing environment variable ${name} for preset ${key}`);
-        }
-        return resolved;
-      });
+      const expanded = value.replace(
+        /\$\{([A-Za-z_][A-Za-z0-9_]*)\}/g,
+        (_match, name: string) => {
+          const resolved = source[name];
+          if (resolved == null) {
+            throw new Error(
+              `Missing environment variable ${name} for preset ${key}`,
+            );
+          }
+          return resolved;
+        },
+      );
       return [key, expanded];
     }),
   );
@@ -104,7 +164,9 @@ export function resolvePreset(
 
   const preset = project.presets.find((p) => p.id === presetId);
   if (!preset) {
-    throw new Error(`Preset ${presetId} not found in project ${projectId} configuration`);
+    throw new Error(
+      `Preset ${presetId} not found in project ${projectId} configuration`,
+    );
   }
 
   return {
@@ -121,7 +183,9 @@ export function resolvePreset(
   };
 }
 
-export function buildCatalogFromConfig(config: AgentConfig): import("./types.js").TestProjectCatalog {
+export function buildCatalogFromConfig(
+  config: AgentConfig,
+): import("./types.js").TestProjectCatalog {
   return {
     version: "1.0.0",
     updatedAt: new Date().toISOString(),
@@ -132,7 +196,8 @@ export function buildCatalogFromConfig(config: AgentConfig): import("./types.js"
         id: preset.id,
         name: preset.name,
         description: preset.description,
-        commandPreview: `${preset.command} ${(preset.args || []).join(" ")}`.trim(),
+        commandPreview:
+          `${preset.command} ${(preset.args || []).join(" ")}`.trim(),
         timeoutSeconds: preset.timeoutSeconds ?? 300,
         category: preset.metadata.category,
         srsIds: [...preset.metadata.srsIds],
