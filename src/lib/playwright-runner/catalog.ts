@@ -36,8 +36,24 @@ interface RawPlaywrightSuite {
   suites?: RawPlaywrightSuite[];
 }
 
+interface RawPlaywrightListError {
+  message: string;
+  location?: { file?: string; line?: number; column?: number };
+}
+
 interface RawPlaywrightListOutput {
   suites?: RawPlaywrightSuite[];
+  errors?: RawPlaywrightListError[];
+}
+
+export interface CatalogScanError {
+  file?: string;
+  message: string;
+}
+
+export interface CatalogScanResult {
+  tests: PlaywrightTestDescriptor[];
+  errors: CatalogScanError[];
 }
 
 const TEST_ID_PATTERN = /^[a-zA-Z0-9_-]{1,128}$/;
@@ -72,26 +88,44 @@ function walkSuite(
 /**
  * Parse the raw JSON object produced by
  * `playwright test --list --reporter=json` into a flat list of
- * PlaywrightTestDescriptor. Throws if the top-level shape is unrecognized
- * (e.g. Playwright changed its reporter format in a future version) —
- * callers should treat that as "catalog scan failed", not silently
- * publish an empty/partial catalog.
+ * PlaywrightTestDescriptor, ALONGSIDE any per-file scan errors.
+ *
+ * Critically, this does NOT treat "suites: []" as "zero tests" without
+ * checking "errors" first — confirmed necessary against a real payload
+ * where every spec file failed to load (an ESM/CJS require() mismatch on
+ * the "jose" package) and Playwright reported `suites: [], errors: [...]`
+ * for a project that in fact has 5 test files. Silently returning an
+ * empty descriptor list in that case would make a broken catalog scan
+ * indistinguishable from a genuinely empty project — a caller (route
+ * handler, UI) needs `errors` to tell those apart, the same way this
+ * codebase's ProviderSnapshot carries `error` alongside possibly-partial
+ * `events` rather than replacing them.
+ *
+ * Throws only if the top-level shape is unrecognized (not even a
+ * `suites` or `errors` key) — that indicates Playwright's reporter format
+ * itself changed, not a per-file test error, and should be treated as
+ * "catalog scan failed outright" by the caller.
  */
-export function parsePlaywrightListOutput(
-  raw: unknown,
-): PlaywrightTestDescriptor[] {
-  if (typeof raw !== "object" || raw === null || !("suites" in raw)) {
+export function parsePlaywrightListOutput(raw: unknown): CatalogScanResult {
+  if (
+    typeof raw !== "object" ||
+    raw === null ||
+    (!("suites" in raw) && !("errors" in raw))
+  ) {
     throw new Error("unrecognized playwright --list --reporter=json output");
   }
 
   const parsed = raw as RawPlaywrightListOutput;
-  const out: PlaywrightTestDescriptor[] = [];
+  const tests: PlaywrightTestDescriptor[] = [];
 
   for (const fileSuite of parsed.suites ?? []) {
-    // Top-level suite = one per file; its own "specs" are top-level tests
-    // in that file (no enclosing describe), "suites" are describe blocks.
-    walkSuite(fileSuite, fileSuite.file, [], out);
+    walkSuite(fileSuite, fileSuite.file, [], tests);
   }
 
-  return out;
+  const errors: CatalogScanError[] = (parsed.errors ?? []).map((e) => ({
+    file: e.location?.file,
+    message: e.message,
+  }));
+
+  return { tests, errors };
 }
