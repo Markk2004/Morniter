@@ -28,10 +28,10 @@
  *   - PlaywrightLogChunk (not PlaywrightJob's own field, a separate
  *     type) has sequence/stream/browser?/text/timestamp — this is new,
  *     the original file had no log-line type at all.
- *   - TestArtifact and PlaywrightCatalog are referenced but their
- *     internal shape is NOT evidenced anywhere in job-store.ts (both are
- *     only ever passed through opaquely) — left as a minimal placeholder
- *     below, explicitly flagged as unconfirmed.
+ *   - TestArtifact is now CONFIRMED (see its definition below) via a
+ *     real Next.js typecheck error that exposed its actual shape.
+ *     PlaywrightCatalog is still referenced only opaquely — left as an
+ *     unconfirmed placeholder below.
  *
  * The client-request contract (PlaywrightJobRequest) is UNCHANGED from
  * the original — job-store.ts's enqueuePlaywrightJob destructures
@@ -143,16 +143,24 @@ export interface PlaywrightLogChunk {
 }
 
 /**
- * UNCONFIRMED — job-store.ts only ever passes TestArtifact[] through
- * opaquely (never constructs or reads an individual artifact's fields).
- * This is a placeholder guess, not evidence-based like the rest of this
- * file. Do not build UI or validation against this shape without
- * checking the real types.ts first.
+ * CONFIRMED by the real Next.js typecheck error on
+ * ./src/app/api/playwright-runner/agent/jobs/[jobId]/complete/route.ts —
+ * TypeScript's structural mismatch message revealed the actual shape
+ * `PlaywrightCompleteJobSchema` parses artifacts into. This replaces the
+ * earlier placeholder guess (which had `kind`/`url`, both wrong — real
+ * fields are `type`/`downloadUrl`, plus jobId/filename/size/createdAt
+ * that the placeholder didn't have at all).
  */
 export interface TestArtifact {
   id: string;
-  kind: "screenshot" | "trace" | "video" | "report";
-  url: string;
+  jobId: string;
+  type: "screenshot" | "trace" | "video" | "report";
+  filename: string;
+  size: number;
+  createdAt: string;
+  browser?: BrowserName;
+  testId?: string;
+  downloadUrl?: string;
 }
 
 /**
