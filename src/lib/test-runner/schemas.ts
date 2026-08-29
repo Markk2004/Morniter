@@ -1,138 +1,121 @@
 import { z } from "zod";
 
+<<<<<<< HEAD
 // Legacy preset-runner API contract. Do not replace this module with the
 // Playwright workspace schemas; the new runner owns its separate module at
 // src/lib/playwright-runner/schemas.ts while migration routes still compile.
 
 export const ID_REGEX = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const SRS_ID_REGEX = /^(?:FR|BR|NFR)-[A-Z0-9]+(?:-[A-Z0-9]+)*$/i;
+=======
+/**
+ * Playwright Automation Workspace — request validation.
+ *
+ * Mirrors the rules in Task 0.2:
+ *   - projectId must match the existing project ID format
+ *   - browsers: 1..3 entries, each unique
+ *   - code has a max size
+ *   - workspace requires code (and forbids testIds)
+ *   - project-test requires testIds (and forbids code)
+ *   - source determines which of the above two applies (mutual exclusion)
+ *
+ * DUPLICATION NOTE: the legacy preset-based test runner exports an
+ * identically-defined `ID_REGEX` (confirmed by pasted content — same
+ * pattern below), but its file path in the repo hasn't been located yet.
+ * This is redeclared locally for now rather than left on a guessed import
+ * path. Once the legacy file is located, replace this with:
+ *   import { ID_REGEX } from "<real path>";
+ * and delete PROJECT_ID_PATTERN below, so there's one source of truth.
+ * To find it: `grep -rn "export const ID_REGEX" --include="*.ts" .`
+ */
+>>>>>>> 8ef9a552828fca2885ac621be4efd4d25a15997f
 
-export const TestPresetMetadataSchema = z
+// Matches the existing catalog project id format, e.g. "projectsts".
+// Lowercase alphanumeric + hyphens, no path separators, no whitespace.
+// Kept identical to the legacy ID_REGEX on purpose (see note above).
+const PROJECT_ID_PATTERN = /^[a-z0-9][a-z0-9-]{0,63}$/;
+
+export const ProjectIdSchema = z
+  .string()
+  .min(1, "projectId is required")
+  .max(64, "projectId is too long")
+  .regex(PROJECT_ID_PATTERN, "projectId has an invalid format");
+
+export const BrowserNameSchema = z.enum(["chromium", "firefox", "webkit"]);
+
+export const BrowserModeSchema = z.enum(["headless", "headed"]);
+
+export const BrowsersSchema = z
+  .array(BrowserNameSchema)
+  .min(1, "at least one browser must be selected")
+  .max(3, "at most three browsers may be selected")
+  .refine(
+    (browsers) => new Set(browsers).size === browsers.length,
+    "browsers must not contain duplicates",
+  );
+
+// Test IDs are opaque stable hashes published by the catalog (Task 2.2),
+// never raw file paths.
+const TestIdSchema = z
+  .string()
+  .min(1)
+  .max(128)
+  .regex(/^[a-zA-Z0-9_-]+$/, "testId has an invalid format");
+
+const MAX_WORKSPACE_CODE_BYTES = 200_000;
+
+export const WorkspaceCodeSchema = z
+  .string()
+  .min(1, "workspace code must not be empty")
+  .max(MAX_WORKSPACE_CODE_BYTES, "workspace code exceeds the maximum size");
+
+const BaseJobFields = {
+  projectId: ProjectIdSchema,
+  browsers: BrowsersSchema,
+  mode: BrowserModeSchema,
+};
+
+// source: "project-test" — requires testIds, forbids code.
+const ProjectTestJobSchema = z
   .object({
-    category: z.enum(["automated", "execution", "uat"]),
-    srsIds: z.array(z.string().regex(SRS_ID_REGEX)),
-    risk: z.enum(["safe", "mutating", "read-only"]),
-    databaseTarget: z.enum(["none", "defaultdb", "production"]),
-  })
-  .superRefine((metadata, ctx) => {
-    if (metadata.category === "execution" && (metadata.risk !== "mutating" || metadata.databaseTarget !== "defaultdb")) {
-      ctx.addIssue({ code: "custom", message: "execution presets must be mutating and target defaultdb" });
-    }
-    if (metadata.category === "uat" && (metadata.risk !== "read-only" || metadata.databaseTarget !== "none")) {
-      ctx.addIssue({ code: "custom", message: "uat presets must be read-only and have no database target" });
-    }
-    if (metadata.databaseTarget === "production" && metadata.risk === "mutating") {
-      ctx.addIssue({ code: "custom", message: "mutating presets cannot target production" });
-    }
-  });
-
-export const TestPresetSchema = z
-  .object({
-    id: z.string().regex(ID_REGEX),
-    name: z.string().min(1).max(128),
-    description: z.string().max(500),
-    commandPreview: z.string().min(1).max(256),
-    timeoutSeconds: z.number().int().min(1).max(1800),
-    category: z.enum(["automated", "execution", "uat"]),
-    srsIds: z.array(z.string().regex(SRS_ID_REGEX)),
-    risk: z.enum(["safe", "mutating", "read-only"]),
-    databaseTarget: z.enum(["none", "defaultdb", "production"]),
-  })
-  .superRefine((preset, ctx) => {
-    if (preset.category === "execution" && (preset.risk !== "mutating" || preset.databaseTarget !== "defaultdb")) {
-      ctx.addIssue({ code: "custom", message: "execution presets must be mutating and target defaultdb" });
-    }
-    if (preset.category === "uat" && (preset.risk !== "read-only" || preset.databaseTarget !== "none")) {
-      ctx.addIssue({ code: "custom", message: "uat presets must be read-only and have no database target" });
-    }
-    if (preset.databaseTarget === "production" && preset.risk === "mutating") {
-      ctx.addIssue({ code: "custom", message: "mutating presets cannot target production" });
-    }
-  });
-
-export const TestProjectSchema = z.object({
-  id: z.string().regex(ID_REGEX),
-  name: z.string().min(1).max(128),
-  presets: z.array(TestPresetSchema).min(1),
-});
-
-export const TestProjectCatalogSchema = z.object({
-  version: z.string().min(1).max(64),
-  updatedAt: z.string().datetime(),
-  projects: z.array(TestProjectSchema),
-});
-
-export const CreateJobSchema = z
-  .object({
-    projectId: z
-      .string()
-      .regex(ID_REGEX, "projectId must consist of lowercase letters, digits, and hyphens"),
-    presetId: z
-      .string()
-      .regex(ID_REGEX, "presetId must consist of lowercase letters, digits, and hyphens"),
-    agentId: z.string().min(1).max(128).optional(),
-  })
-  .strict();
-
-export type CreateJobInput = z.infer<typeof CreateJobSchema>;
-
-export const TestProgressSchema = z.object({
-  framework: z.enum(["jest", "cypress", "vitest", "unknown"]),
-  completed: z.number().int().nonnegative().nullable(),
-  total: z.number().int().positive().nullable(),
-  percentage: z.number().min(0).max(100).nullable(),
-  currentLabel: z.string().max(300).optional(),
-  updatedAt: z.string().datetime(),
-});
-
-export type TestProgressInput = z.infer<typeof TestProgressSchema>;
-
-export const PollRequestSchema = z
-  .object({
-    agentId: z.string().min(1).max(128),
-    catalogVersion: z.string().min(1).max(64),
-    catalog: TestProjectCatalogSchema.optional(),
+    ...BaseJobFields,
+    source: z.literal("project-test"),
+    testIds: z.array(TestIdSchema).min(1, "select at least one test"),
+    code: z.undefined().optional(),
   })
   .strict();
 
-export type PollRequestInput = z.infer<typeof PollRequestSchema>;
-
-export const AgentHeartbeatSchema = z
+// source: "workspace" — requires code, forbids testIds.
+const WorkspaceJobSchema = z
   .object({
-    observedAt: z.string().datetime(),
-    progress: TestProgressSchema.optional(),
+    ...BaseJobFields,
+    source: z.literal("workspace"),
+    code: WorkspaceCodeSchema,
+    testIds: z.undefined().optional(),
   })
   .strict();
 
-export type AgentHeartbeatInput = z.infer<typeof AgentHeartbeatSchema>;
+/**
+ * Discriminated union enforcing source-specific mutual exclusion:
+ * a request is valid only as exactly one of the two shapes above.
+ * `.strict()` on each branch additionally rejects any unexpected field
+ * (e.g. a client trying to smuggle `command`, `cwd`, `args`, or `env`).
+ */
+export const PlaywrightJobRequestSchema = z.discriminatedUnion("source", [
+  ProjectTestJobSchema,
+  WorkspaceJobSchema,
+]);
 
-export const AppendLogBatchSchema = z
-  .object({
-    sequenceStart: z.number().int().nonnegative(),
-    entries: z
-      .array(
-        z.object({
-          stream: z.enum(["stdout", "stderr", "system"]),
-          message: z.string().max(32768),
-        }),
-      )
-      .min(1)
-      .max(100),
-    progress: TestProgressSchema.optional(),
-  })
-  .strict();
+export type PlaywrightJobRequestInput = z.infer<
+  typeof PlaywrightJobRequestSchema
+>;
 
-export type AppendLogBatchInput = z.infer<typeof AppendLogBatchSchema>;
-
-export const CompleteJobSchema = z
-  .object({
-    jobId: z.string().optional(),
-    status: z.enum(["passed", "failed", "cancelled", "timed_out"]),
-    exitCode: z.number().int().nullable().optional(),
-    startedAt: z.string().datetime().optional(),
-    finishedAt: z.string().datetime().optional(),
-    error: z.string().optional(),
-  })
-  .strict();
-
-export type CompleteJobInput = z.infer<typeof CompleteJobSchema>;
+/**
+ * Parse and validate a raw request body. Throws a ZodError with field-level
+ * issues on failure — callers in the route handler should catch this and
+ * respond 400 with a sanitized message (never echo raw upstream errors that
+ * might include unexpected input back to the client verbatim).
+ */
+export function parsePlaywrightJobRequest(body: unknown) {
+  return PlaywrightJobRequestSchema.parse(body);
+}
