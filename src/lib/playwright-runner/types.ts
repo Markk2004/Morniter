@@ -107,11 +107,63 @@ export interface BrowserExecutionResult {
   durationMs?: number;
 }
 
+<<<<<<< HEAD
 /**
  * CONFIRMED by job-store.ts's PlaywrightJob construction/updates across
  * enqueuePlaywrightJob, claimNextPlaywrightJob, heartbeatPlaywrightJob,
  * completePlaywrightJob, requestCancelPlaywrightJob.
  */
+=======
+export interface TestArtifact {
+  id: string;
+  jobId: string;
+  type: "trace" | "screenshot" | "video" | "report";
+  browser?: BrowserName;
+  testId?: string;
+  filename: string;
+  size: number;
+  downloadUrl?: string;
+  createdAt: string;
+}
+
+export interface PlaywrightTestDescriptor {
+  id: string;
+  title: string;
+  group: string;
+  relativePath: string;
+  line?: number;
+  tags?: string[];
+}
+
+export interface PlaywrightProjectCatalog {
+  id: string;
+  name: string;
+  rootLabel?: string;
+  capabilities?: {
+    browsers?: {
+      chromium?: boolean;
+      firefox?: boolean;
+      webkit?: boolean;
+    };
+    headed?: boolean;
+    workspaceExecution?: boolean;
+  };
+  testGroups?: {
+    name: string;
+    tests: PlaywrightTestDescriptor[];
+  }[];
+  tests?: PlaywrightTestDescriptor[];
+  sourceByPath?: Record<string, string>;
+  scanPathLabel?: string;
+}
+
+export interface PlaywrightCatalog {
+  version: string;
+  updatedAt: string;
+  projects: PlaywrightProjectCatalog[];
+}
+
+>>>>>>> 0fe443f (update ui , create playwright explorer)
 export interface PlaywrightJob {
   id: string;
   agentId: string;

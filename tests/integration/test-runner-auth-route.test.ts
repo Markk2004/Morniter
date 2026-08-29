@@ -24,9 +24,8 @@ describe("Test Runner Execution Auth APIs", () => {
   let validMonitorToken = "";
 
   beforeEach(async () => {
-    vi.stubEnv("GROUP_ACCESS_PASSWORD_HASH", "$2b$04$hash");
+    vi.stubEnv("GROUP_ACCESS_PASSWORD_HASH", VALID_PASSWORD_HASH);
     vi.stubEnv("SESSION_SIGNING_SECRET", secret);
-    vi.stubEnv("TEST_RUNNER_PASSWORD_HASH", VALID_PASSWORD_HASH);
     vi.stubEnv("UPSTASH_REDIS_REST_URL", "https://mock-redis.upstash.io");
     vi.stubEnv("UPSTASH_REDIS_REST_TOKEN", "mock-token");
     resetServerEnvCache();
@@ -38,10 +37,7 @@ describe("Test Runner Execution Auth APIs", () => {
     resetServerEnvCache();
   });
 
-  it("returns 503 when TEST_RUNNER_PASSWORD_HASH is missing", async () => {
-    vi.stubEnv("TEST_RUNNER_PASSWORD_HASH", "");
-    resetServerEnvCache();
-
+  it("accepts the same password hash used for Monitor access", async () => {
     const req = new NextRequest("http://localhost:3000/api/test-runner/auth", {
       method: "POST",
       headers: {
@@ -53,7 +49,7 @@ describe("Test Runner Execution Auth APIs", () => {
     });
 
     const res = await authPost(req);
-    expect(res.status).toBe(503);
+    expect(res.status).toBe(204);
   });
 
   it("returns 403 when origin header mismatches request origin", async () => {

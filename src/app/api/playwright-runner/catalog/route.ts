@@ -5,6 +5,19 @@ import {
   getPlaywrightAgentPresence,
   getPlaywrightJob,
 } from "@/lib/playwright-runner/job-store";
+import type { PlaywrightCatalog, PlaywrightProjectCatalog } from "@/lib/playwright-runner/types";
+
+function browserCatalog(catalog: PlaywrightCatalog | null): PlaywrightCatalog | null {
+  if (!catalog) return null;
+
+  return {
+    ...catalog,
+    projects: catalog.projects.map((project: PlaywrightProjectCatalog) => ({
+      ...project,
+      sourceByPath: undefined,
+    })),
+  };
+}
 
 export async function GET(req: NextRequest) {
   const token = req.cookies.get(SESSION_COOKIE)?.value;
@@ -25,7 +38,7 @@ export async function GET(req: NextRequest) {
       : null;
 
     return NextResponse.json(
-      { catalog, presence, activeJob },
+      { catalog: browserCatalog(catalog), presence, activeJob },
       { headers: { "Cache-Control": "private, no-store" } },
     );
   } catch (err) {

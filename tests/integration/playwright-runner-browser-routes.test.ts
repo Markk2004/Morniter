@@ -108,6 +108,9 @@ describe("Playwright Runner Browser Routes", () => {
                 ],
               },
             ],
+            sourceByPath: {
+              "e2e/auth.spec.ts": 'import { test } from "@playwright/test"; test("Login", () => {});',
+            },
           },
         ],
       },
@@ -134,6 +137,9 @@ describe("Playwright Runner Browser Routes", () => {
     const data = await authRes.json();
     expect(data.catalog.projects).toHaveLength(1);
     expect(data.presence.state).toBe("online");
+    expect(data.catalog.projects[0].testGroups[0].tests[0].relativePath).toBe("e2e/auth.spec.ts");
+    expect(JSON.stringify(data.catalog)).not.toContain("sourceByPath");
+    expect(JSON.stringify(data.catalog)).not.toContain("E:\\ProjectSTS");
   });
 
   it("POST /api/playwright-runner/jobs requires execute step-up session", async () => {

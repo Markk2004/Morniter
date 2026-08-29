@@ -57,7 +57,6 @@ npm run hash-password -- "password"  # Generate bcrypt password hash
 | `GROUP_ACCESS_PASSWORD_HASH` | Required bcrypt hash of the group password |
 | `SESSION_SIGNING_SECRET` | Required 48+ char secret for HS256 JWT cookie signing |
 | `MONITOR_DISPLAY_NAME` | Display title on the monitor header (default: Project Monitor) |
-| `TEST_RUNNER_PASSWORD_HASH` | Bcrypt hash for execution step-up authorization (15-minute session) |
 | `TEST_RUNNER_AGENT_TOKEN` | Secret Bearer token shared with Local Test Runner Agent |
 | `UPSTASH_REDIS_REST_URL` | Upstash Redis REST API URL for test queue & log streaming |
 | `UPSTASH_REDIS_REST_TOKEN` | Upstash Redis REST API Token |
@@ -95,7 +94,7 @@ The Test Runner Console replaces arbitrary shell commands with a secure, preset-
 - **Zero Shell Exposure**: Browser payloads send only `projectId` and `presetId` (or validated `testIds`/`code`). Raw commands, parameters, working directories, or environment variables are never accepted over HTTP.
 - **Local Agent Preset Resolver**: The Windows Local Agent resolves preset execution contracts strictly from local config (`test-runner.config.local.json`).
 - **Safe Process Execution**: Executes commands via Node `spawn(executable, args, { shell: false })` with process-tree termination on timeout or cancellation.
-- **Execution Step-Up Authorization**: Execution requires a dedicated 15-minute `monitor:execute` session (`TEST_RUNNER_PASSWORD_HASH`).
+- **Execution Step-Up Authorization**: Execution requires a 15-minute `monitor:execute` session, unlocked with the same group password used for Monitor access.
 - **Upstash Redis Queue & Storage**: Job queue (max 10 items), job status, log streaming (max 5,000 lines / 1 MB), catalog, and heartbeat are stored in Upstash Redis.
 
 The Test Runner catalog groups presets into automated testing, execution test and UAT. Execution presets are selected by SRS/BR ID and run one allowlisted ProjectSTS Jest group against Aiven `defaultdb`. UAT presets run the read-only deployment smoke suite and use `STS_UAT_BASE_URL`, `STS_UAT_USERNAME` and `STS_UAT_PASSWORD`; they do not receive a database URL. The browser request remains `{ projectId, presetId }`.
@@ -143,4 +142,3 @@ Browser notifications require the user to click `Enable browser alerts`, and the
 1. Deploy the Next.js application to Vercel.
 2. Set Environment Variables (`GROUP_ACCESS_PASSWORD_HASH`, `SESSION_SIGNING_SECRET`, and provider credentials) in Vercel Project Settings.
 3. Configure Vercel Firewall rate-limiting on `/api/auth/login`.
-

@@ -1,27 +1,31 @@
 # Playwright Runner Deploy Readiness Implementation Plan
 
-## Progress status (reviewed 2026-08-29)
+## Progress status (reviewed 2026-08-30, updated after compatibility fixes)
 
-Overall: core implementation is substantially present. The release is blocked by lint and outstanding live/E2E verification, not by the Next.js build.
+Overall: core implementation, repository quality gate, and ProjectSTS smoke tests pass. The release still needs a real Local Agent job and deployed production smoke verification.
 
 - [x] Task 1: legacy schema boundary restored; typecheck and Next build pass.
 - [x] Task 2: Playwright Redis store and unit tests are present.
 - [x] Task 3: separate `/api/playwright-runner` browser and agent routes are present with integration tests.
 - [x] Task 4: Agent Playwright catalog and executor modules are present; Agent TypeScript build passes.
 - [x] Task 5: Playwright selector and browser selector are connected to the Test workspace at implementation level.
-- [ ] Task 5 release quality: resolve current lint errors and warnings in the Test UI and tests.
-- [ ] Task 6: run actual browser E2E and live recovery scenarios; integration-flow tests alone are insufficient.
-- [ ] Task 7: update deploy documentation, run the clean release gate, deploy, and complete production smoke verification.
+- [x] Task 5 release quality: repository lint is green after the grouped Explorer changes.
+- [x] Task 6 first slice: ProjectSTS discovery and browser smoke pass 3/3 tests locally.
+- [x] Task 6 compatibility: source cache deduplicated, catalog publish throttled, project switching guarded, and ProjectSTS `webServer` enabled.
+- [x] Task 6 auth: Execution Lock now uses the same group password as Monitor access.
+- [ ] Task 6 remaining: run an actual `sts-playwright` job through the Local Agent and verify live recovery scenarios.
+- [ ] Task 7: update deploy documentation, deploy the verified source revision, and complete production smoke verification.
 
 Latest local verification:
 
 ```text
-lint: failed, 9 errors and 9 warnings
+lint: passed
 typecheck: passed
-unit/integration tests: passed, 64 files and 274 tests
+unit/integration tests: passed, 71 files and 289 tests
 agent build: passed
-Next production build: passed, 23 routes/pages generated
-browser E2E: not run in this review
+Next production build: passed, 24 routes/pages generated
+ProjectSTS Playwright list: passed, 3 tests in 3 groups
+ProjectSTS Playwright smoke: passed, 3/3 tests
 production smoke: not run in this review
 ```
 
@@ -44,7 +48,7 @@ As of the 2026-08-29 review:
 - the legacy schema exports are restored locally and the schema deploy blocker is closed;
 - a complete first pass of the Playwright Redis store, API route family, Agent modules, and Test UI integration now exists;
 - `npm run build` succeeds from the current workspace;
-- the remaining release blockers are lint, browser E2E, real Local Agent execution, and deployed production smoke verification;
+- the remaining release blockers are real Local Agent execution, live recovery scenarios, and deployed production smoke verification;
 - release checks still need to run against the exact source revision the user pushes and deploys.
 
 ## Task 1: Restore the legacy module boundary and unblock Vercel

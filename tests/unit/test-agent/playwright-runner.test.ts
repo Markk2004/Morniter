@@ -6,6 +6,7 @@ import {
   resolveInsideRoot,
   generateTestId,
   detectBrowserCapabilities,
+  scanPlaywrightProject,
 } from "../../../agent/src/playwright-catalog";
 import {
   buildSafeTestEnv,
@@ -28,6 +29,33 @@ describe("Local Agent Playwright Runner", () => {
     const id2 = generateTestId("e2e/auth/login.spec.ts", "Login Flow");
     expect(id1).toBe(id2);
     expect(id1).toContain("login");
+  });
+
+  it("discovers only Playwright files and groups them by the first test folder", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "agent-playwright-catalog-"));
+    await fs.mkdir(path.join(root, "e2e", "auth"), { recursive: true });
+    await fs.mkdir(path.join(root, "e2e", "students"), { recursive: true });
+    await fs.writeFile(
+      path.join(root, "e2e", "auth", "login.spec.ts"),
+      'import { test } from "@playwright/test";\ntest("login page", async () => {});',
+    );
+    await fs.writeFile(
+      path.join(root, "e2e", "students", "service.test.ts"),
+      'import test from "node:test";\ntest("not a browser test", () => {});',
+    );
+
+    const result = await scanPlaywrightProject(root, "e2e");
+
+    expect(result.tests).toHaveLength(1);
+    expect(result.tests[0]).toMatchObject({
+      title: "login page",
+      group: "Authentication",
+      relativePath: "e2e/auth/login.spec.ts",
+    });
+    expect(result.sourceByPath[result.tests[0].relativePath]).toContain("@playwright/test");
+    expect(result.scanPathLabel).toBe(`${path.basename(root)}/e2e`);
+
+    await fs.rm(root, { recursive: true, force: true });
   });
 
   it("builds safe test environment excluding all server secrets", () => {
@@ -90,7 +118,7 @@ describe("Local Agent Playwright Runner", () => {
     expect(prepared.args).toContain("--project=chromium");
 
     // Spec file should exist during execution
-    const specPath = prepared.args[2];
+    const specPath = prepared.args[3];
     const fileExists = await fs.stat(specPath).then(() => true).catch(() => false);
     expect(fileExists).toBe(true);
 

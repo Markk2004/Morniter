@@ -299,16 +299,17 @@
       ]
     },
     {
-      "id": "student-tracking-playwright",
-      "name": "Student Tracking Playwright Automation",
+      "id": "projectsts",
+      "name": "ProjectSTS",
       "playwright": {
         "workspaceRoot": "E:\\ProjectSTS\\frontend",
         "testRoot": "e2e",
-        "allowedBrowsers": ["chromium", "firefox", "webkit"],
+        "config": "playwright.config.ts",
+        "allowedBrowsers": ["chromium"],
         "allowHeaded": true,
-        "allowWorkspaceExecution": true,
-        "maxTimeoutSeconds": 600,
-        "envAllowlist": ["STS_UAT_BASE_URL", "STS_UAT_USERNAME", "STS_UAT_PASSWORD"]
+        "allowWorkspaceExecution": false,
+        "maxTimeoutSeconds": 300,
+        "envAllowlist": ["PLAYWRIGHT_BASE_URL"]
       }
     }
   ]

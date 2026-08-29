@@ -42,6 +42,8 @@ export const PlaywrightProjectCatalogSchema = z.object({
     )
     .optional(),
   tests: z.array(PlaywrightTestDescriptorSchema).optional(),
+  scanPathLabel: z.string().max(256).optional(),
+  sourceByPath: z.record(z.string().min(1).max(512), z.string().max(200_000)).optional(),
 });
 
 export const PlaywrightCatalogSchema = z.object({

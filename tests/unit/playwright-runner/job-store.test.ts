@@ -22,7 +22,7 @@ import {
 import type { Redis } from "@upstash/redis";
 
 class FakeRedis {
-  private kv = new Map<string, any>();
+  private kv = new Map<string, unknown>();
   private lists = new Map<string, string[]>();
   private sortedSets = new Map<string, Array<{ score: number; member: string }>>();
 
@@ -31,7 +31,7 @@ class FakeRedis {
     return val !== undefined ? (val as T) : null;
   }
 
-  async set(key: string, value: any, options?: { nx?: boolean; ex?: number }): Promise<string | null> {
+  async set(key: string, value: unknown, options?: { nx?: boolean; ex?: number }): Promise<string | null> {
     if (options?.nx && this.kv.has(key)) {
       return null;
     }
@@ -91,7 +91,7 @@ class FakeRedis {
     return items.slice(start, end) as unknown as T;
   }
 
-  async expire(_key: string, _seconds: number): Promise<number> {
+  async expire(): Promise<number> {
     return 1;
   }
 }
@@ -182,7 +182,7 @@ describe("Playwright Job Store Persistence", () => {
   });
 
   it("rejects enqueue when an active job is already claimed and running", async () => {
-    const job = await enqueuePlaywrightJob(
+    await enqueuePlaywrightJob(
       {
         projectId: "projectsts",
         source: "project-test",
@@ -352,7 +352,11 @@ describe("Playwright Job Store Persistence", () => {
 
     // Cannot transition from terminal cancelled to running
     await expect(
-      completePlaywrightJob(job.id, { status: "running" as any }, fakeRedis),
+      completePlaywrightJob(
+        job.id,
+        { status: "running" as unknown as "passed" },
+        fakeRedis,
+      ),
     ).rejects.toThrow(PlaywrightInvalidTransitionError);
   });
 

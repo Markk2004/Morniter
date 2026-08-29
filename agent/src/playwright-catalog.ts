@@ -20,22 +20,75 @@ export function resolveInsideRoot(root: string, relativePath: string): string {
   return resolved;
 }
 
-export function generateTestId(relativePath: string, title: string): string {
+export function generateTestId(
+  relativePath: string,
+  title: string,
+  index = 0,
+  line?: number,
+): string {
   const cleanRel = relativePath.replace(/[^a-z0-9]/gi, "-").toLowerCase();
-  const cleanTitle = title.replace(/[^a-z0-9]/gi, "-").toLowerCase();
-  const hash = crypto.createHash("sha256").update(`${relativePath}:${title}`).digest("hex").slice(0, 8);
+  const fallbackTitle = title.trim() || `test-${index + 1}`;
+  const cleanTitle = fallbackTitle.replace(/[^a-z0-9]/gi, "-").toLowerCase();
+  const hash = crypto
+    .createHash("sha256")
+    .update(`${relativePath}:${fallbackTitle}:${line ?? index}:${index}`)
+    .digest("hex")
+    .slice(0, 8);
   const combined = `${cleanRel}-${cleanTitle}`.replace(/-+/g, "-").slice(0, 48);
   return `${combined}-${hash}`;
 }
 
-const TEST_DECLARATION_REGEX = /test(?:\.(?:only|skip|fixme|fail))?\s*\(\s*["'`](.*?)["'`]/g;
+const TEST_DECLARATION_REGEX = /(?:^|[^\w])test(?:\.(?:only|skip|fixme|fail))?\s*\(\s*["'`](.*?)["'`]/g;
+
+function getLineNumber(content: string, index: number): number {
+  return content.slice(0, index).split("\n").length;
+}
+
+function hasPlaywrightImport(content: string): boolean {
+  const withoutComments = content
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|\s)\/\/.*$/gm, "$1");
+  return /(?:from\s*["']@playwright\/test["']|import\s*["']@playwright\/test["']|require\(\s*["']@playwright\/test["']\s*\))/.test(
+    withoutComments,
+  );
+}
+
+function displayGroupName(group: string): string {
+  const knownNames: Record<string, string> = {
+    auth: "Authentication",
+    authentication: "Authentication",
+    students: "Students",
+    monitor: "Monitor",
+  };
+  return knownNames[group.toLowerCase()] || group
+    .split(/[-_]/g)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+export interface PlaywrightScanResult {
+  tests: PlaywrightTestDescriptor[];
+  sourceByPath: Record<string, string>;
+  scanPathLabel: string;
+}
 
 export async function scanPlaywrightTests(
   workspaceRoot: string,
   testDir = "e2e",
 ): Promise<PlaywrightTestDescriptor[]> {
+  const result = await scanPlaywrightProject(workspaceRoot, testDir);
+  return result.tests;
+}
+
+export async function scanPlaywrightProject(
+  workspaceRoot: string,
+  testDir = "e2e",
+): Promise<PlaywrightScanResult> {
   const fullTestDir = resolveInsideRoot(workspaceRoot, testDir);
   const descriptors: PlaywrightTestDescriptor[] = [];
+  const sourceByPath: Record<string, string> = {};
+  const usedIds = new Set<string>();
 
   async function walkDir(currentDir: string): Promise<void> {
     let entries: string[] = [];
@@ -64,36 +117,62 @@ export async function scanPlaywrightTests(
         stat.isFile() &&
         (entry.endsWith(".spec.ts") ||
           entry.endsWith(".spec.tsx") ||
+          entry.endsWith(".spec.js") ||
+          entry.endsWith(".spec.jsx") ||
           entry.endsWith(".test.ts") ||
-          entry.endsWith(".test.tsx"))
+          entry.endsWith(".test.tsx") ||
+          entry.endsWith(".test.js") ||
+          entry.endsWith(".test.jsx"))
       ) {
         const relativeToRoot = path.relative(workspaceRoot, fullPath).replace(/\\/g, "/");
-        const groupName = path.dirname(path.relative(fullTestDir, fullPath)).replace(/\\/g, "/") || "General";
-        const cleanGroup = groupName === "." ? "General" : groupName;
+        const relativeToTestRoot = path.relative(fullTestDir, fullPath).replace(/\\/g, "/");
+        const groupPath = path.dirname(relativeToTestRoot).split("/").filter(Boolean);
+        const cleanGroup = displayGroupName(groupPath[0] || "General");
 
         try {
           const content = await fs.readFile(fullPath, "utf-8");
+          if (!hasPlaywrightImport(content)) continue;
           let match: RegExpExecArray | null;
           let foundCount = 0;
+          TEST_DECLARATION_REGEX.lastIndex = 0;
 
           while ((match = TEST_DECLARATION_REGEX.exec(content)) !== null) {
-            const title = match[1];
+            const rawTitle = match[1] || "";
+            const line = getLineNumber(content, match.index);
+            const title = rawTitle.trim() || `Test at line ${line}`;
+            let id = generateTestId(relativeToRoot, title, foundCount, line);
+            if (usedIds.has(id)) {
+              id = `${id}-${foundCount + 1}`;
+            }
+            usedIds.add(id);
+
             descriptors.push({
-              id: generateTestId(relativeToRoot, title),
+              id,
               title,
               group: cleanGroup,
               relativePath: relativeToRoot,
+              line,
             });
+            sourceByPath[relativeToRoot] = content;
             foundCount += 1;
           }
 
           if (foundCount === 0) {
+            const fallbackTitle = path.basename(entry, path.extname(entry));
+            let id = generateTestId(relativeToRoot, fallbackTitle, 0, 1);
+            if (usedIds.has(id)) {
+              id = `${id}-1`;
+            }
+            usedIds.add(id);
+
             descriptors.push({
-              id: generateTestId(relativeToRoot, path.basename(entry, path.extname(entry))),
-              title: path.basename(entry, path.extname(entry)),
+              id,
+              title: fallbackTitle,
               group: cleanGroup,
               relativePath: relativeToRoot,
+              line: 1,
             });
+            sourceByPath[relativeToRoot] = content;
           }
         } catch {
           // ignore unreadable file
@@ -103,7 +182,11 @@ export async function scanPlaywrightTests(
   }
 
   await walkDir(fullTestDir);
-  return descriptors;
+  return {
+    tests: descriptors,
+    sourceByPath,
+    scanPathLabel: `${path.basename(workspaceRoot)}/${testDir.replace(/\\/g, "/")}`,
+  };
 }
 
 export async function buildPlaywrightCatalogFromConfig(
@@ -117,12 +200,18 @@ export async function buildPlaywrightCatalogFromConfig(
     }
 
     const pw = proj.playwright;
-    let tests: PlaywrightTestDescriptor[] = [];
+    let scan: PlaywrightScanResult = {
+      tests: [],
+      sourceByPath: {},
+      scanPathLabel: `${path.basename(pw.workspaceRoot)}/${pw.testRoot || "e2e"}`,
+    };
     try {
-      tests = await scanPlaywrightTests(pw.workspaceRoot, pw.testRoot || "e2e");
+      scan = await scanPlaywrightProject(pw.workspaceRoot, pw.testRoot || "e2e");
     } catch {
-      tests = [];
+      // Keep the project visible so the UI can explain where the Agent scanned.
     }
+
+    const tests = scan.tests;
 
     const groupMap = new Map<string, PlaywrightTestDescriptor[]>();
     for (const t of tests) {
@@ -154,11 +243,17 @@ export async function buildPlaywrightCatalogFromConfig(
       capabilities,
       testGroups,
       tests,
+      sourceByPath: scan.sourceByPath,
+      scanPathLabel: scan.scanPathLabel,
     });
   }
 
   return {
-    version: "2.0.0",
+    version: crypto
+      .createHash("sha256")
+      .update(JSON.stringify(projects))
+      .digest("hex")
+      .slice(0, 16),
     updatedAt: new Date().toISOString(),
     projects,
   };

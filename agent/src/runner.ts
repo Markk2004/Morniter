@@ -162,6 +162,10 @@ export async function runAgent(config: AgentConfig): Promise<void> {
   const client = new AgentClient(config.serverUrl, config.agentToken, config.agentId);
   const catalog = buildCatalogFromConfig(config);
   const pollIntervalMs = (config.pollIntervalSeconds ?? 5) * 1000;
+  const catalogRefreshMs = Math.max(30_000, pollIntervalMs * 6);
+  let cachedPlaywrightCatalog: Awaited<ReturnType<typeof buildPlaywrightCatalogFromConfig>> | undefined;
+  let nextCatalogRefreshAt = 0;
+  let lastPublishedPlaywrightCatalogVersion: string | undefined;
 
   console.log(`[Monitor Local Agent] Agent "${config.agentId}" started polling ${config.serverUrl}`);
 
@@ -181,9 +185,16 @@ export async function runAgent(config: AgentConfig): Promise<void> {
       // 2. Poll Playwright queue if playwright configured
       const hasPlaywright = config.projects.some((p) => p.playwright && p.playwright.enabled !== false);
       if (hasPlaywright) {
-        const pwCatalog = await buildPlaywrightCatalogFromConfig(config);
+        const now = Date.now();
+        if (!cachedPlaywrightCatalog || now >= nextCatalogRefreshAt) {
+          cachedPlaywrightCatalog = await buildPlaywrightCatalogFromConfig(config);
+          nextCatalogRefreshAt = now + catalogRefreshMs;
+        }
         const capabilities = detectBrowserCapabilities(config);
-        const pwJob = await client.pollPlaywright("2.0.0", pwCatalog, capabilities);
+        const pwCatalog = cachedPlaywrightCatalog;
+        const catalogChanged = pwCatalog.version !== lastPublishedPlaywrightCatalogVersion;
+        const pwJob = await client.pollPlaywright(pwCatalog.version, catalogChanged ? pwCatalog : undefined, capabilities);
+        if (catalogChanged) lastPublishedPlaywrightCatalogVersion = pwCatalog.version;
         if (pwJob) {
           console.log(`[Monitor Local Agent] Claimed Playwright job ${pwJob.id} (${pwJob.projectId}:${pwJob.source})`);
           await executeClaimedPlaywrightJob(config, pwJob, client);
