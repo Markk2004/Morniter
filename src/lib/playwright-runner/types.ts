@@ -47,7 +47,7 @@ export type BrowserName = "chromium" | "firefox" | "webkit";
 
 export type PlaywrightSource = "project-test" | "workspace";
 
-export type BrowserMode = "headless" | "headed";
+export type RunMode = "headless" | "headed";
 
 export interface PlaywrightJobRequest {
   projectId: string;
@@ -55,7 +55,7 @@ export interface PlaywrightJobRequest {
   testIds?: string[];
   code?: string;
   browsers: BrowserName[];
-  mode: BrowserMode;
+  mode: RunMode;
 }
 
 /**
@@ -120,7 +120,7 @@ export interface PlaywrightJob {
   testIds?: string[];
   code?: string;
   browsers: BrowserName[];
-  mode: BrowserMode;
+  mode: RunMode;
   status: PlaywrightJobStatus;
   browserResults: BrowserExecutionResult[];
   artifacts?: TestArtifact[];
