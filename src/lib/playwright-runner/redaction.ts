@@ -1,4 +1,19 @@
 /**
+ * ⚠️ SUPERSEDED — DO NOT USE. The real job-store.ts already calls
+ * `redactText` from "@/lib/monitor/redact" inside appendPlaywrightLogBatch
+ * — redaction is already wired into the real system via that existing
+ * module, not this one. This file duplicates functionality that's
+ * already solved and already integrated. Do not add this file to the
+ * real repo; if @/lib/monitor/redact needs strengthening (e.g. it
+ * doesn't yet catch a pattern this file catches), port the specific
+ * missing rule INTO @/lib/monitor/redact instead of introducing a
+ * second, parallel redaction path that some call sites use and others
+ * don't.
+ *
+ * Original content kept below for reference only.
+ */
+
+/**
  * Redaction for Playwright job log lines (stdout/stderr).
  *
  * CLAUDE.md hard constraints require every provider/upstream message
