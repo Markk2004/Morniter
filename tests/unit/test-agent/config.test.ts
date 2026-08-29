@@ -43,7 +43,7 @@ describe("Local Agent Config & Resolver", () => {
 
     const config = parseAgentConfig(raw);
     expect(config.agentId).toBe("agent-win-1");
-    expect(config.projects[0].presets[0].cwd).toBe("E:\\project-monitor");
+    expect(config.projects[0].presets?.[0].cwd).toBe("E:\\project-monitor");
   });
 
   it("rejects non-absolute cwd path", () => {

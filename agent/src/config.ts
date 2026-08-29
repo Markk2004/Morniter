@@ -39,11 +39,31 @@ export const AgentPresetSchema = z.object({
   metadata: TestPresetMetadataSchema,
 });
 
-export const AgentProjectSchema = z.object({
-  id: z.string().regex(ID_REGEX),
-  name: z.string().min(1),
-  presets: z.array(AgentPresetSchema).min(1),
+export const AgentPlaywrightProjectSchema = z.object({
+  enabled: z.boolean().default(true),
+  workspaceRoot: z.string().refine((val) => path.isAbsolute(val), {
+    message: "workspaceRoot must be an absolute path",
+  }),
+  testRoot: z.string().default("e2e"),
+  config: z.string().optional(),
+  allowedBrowsers: z.array(z.enum(["chromium", "firefox", "webkit"])).default(["chromium"]),
+  allowHeaded: z.boolean().default(true),
+  allowWorkspaceExecution: z.boolean().default(true),
+  maxTimeoutSeconds: z.number().int().min(1).max(1800).default(600),
+  envAllowlist: z.array(z.string()).default([]),
+  allowedBaseUrls: z.array(z.string()).default([]),
 });
+
+export const AgentProjectSchema = z
+  .object({
+    id: z.string().regex(ID_REGEX),
+    name: z.string().min(1),
+    presets: z.array(AgentPresetSchema).optional(),
+    playwright: AgentPlaywrightProjectSchema.optional(),
+  })
+  .refine((p) => (p.presets && p.presets.length > 0) || Boolean(p.playwright), {
+    message: "Project must configure at least one preset or a playwright section",
+  });
 
 export const AgentConfigSchema = z.object({
   agentId: z.string().min(1).max(128),
@@ -102,7 +122,8 @@ export function resolvePreset(
     throw new Error(`Project ${projectId} not found in agent config`);
   }
 
-  const preset = project.presets.find((p) => p.id === presetId);
+  const presets = project.presets || [];
+  const preset = presets.find((p) => p.id === presetId);
   if (!preset) {
     throw new Error(`Preset ${presetId} not found in project ${projectId} configuration`);
   }
@@ -125,20 +146,22 @@ export function buildCatalogFromConfig(config: AgentConfig): import("./types.js"
   return {
     version: "1.0.0",
     updatedAt: new Date().toISOString(),
-    projects: config.projects.map((proj) => ({
-      id: proj.id,
-      name: proj.name,
-      presets: proj.presets.map((preset) => ({
-        id: preset.id,
-        name: preset.name,
-        description: preset.description,
-        commandPreview: `${preset.command} ${(preset.args || []).join(" ")}`.trim(),
-        timeoutSeconds: preset.timeoutSeconds ?? 300,
-        category: preset.metadata.category,
-        srsIds: [...preset.metadata.srsIds],
-        risk: preset.metadata.risk,
-        databaseTarget: preset.metadata.databaseTarget,
+    projects: config.projects
+      .filter((proj) => proj.presets && proj.presets.length > 0)
+      .map((proj) => ({
+        id: proj.id,
+        name: proj.name,
+        presets: (proj.presets || []).map((preset) => ({
+          id: preset.id,
+          name: preset.name,
+          description: preset.description,
+          commandPreview: `${preset.command} ${(preset.args || []).join(" ")}`.trim(),
+          timeoutSeconds: preset.timeoutSeconds ?? 300,
+          category: preset.metadata.category,
+          srsIds: [...preset.metadata.srsIds],
+          risk: preset.metadata.risk,
+          databaseTarget: preset.metadata.databaseTarget,
+        })),
       })),
-    })),
   };
 }

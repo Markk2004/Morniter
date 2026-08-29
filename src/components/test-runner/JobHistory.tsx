@@ -1,13 +1,12 @@
 "use client";
 
 import React from "react";
-import type { TestJob } from "@/lib/test-runner/types";
 
 interface JobHistoryProps {
-  jobs?: TestJob[];
-  history?: TestJob[];
+  jobs?: any[];
+  history?: any[];
   activeJobId?: string | null;
-  onSelectJob?: (job: TestJob) => void;
+  onSelectJob?: (job: any) => void;
   onRefresh?: () => void;
 }
 
@@ -28,7 +27,7 @@ export function JobHistory({
           <button
             type="button"
             onClick={onRefresh}
-            className="text-[11px] text-cyan-400 hover:underline font-mono"
+            className="text-[11px] text-indigo-400 hover:underline font-mono"
           >
             Refresh
           </button>
@@ -44,7 +43,7 @@ export function JobHistory({
       case "failed":
         return <span className="px-2 py-0.5 bg-rose-500/10 text-rose-400 border border-rose-500/20 text-[10px] font-semibold rounded-full">FAILED</span>;
       case "running":
-        return <span className="px-2 py-0.5 bg-sky-500/10 text-sky-400 border border-sky-500/20 text-[10px] font-semibold rounded-full animate-pulse">RUNNING</span>;
+        return <span className="px-2 py-0.5 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[10px] font-semibold rounded-full animate-pulse">RUNNING</span>;
       case "queued":
         return <span className="px-2 py-0.5 bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px] font-semibold rounded-full">QUEUED</span>;
       case "cancelled":
@@ -66,7 +65,7 @@ export function JobHistory({
           <button
             type="button"
             onClick={onRefresh}
-            className="text-[11px] text-cyan-400 hover:underline font-mono"
+            className="text-[11px] text-indigo-400 hover:underline font-mono"
           >
             Refresh
           </button>
@@ -76,24 +75,35 @@ export function JobHistory({
       <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
         {list.map((job) => {
           const isSelected = job.id === activeJobId;
+          const label =
+            job.presetName ||
+            (job.source === "workspace" ? "Workspace Code" : `Tests (${job.testIds?.length || 1})`);
+          const time = job.queuedAt || job.createdAt || new Date().toISOString();
+
           return (
             <button
               key={job.id}
               onClick={() => onSelectJob?.(job)}
               className={`w-full text-left p-3 rounded-lg border text-xs transition-colors flex items-center justify-between gap-3 ${
                 isSelected
-                  ? "bg-slate-800 border-sky-500/50 text-slate-100"
+                  ? "bg-slate-800 border-indigo-500/50 text-slate-100"
                   : "bg-slate-950/50 border-slate-800/80 text-slate-300 hover:bg-slate-800/50"
               }`}
             >
               <div className="space-y-1">
                 <div className="font-semibold text-slate-200 flex items-center gap-2">
-                  <span>{job.presetName}</span>
+                  <span>{label}</span>
                   <span className="text-[10px] text-slate-500 font-mono">({job.projectId})</span>
+                  {job.browsers && (
+                    <span className="text-[10px] text-indigo-300 font-mono">
+                      [{job.browsers.join(", ")}]
+                    </span>
+                  )}
                 </div>
                 <div className="text-[10px] text-slate-400 font-mono">
-                  {new Date(job.queuedAt).toLocaleString()}
+                  {new Date(time).toLocaleString()}
                 </div>
+
                 {job.failureAnalysis && ["failed", "timed_out", "agent_lost"].includes(job.status) && (
                   <div className="mt-2 max-w-2xl text-[10px] leading-relaxed">
                     <p className="text-rose-300">Failure summary: {job.failureAnalysis.title}</p>

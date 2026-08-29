@@ -1,10 +1,39 @@
 "use client";
 
 import React from "react";
-import type { TestJob } from "@/lib/test-runner/types";
+
+export interface RunProgressActiveJob {
+  id: string;
+  projectId: string;
+  status: string;
+  error?: string;
+  browsers?: string[];
+  mode?: string;
+  source?: string;
+  testIds?: string[];
+  presetName?: string;
+  category?: string;
+  requesterLabel?: string;
+  browserResults?: Array<{
+    browser: string;
+    status: string;
+    passed: number;
+    failed: number;
+    skipped: number;
+    durationMs?: number;
+  }>;
+  failureAnalysis?: {
+    title: string;
+    confidence: string;
+    cause: string;
+    fixLocation: string;
+    recommendation: string;
+    evidence?: string[];
+  };
+}
 
 interface RunProgressProps {
-  activeJob: TestJob | null;
+  activeJob: RunProgressActiveJob | null;
   onCancelJob: (jobId: string) => void;
   isSubmitting: boolean;
 }
@@ -12,12 +41,8 @@ interface RunProgressProps {
 export function RunProgress({ activeJob, onCancelJob, isSubmitting }: RunProgressProps) {
   if (!activeJob) return null;
 
-  const { status, progress, presetName, cancelRequested, error } = activeJob;
+  const { status, error } = activeJob;
   const failureAnalysis = activeJob.failureAnalysis;
-
-  const completed = progress?.completed;
-  const total = progress?.total;
-  const percentage = progress?.percentage;
 
   let statusColor = "text-amber-400 bg-amber-500/10 border-amber-500/30";
   if (status === "passed") statusColor = "text-emerald-400 bg-emerald-500/10 border-emerald-500/30";
@@ -25,6 +50,22 @@ export function RunProgress({ activeJob, onCancelJob, isSubmitting }: RunProgres
     statusColor = "text-rose-400 bg-rose-500/10 border-rose-500/30";
   if (status === "cancelled" || status === "cancel_requested")
     statusColor = "text-slate-400 bg-slate-800 border-slate-700";
+
+  const isCancellable =
+    status === "running" ||
+    status === "claimed" ||
+    status === "preparing" ||
+    status === "queued" ||
+    status === "cancel_requested";
+
+  const isPlaywright = Boolean(activeJob.browsers);
+  const title =
+    activeJob.presetName ||
+    (isPlaywright
+      ? activeJob.source === "project-test"
+        ? "Project Tests"
+        : "Workspace Code"
+      : "Test Execution");
 
   return (
     <div className="p-6 rounded-2xl border border-slate-800 bg-slate-900/80 backdrop-blur-md space-y-5">
@@ -35,18 +76,19 @@ export function RunProgress({ activeJob, onCancelJob, isSubmitting }: RunProgres
               Active Job Status
             </span>
             {activeJob.requesterLabel && (
-              <span className="px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 text-[10px] font-mono">
+              <span className="px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[10px] font-mono">
                 {activeJob.requesterLabel}
               </span>
             )}
           </div>
           <h3 className="text-base font-bold text-slate-100 mt-0.5">
-            {presetName} <span className="text-xs font-normal text-slate-400 font-mono">({activeJob.projectId})</span>
+            {title} <span className="text-xs font-normal text-slate-400 font-mono">({activeJob.projectId})</span>
           </h3>
           <div className="flex flex-wrap gap-2 mt-2 text-[10px] font-mono text-slate-400">
-            <span>{activeJob.category}</span>
-            {activeJob.srsIds?.length ? <span>{activeJob.srsIds.join(", ")}</span> : null}
-            <span>{activeJob.databaseTarget === "defaultdb" ? "Aiven defaultdb" : activeJob.databaseTarget === "none" ? "No database" : activeJob.databaseTarget}</span>
+            {activeJob.browsers && <span>Browsers: {activeJob.browsers.join(", ")}</span>}
+            {activeJob.mode && <span>Mode: {activeJob.mode}</span>}
+            {activeJob.category && <span>Category: {activeJob.category}</span>}
+            {activeJob.testIds?.length ? <span>({activeJob.testIds.length} tests)</span> : null}
           </div>
         </div>
 
@@ -55,34 +97,49 @@ export function RunProgress({ activeJob, onCancelJob, isSubmitting }: RunProgres
             {status}
           </span>
 
-          {(status === "running" || status === "claimed" || status === "queued") && (
+          {isCancellable && (
             <button
               type="button"
-              disabled={isSubmitting || cancelRequested}
+              disabled={isSubmitting || status === "cancel_requested"}
               onClick={() => onCancelJob(activeJob.id)}
               className="px-3 py-1 rounded-lg text-xs font-medium text-rose-400 hover:bg-rose-500/10 border border-rose-500/30 transition disabled:opacity-50"
             >
-              {cancelRequested ? "Cancelling..." : "Cancel Job"}
+              {status === "cancel_requested" ? "Cancelling..." : "Cancel Job"}
             </button>
           )}
         </div>
       </div>
 
-      {/* Progress Bar (if percentage is available) */}
-      {typeof percentage === "number" && (
-        <div className="space-y-1.5">
-          <div className="flex justify-between text-xs font-mono text-slate-400">
-            <span>
-              {completed !== null && total !== null ? `${completed} / ${total} tests` : "Running tests"}
-            </span>
-            <span className="font-semibold text-cyan-400">{percentage}%</span>
-          </div>
-          <div className="h-2 w-full bg-slate-950 rounded-full overflow-hidden border border-slate-800">
+      {/* Browser Result Badges (if Playwright) */}
+      {activeJob.browserResults && activeJob.browserResults.length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {activeJob.browserResults.map((br) => (
             <div
-              className="h-full bg-gradient-to-r from-cyan-500 to-indigo-500 transition-all duration-300 rounded-full"
-              style={{ width: `${percentage}%` }}
-            />
-          </div>
+              key={br.browser}
+              className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center justify-between"
+            >
+              <div className="flex items-center space-x-2">
+                <span className="text-xs font-mono font-semibold text-slate-300 uppercase">
+                  {br.browser}
+                </span>
+              </div>
+              <div className="flex items-center space-x-2 text-[11px] font-mono">
+                {br.passed > 0 && <span className="text-emerald-400">✓ {br.passed}</span>}
+                {br.failed > 0 && <span className="text-rose-400">✗ {br.failed}</span>}
+                <span
+                  className={`px-1.5 py-0.5 rounded text-[10px] uppercase font-bold ${
+                    br.status === "passed"
+                      ? "bg-emerald-500/20 text-emerald-400"
+                      : br.status === "failed"
+                      ? "bg-rose-500/20 text-rose-400"
+                      : "bg-amber-500/20 text-amber-400"
+                  }`}
+                >
+                  {br.status}
+                </span>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
@@ -93,6 +150,7 @@ export function RunProgress({ activeJob, onCancelJob, isSubmitting }: RunProgres
         </div>
       )}
 
+      {/* Failure Analysis Section */}
       {failureAnalysis && ["failed", "timed_out", "agent_lost"].includes(status) && (
         <section
           aria-live="polite"
@@ -122,12 +180,12 @@ export function RunProgress({ activeJob, onCancelJob, isSubmitting }: RunProgres
             </div>
           </dl>
 
-          <div className="rounded-lg border border-cyan-500/20 bg-cyan-500/5 p-3 text-xs text-cyan-100">
-            <span className="font-mono text-[10px] uppercase tracking-wider text-cyan-300">Recommended next step</span>
+          <div className="rounded-lg border border-indigo-500/20 bg-indigo-500/5 p-3 text-xs text-indigo-100">
+            <span className="font-mono text-[10px] uppercase tracking-wider text-indigo-300">Recommended next step</span>
             <p className="mt-1">{failureAnalysis.recommendation}</p>
           </div>
 
-          {failureAnalysis.evidence.length > 0 && (
+          {failureAnalysis.evidence && failureAnalysis.evidence.length > 0 && (
             <div>
               <p className="font-mono text-[10px] uppercase tracking-wider text-slate-500">Evidence</p>
               <ul className="mt-1.5 space-y-1 text-xs text-slate-400">

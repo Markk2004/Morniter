@@ -1,12 +1,33 @@
 import { describe, expect, it } from "vitest";
 import {
+  AgentHeartbeatSchema,
+  AppendLogBatchSchema,
+  CompleteJobSchema,
   CreateJobSchema,
   PollRequestSchema,
-  AppendLogBatchSchema,
   TestProgressSchema,
+  TestPresetSchema,
+  TestProjectSchema,
+  TestProjectCatalogSchema,
 } from "@/lib/test-runner/schemas";
 
-describe("Test Runner Zod Schemas", () => {
+describe("Legacy Test Runner Zod Schemas", () => {
+  it("keeps the preset-runner API contract available", () => {
+    expect(
+      PollRequestSchema.safeParse({
+        agentId: "windows-local-agent-1",
+        catalogVersion: "1.0.0",
+      }).success,
+    ).toBe(true);
+    expect(CreateJobSchema).toBeDefined();
+    expect(AppendLogBatchSchema).toBeDefined();
+    expect(AgentHeartbeatSchema).toBeDefined();
+    expect(CompleteJobSchema).toBeDefined();
+    expect(TestPresetSchema).toBeDefined();
+    expect(TestProjectSchema).toBeDefined();
+    expect(TestProjectCatalogSchema).toBeDefined();
+  });
+
   it("parses valid CreateJobSchema containing only projectId and presetId", () => {
     const valid = CreateJobSchema.parse({
       projectId: "student-tracking",
@@ -67,5 +88,15 @@ describe("Test Runner Zod Schemas", () => {
       ],
     });
     expect(validBatch.entries).toHaveLength(2);
+  });
+
+  it("validates CompleteJobSchema with status and exit code", () => {
+    const validComplete = CompleteJobSchema.parse({
+      status: "passed",
+      exitCode: 0,
+      startedAt: new Date().toISOString(),
+      finishedAt: new Date().toISOString(),
+    });
+    expect(validComplete.status).toBe("passed");
   });
 });

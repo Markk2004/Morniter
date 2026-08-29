@@ -1,8 +1,18 @@
-import type { TestProjectCatalog, TestJob, TestProgress, ExecutionResult } from "./types";
+import type {
+  TestProjectCatalog,
+  TestJob,
+  TestProgress,
+  ExecutionResult,
+  PlaywrightCatalog,
+  PlaywrightJob,
+  PlaywrightExecutionResult,
+  BrowserExecutionResult,
+} from "./types.js";
 
 export interface LogBatchPayloadEntry {
   stream: "stdout" | "stderr" | "system";
   message: string;
+  browser?: string;
 }
 
 export class AgentClient {
@@ -16,9 +26,11 @@ export class AgentClient {
     return {
       Authorization: `Bearer ${this.agentToken}`,
       "Content-Type": "application/json",
+      "x-agent-id": this.agentId,
     };
   }
 
+  // Legacy preset runner methods
   async poll(catalogVersion: string, catalog?: TestProjectCatalog): Promise<TestJob | null> {
     const url = `${this.serverUrl}/api/test-runner/agent/poll`;
     const res = await fetch(url, {
@@ -107,6 +119,104 @@ export class AgentClient {
 
     if (!res.ok) {
       throw new Error(`Failed to complete job: HTTP ${res.status}`);
+    }
+  }
+
+  // New Playwright runner methods
+  async pollPlaywright(
+    catalogVersion: string,
+    catalog?: PlaywrightCatalog,
+    capabilities?: { browsers?: { chromium?: boolean; firefox?: boolean; webkit?: boolean }; headed?: boolean; workspaceExecution?: boolean },
+  ): Promise<PlaywrightJob | null> {
+    const url = `${this.serverUrl}/api/playwright-runner/agent/poll`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: this.headers,
+      body: JSON.stringify({
+        agentId: this.agentId,
+        catalogVersion,
+        catalog,
+        capabilities,
+      }),
+    });
+
+    if (!res.ok) {
+      if (res.status === 401) {
+        throw new Error("Agent token authentication failed (401)");
+      }
+      return null;
+    }
+
+    if (res.status === 204) {
+      return null;
+    }
+
+    const data = (await res.json()) as { job?: PlaywrightJob };
+    return data.job ?? null;
+  }
+
+  async heartbeatPlaywright(
+    jobId: string,
+    browserResults?: BrowserExecutionResult[],
+  ): Promise<{ cancelRequested: boolean }> {
+    const url = `${this.serverUrl}/api/playwright-runner/agent/jobs/${jobId}/heartbeat`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: this.headers,
+      body: JSON.stringify({
+        observedAt: new Date().toISOString(),
+        browserResults,
+      }),
+    });
+
+    if (!res.ok) {
+      return { cancelRequested: false };
+    }
+
+    return (await res.json()) as { cancelRequested: boolean };
+  }
+
+  async appendPlaywrightLogs(
+    jobId: string,
+    sequenceStart: number,
+    entries: LogBatchPayloadEntry[],
+    browserResults?: BrowserExecutionResult[],
+  ): Promise<{ sequenceStart: number; nextSequence: number; truncated: boolean }> {
+    const url = `${this.serverUrl}/api/playwright-runner/agent/jobs/${jobId}/logs`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: this.headers,
+      body: JSON.stringify({
+        sequenceStart,
+        entries,
+        browserResults,
+      }),
+    });
+
+    if (!res.ok) {
+      throw new Error(`Failed to append Playwright logs: HTTP ${res.status}`);
+    }
+
+    return (await res.json()) as { sequenceStart: number; nextSequence: number; truncated: boolean };
+  }
+
+  async completePlaywright(jobId: string, result: PlaywrightExecutionResult): Promise<void> {
+    const url = `${this.serverUrl}/api/playwright-runner/agent/jobs/${jobId}/complete`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: this.headers,
+      body: JSON.stringify({
+        status: result.status,
+        browserResults: result.browserResults,
+        artifacts: result.artifacts,
+        startedAt: result.startedAt,
+        finishedAt: result.finishedAt,
+        error: result.error,
+      }),
+    });
+
+    if (!res.ok) {
+      throw new Error(`Failed to complete Playwright job: HTTP ${res.status}`);
     }
   }
 }

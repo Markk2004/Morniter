@@ -16,6 +16,14 @@
 - [x] Local verification passed: `npm run test` (48 files, 198 tests), `npm run lint`, `npm run typecheck`, `npm run test-agent:build`, `npm run build`, and Playwright E2E (9 tests).
 - [ ] External production verification remains: deployed multi-user smoke test, 20-request concurrency stress test against the configured Redis, and real lease recovery after stopping the local agent.
 
+### Review update (2026-08-29)
+
+- The implementation claims above remain supported by the existing files and test suite.
+- Current verification is 64 test files/274 tests, with typecheck, Agent build, and Next build passing.
+- The repository-wide lint gate now fails because of later Playwright work; this plan must not be treated as production-approved until that gate is green again.
+- Production concurrency, shared-job behavior across real browsers, and lease recovery after stopping the Agent remain unchecked.
+- The dropdown behavior from this plan is now being extended by the Playwright selector work. Follow `2026-08-29-playwright-runner-deploy-readiness.md` for the active release sequence.
+
 ## Global Constraints
 
 - หนึ่ง `agentId` มี active job ได้ไม่เกินหนึ่งงาน

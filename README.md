@@ -64,11 +64,35 @@ npm run hash-password -- "password"  # Generate bcrypt password hash
 
 ---
 
+---
+
+## Playwright Automation Workspace (`/monitor/tests`)
+
+The Test Runner evolves from a preset-driven command launcher into an interactive **Playwright Automation Workspace** for authoring, running, and inspecting multi-browser end-to-end automation directly from the web UI:
+
+- **Target Route**: `/monitor/tests`
+- **Documentation Package**: [`morniter-playwright-docs/`](file:///e:/project-monitor/morniter-playwright-docs/README.md)
+- **Architecture Spec**: [`ARCHITECTURE.md`](file:///e:/project-monitor/ARCHITECTURE.md) | [`ARCHITECTURE_PLAYWRIGHT_AUTOMATION.md`](file:///e:/project-monitor/morniter-playwright-docs/ARCHITECTURE_PLAYWRIGHT_AUTOMATION.md)
+- **Implementation Plan**: [`docs/superpowers/plans/2026-08-26-playwright-automation-workspace.md`](file:///e:/project-monitor/docs/superpowers/plans/2026-08-26-playwright-automation-workspace.md)
+- **Concrete Examples**: [`morniter-playwright-docs/example.md`](file:///e:/project-monitor/morniter-playwright-docs/example.md)
+
+### Key Capabilities
+
+1. **Multi-Browser Checklist**: Select any combination of **Chromium**, **Firefox**, and **WebKit**.
+2. **Headless & Headed Execution**: Toggle between headless background runs and headed visual runs on the connected Local Agent desktop.
+3. **Test & Function Explorer**: Automatically scan `.spec.ts` files, test titles, and exported functions across allowlisted projects.
+4. **Interactive Code Workspace**: Author, format, and execute ad-hoc Playwright scripts in a sandboxed temporary workspace without modifying project files.
+5. **Real-time Live Terminal**: Stream batched `stdout`/`stderr`/`system` logs with sequence cursors, auto-scrolling, and multi-pass secret redaction.
+6. **Artifact Capture & Inspection**: Collect and inspect Playwright Traces (`.zip`), Failure Screenshots (`.png`), Session Videos (`.webm`), and HTML Reports.
+7. **Execution Step-Up & Security**: Protected by 15-minute `monitor:execute` JWT session, timing-safe Agent Bearer token, zero server-side `eval`, and strict process isolation.
+
+---
+
 ## Test Runner Console & Local Agent
 
 The Test Runner Console replaces arbitrary shell commands with a secure, preset-driven local execution system:
 
-- **Zero Shell Exposure**: Browser payloads send only `projectId` and `presetId`. Raw commands, parameters, working directories, or environment variables are never accepted over HTTP.
+- **Zero Shell Exposure**: Browser payloads send only `projectId` and `presetId` (or validated `testIds`/`code`). Raw commands, parameters, working directories, or environment variables are never accepted over HTTP.
 - **Local Agent Preset Resolver**: The Windows Local Agent resolves preset execution contracts strictly from local config (`test-runner.config.local.json`).
 - **Safe Process Execution**: Executes commands via Node `spawn(executable, args, { shell: false })` with process-tree termination on timeout or cancellation.
 - **Execution Step-Up Authorization**: Execution requires a dedicated 15-minute `monitor:execute` session (`TEST_RUNNER_PASSWORD_HASH`).
@@ -76,12 +100,11 @@ The Test Runner Console replaces arbitrary shell commands with a secure, preset-
 
 The Test Runner catalog groups presets into automated testing, execution test and UAT. Execution presets are selected by SRS/BR ID and run one allowlisted ProjectSTS Jest group against Aiven `defaultdb`. UAT presets run the read-only deployment smoke suite and use `STS_UAT_BASE_URL`, `STS_UAT_USERNAME` and `STS_UAT_PASSWORD`; they do not receive a database URL. The browser request remains `{ projectId, presetId }`.
 
-
 ---
 
 ## Architecture & Security Constraints
 
-- **Read-Only**: All provider calls are read-only. No redeploy, restart, or mutation endpoints exist.
+- **Read-Only Telemetry**: All provider calls are read-only. No redeploy, restart, or mutation endpoints exist.
 - **Provider Credentials**: Secret tokens reside strictly on the server (`server-only`). They are never exposed in JavaScript bundles or client API responses.
 - **Redaction Engine**: Upstream log messages pass through a multi-pass regex redactor stripping Bearer headers, database URLs, and secret JSON keys.
 - **Memory Cache**: 30-second server memory cache prevents hitting provider rate limits. Manual refresh (`force=1`) bypasses cache.
@@ -105,7 +128,6 @@ Diagnostic responses are cached server-side for 60 seconds with in-flight dedupl
 - Provider tokens remain server-side.
 - The monitor never retries, cancels, rolls back, or triggers a deployment.
 
-
 ---
 
 ## Production Deployment Notes
@@ -114,7 +136,6 @@ Set `AIVEN_DATABASE_NAME=student_tracking` in both Preview and Production when t
 
 Browser notifications require the user to click `Enable browser alerts`, and the in-app incident alert banner still works when permission is denied or blocked.
 
-
 ---
 
 ## Production Deployment (Vercel)
@@ -122,3 +143,4 @@ Browser notifications require the user to click `Enable browser alerts`, and the
 1. Deploy the Next.js application to Vercel.
 2. Set Environment Variables (`GROUP_ACCESS_PASSWORD_HASH`, `SESSION_SIGNING_SECRET`, and provider credentials) in Vercel Project Settings.
 3. Configure Vercel Firewall rate-limiting on `/api/auth/login`.
+

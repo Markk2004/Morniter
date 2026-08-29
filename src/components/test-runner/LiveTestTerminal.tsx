@@ -1,13 +1,21 @@
 "use client";
 
 import React, { useRef, useEffect, useState } from "react";
-import type { TestLogLine } from "@/lib/test-runner/types";
 import { stripTerminalControlSequences } from "@/lib/monitor/redact";
 
 const MAX_RENDERED_LINES = 300;
 
+export interface TerminalLine {
+  sequence: number;
+  stream: "stdout" | "stderr" | "system";
+  text?: string;
+  message?: string;
+  browser?: string;
+  timestamp?: string;
+}
+
 interface LiveTestTerminalProps {
-  lines: TestLogLine[];
+  lines: TerminalLine[];
   hasOlder?: boolean;
   onLoadOlder?: () => void;
 }
@@ -53,7 +61,7 @@ export function LiveTestTerminal({ lines, hasOlder = false, onLoadOlder }: LiveT
             <button
               type="button"
               onClick={onLoadOlder}
-              className="text-cyan-400 hover:underline cursor-pointer"
+              className="text-indigo-400 hover:underline cursor-pointer"
             >
               Load older logs
             </button>
@@ -66,7 +74,7 @@ export function LiveTestTerminal({ lines, hasOlder = false, onLoadOlder }: LiveT
         onScroll={handleScroll}
         role="log"
         aria-label="Execution log terminal"
-        className="h-96 w-full rounded-2xl bg-[#090d16] border border-slate-800/80 p-4 font-mono text-xs overflow-y-auto space-y-1 shadow-inner selection:bg-cyan-500/30"
+        className="h-96 w-full rounded-2xl bg-[#090d16] border border-slate-800/80 p-4 font-mono text-xs overflow-y-auto space-y-1 shadow-inner selection:bg-indigo-500/30"
       >
         {visibleLines.length === 0 ? (
           <div className="h-full flex items-center justify-center text-slate-600 italic">
@@ -85,16 +93,29 @@ export function LiveTestTerminal({ lines, hasOlder = false, onLoadOlder }: LiveT
               msgColor = "text-amber-300 italic";
             }
 
+            const rawText = line.text ?? line.message ?? "";
+
             return (
-              <div key={`${line.sequence}-${idx}`} data-testid="terminal-line" className="flex items-start space-x-3 hover:bg-slate-900/40 px-1.5 py-0.5 rounded">
+              <div
+                key={`${line.sequence}-${idx}`}
+                data-testid="terminal-line"
+                className="flex items-start space-x-3 hover:bg-slate-900/40 px-1.5 py-0.5 rounded"
+              >
                 <span className="text-[10px] text-slate-600 select-none w-8 text-right font-mono">
                   {line.sequence}
                 </span>
-                <span className={`text-[10px] uppercase px-1.5 py-0.2 rounded border border-slate-800 bg-slate-950 font-mono ${streamColor}`}>
+                <span
+                  className={`text-[10px] uppercase px-1.5 py-0.2 rounded border border-slate-800 bg-slate-950 font-mono ${streamColor}`}
+                >
                   {line.stream}
                 </span>
+                {line.browser && (
+                  <span className="text-[10px] uppercase font-bold text-indigo-400 font-mono">
+                    [{line.browser}]
+                  </span>
+                )}
                 <span className={`flex-1 whitespace-pre-wrap break-all ${msgColor}`}>
-                  {stripTerminalControlSequences(line.message)}
+                  {stripTerminalControlSequences(rawText)}
                 </span>
               </div>
             );

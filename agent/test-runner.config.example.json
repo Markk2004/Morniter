@@ -297,6 +297,19 @@
           "metadata": { "category": "uat", "srsIds": ["FR-DBR-002"], "risk": "read-only", "databaseTarget": "none" }
         }
       ]
+    },
+    {
+      "id": "student-tracking-playwright",
+      "name": "Student Tracking Playwright Automation",
+      "playwright": {
+        "workspaceRoot": "E:\\ProjectSTS\\frontend",
+        "testRoot": "e2e",
+        "allowedBrowsers": ["chromium", "firefox", "webkit"],
+        "allowHeaded": true,
+        "allowWorkspaceExecution": true,
+        "maxTimeoutSeconds": 600,
+        "envAllowlist": ["STS_UAT_BASE_URL", "STS_UAT_USERNAME", "STS_UAT_PASSWORD"]
+      }
     }
   ]
 }

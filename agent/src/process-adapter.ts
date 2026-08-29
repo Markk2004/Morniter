@@ -24,6 +24,17 @@ export function spawnPresetProcess(preset: ResolvedPreset) {
   });
 }
 
+export function spawnProcessCommand(command: string, args: string[], cwd: string, env: Record<string, string>) {
+  const executable = resolveExecutable(command);
+  return spawn(executable, args, {
+    cwd,
+    env: { ...process.env, ...env },
+    shell: false,
+    windowsHide: true,
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+}
+
 export function terminateProcessTree(pid: number, platform: string = process.platform): void {
   if (!pid) return;
 

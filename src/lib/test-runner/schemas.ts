@@ -1,5 +1,9 @@
 import { z } from "zod";
 
+// Legacy preset-runner API contract. Do not replace this module with the
+// Playwright workspace schemas; the new runner owns its separate module at
+// src/lib/playwright-runner/schemas.ts while migration routes still compile.
+
 export const ID_REGEX = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const SRS_ID_REGEX = /^(?:FR|BR|NFR)-[A-Z0-9]+(?:-[A-Z0-9]+)*$/i;
 

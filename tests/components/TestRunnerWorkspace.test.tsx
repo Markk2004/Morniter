@@ -8,7 +8,7 @@ afterEach(() => {
   cleanup();
 });
 
-describe("TestRunnerWorkspace", () => {
+describe("TestRunnerWorkspace with Playwright", () => {
   beforeEach(() => {
     vi.stubGlobal(
       "fetch",
@@ -16,28 +16,28 @@ describe("TestRunnerWorkspace", () => {
         if (url.includes("/api/test-runner/lock")) {
           return { ok: true, json: async () => ({ unlocked: false }) };
         }
-        if (url.includes("/api/test-runner/catalog")) {
+        if (url.includes("/api/playwright-runner/catalog")) {
           return {
             ok: true,
             json: async () => ({
               catalog: {
-                version: "1.0.0",
-                updatedAt: "2026-07-28T10:00:00.000Z",
+                version: "2.0.0",
+                updatedAt: "2026-08-29T10:00:00.000Z",
                 projects: [
                   {
                     id: "student-tracking",
                     name: "Student Tracking System",
-                    presets: [
+                    capabilities: {
+                      browsers: { chromium: true, firefox: true, webkit: false },
+                      headed: true,
+                      workspaceExecution: true,
+                    },
+                    tests: [
                       {
-                        id: "cypress-e2e",
-                        name: "Cypress E2E Suite",
-                        description: "Run Cypress suite",
-                        commandPreview: "npx cypress run",
-                        timeoutSeconds: 300,
-                        category: "automated",
-                        srsIds: [],
-                        risk: "safe",
-                        databaseTarget: "none",
+                        id: "auth-login",
+                        title: "Login Flow",
+                        group: "Auth",
+                        relativePath: "e2e/auth.spec.ts",
                       },
                     ],
                   },
@@ -46,12 +46,12 @@ describe("TestRunnerWorkspace", () => {
               presence: {
                 agentId: "agent-win-1",
                 state: "online",
-                lastHeartbeatAt: "2026-07-28T10:00:00.000Z",
+                lastHeartbeatAt: "2026-08-29T10:00:00.000Z",
               },
             }),
           };
         }
-        if (url.includes("/api/test-runner/jobs")) {
+        if (url.includes("/api/playwright-runner/jobs")) {
           return { ok: true, json: async () => ({ jobs: [] }) };
         }
         return { ok: false, json: async () => ({}) };
@@ -65,8 +65,8 @@ describe("TestRunnerWorkspace", () => {
     expect(await screen.findByText(/Local Agent Online/i)).toBeInTheDocument();
     expect(screen.getByLabelText("Project")).toHaveValue("student-tracking");
 
-    fireEvent.change(screen.getByLabelText("Test command"), { target: { value: "cypress-e2e" } });
-    expect(screen.getByText(/Run Cypress suite/i)).toBeInTheDocument();
+    expect(screen.getByText(/Login Flow/i)).toBeInTheDocument();
+    expect(screen.getByLabelText("Select Chromium")).toBeChecked();
 
     const runBtn = screen.getByRole("button", { name: /Unlock Execution Required/i });
     expect(runBtn).toBeDisabled();

@@ -21,11 +21,125 @@ export interface AgentPresetConfig {
   metadata: TestPresetMetadata;
 }
 
+export interface AgentPlaywrightProjectConfig {
+  enabled?: boolean;
+  workspaceRoot: string;
+  testRoot?: string;
+  config?: string;
+  allowedBrowsers?: ("chromium" | "firefox" | "webkit")[];
+  allowHeaded?: boolean;
+  allowWorkspaceExecution?: boolean;
+  maxTimeoutSeconds?: number;
+  envAllowlist?: string[];
+  allowedBaseUrls?: string[];
+}
+
 export interface AgentProjectConfig {
   id: string;
   name: string;
-  presets: AgentPresetConfig[];
+  presets?: AgentPresetConfig[];
+  playwright?: AgentPlaywrightProjectConfig;
 }
+
+export type BrowserName = "chromium" | "firefox" | "webkit";
+export type RunMode = "headless" | "headed";
+
+export interface BrowserExecutionResult {
+  browser: BrowserName;
+  status: "waiting" | "running" | "passed" | "failed" | "cancelled";
+  passed: number;
+  failed: number;
+  skipped: number;
+  durationMs?: number;
+}
+
+export interface PlaywrightTestDescriptor {
+  id: string;
+  title: string;
+  group: string;
+  relativePath: string;
+  line?: number;
+  tags?: string[];
+}
+
+export interface PlaywrightProjectCatalog {
+  id: string;
+  name: string;
+  rootLabel?: string;
+  capabilities?: {
+    browsers?: {
+      chromium?: boolean;
+      firefox?: boolean;
+      webkit?: boolean;
+    };
+    headed?: boolean;
+    workspaceExecution?: boolean;
+  };
+  testGroups?: {
+    name: string;
+    tests: PlaywrightTestDescriptor[];
+  }[];
+  tests?: PlaywrightTestDescriptor[];
+}
+
+export interface PlaywrightCatalog {
+  version: string;
+  updatedAt: string;
+  projects: PlaywrightProjectCatalog[];
+}
+
+export interface PlaywrightJob {
+  id: string;
+  agentId: string;
+  projectId: string;
+  source: "project-test" | "workspace";
+  testIds?: string[];
+  code?: string;
+  browsers: BrowserName[];
+  mode: RunMode;
+  status: "queued" | "claimed" | "preparing" | "running" | "passed" | "failed" | "cancel_requested" | "cancelled" | "timed_out";
+  browserResults: BrowserExecutionResult[];
+  lastHeartbeatAt?: string;
+  cancelRequestedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+  startedAt?: string;
+  completedAt?: string;
+  artifacts?: Array<{
+    id: string;
+    jobId: string;
+    type: "trace" | "screenshot" | "video" | "report";
+    browser?: BrowserName;
+    testId?: string;
+    filename: string;
+    size: number;
+    downloadUrl?: string;
+    createdAt: string;
+  }>;
+  error?: string;
+}
+
+export interface PlaywrightExecutionResult {
+  status: "passed" | "failed" | "cancelled" | "timed_out";
+  browserResults: BrowserExecutionResult[];
+  artifacts?: Array<{
+    id: string;
+    jobId: string;
+    type: "trace" | "screenshot" | "video" | "report";
+    browser?: BrowserName;
+    testId?: string;
+    filename: string;
+    size: number;
+    downloadUrl?: string;
+    createdAt: string;
+  }>;
+  startedAt: string;
+  finishedAt: string;
+  durationMs: number;
+  truncated: boolean;
+  error?: string;
+}
+
 
 export interface AgentConfig {
   agentId: string;

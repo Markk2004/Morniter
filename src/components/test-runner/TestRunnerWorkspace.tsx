@@ -4,7 +4,7 @@ import React from "react";
 import { useTestRunner } from "./useTestRunner";
 import { ExecutionUnlock } from "./ExecutionUnlock";
 import { AgentStatusBanner } from "./AgentStatusBanner";
-import { PresetLauncher } from "./PresetLauncher";
+import { PlaywrightJobSelector } from "./PlaywrightJobSelector";
 import { RunProgress } from "./RunProgress";
 import { LiveTestTerminal } from "./LiveTestTerminal";
 import JobHistory from "./JobHistory";
@@ -29,7 +29,7 @@ export function TestRunnerWorkspace() {
   if (loadingCatalog) {
     return (
       <div className="p-12 text-center text-xs font-mono text-slate-400">
-        Loading test runner workspace...
+        Loading Playwright automation workspace...
       </div>
     );
   }
@@ -50,15 +50,15 @@ export function TestRunnerWorkspace() {
       {/* Agent Presence Banner */}
       <AgentStatusBanner presence={presence} />
 
-      {/* Preset Launcher Shortcuts */}
-      <PresetLauncher
+      {/* Playwright Job Selector */}
+      <PlaywrightJobSelector
         catalog={catalog}
         activeJob={activeJob}
         isUnlocked={isUnlocked}
         isAgentOnline={isAgentOnline}
         isJobRunning={isJobRunning}
         isSubmitting={isSubmitting}
-        onRunPreset={createJob}
+        onRunJob={createJob}
       />
 
       {/* Active Job Progress */}

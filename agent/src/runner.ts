@@ -1,15 +1,23 @@
-import { createProgressParser } from "./progress";
-import { LogBatcher } from "./log-batcher";
-import { runPreset } from "./executor";
-import { resolvePreset, buildCatalogFromConfig } from "./config";
-import type { AgentConfig } from "./types";
-import { AgentClient } from "./client";
+import { createProgressParser } from "./progress/index.js";
+import { LogBatcher } from "./log-batcher.js";
+import { runPreset } from "./executor.js";
+import { resolvePreset, buildCatalogFromConfig } from "./config.js";
+import {
+  buildPlaywrightCatalogFromConfig,
+  detectBrowserCapabilities,
+} from "./playwright-catalog.js";
+import {
+  preparePlaywrightExecution,
+  runPlaywrightExecution,
+} from "./playwright-executor.js";
+import type { AgentConfig, PlaywrightJob } from "./types.js";
+import { AgentClient } from "./client.js";
 
 export { buildCatalogFromConfig };
 
 export async function executeClaimedJob(
   config: AgentConfig,
-  job: import("./types").TestJob,
+  job: import("./types.js").TestJob,
   client: AgentClient,
 ): Promise<void> {
   const preset = resolvePreset(config, job.projectId, job.presetId);
@@ -79,19 +87,108 @@ export async function executeClaimedJob(
   }
 }
 
+export async function executeClaimedPlaywrightJob(
+  config: AgentConfig,
+  job: PlaywrightJob,
+  client: AgentClient,
+): Promise<void> {
+  const logBatcher = new LogBatcher(async (seqStart, entries) => {
+    await client.appendPlaywrightLogs(job.id, seqStart, entries);
+  });
+
+  const abortController = new AbortController();
+  let heartbeatTimer: NodeJS.Timeout | null = null;
+  let heartbeatStopped = false;
+
+  const scheduleHeartbeat = () => {
+    if (heartbeatStopped) return;
+    heartbeatTimer = setTimeout(async () => {
+      try {
+        const hb = await client.heartbeatPlaywright(job.id);
+        if (hb.cancelRequested) {
+          abortController.abort();
+        }
+      } catch {
+        // Ignore transient heartbeat error
+      } finally {
+        scheduleHeartbeat();
+      }
+    }, 5000);
+  };
+
+  scheduleHeartbeat();
+
+  try {
+    const prepared = await preparePlaywrightExecution(config, job);
+    const result = await runPlaywrightExecution(
+      prepared,
+      job,
+      {
+        onLines: (stream, lines) => {
+          logBatcher.push(stream, lines);
+        },
+      },
+      abortController.signal,
+    );
+
+    await logBatcher.drain();
+    await client.completePlaywright(job.id, result);
+  } catch (err) {
+    const nowStr = new Date().toISOString();
+    const errMsg = err instanceof Error ? err.message : "Playwright execution failed";
+    await logBatcher.drain();
+    await client.completePlaywright(job.id, {
+      status: "failed",
+      browserResults: job.browsers.map((b) => ({
+        browser: b,
+        status: "failed",
+        passed: 0,
+        failed: 1,
+        skipped: 0,
+      })),
+      startedAt: nowStr,
+      finishedAt: nowStr,
+      durationMs: 0,
+      truncated: false,
+      error: errMsg,
+    });
+  } finally {
+    heartbeatStopped = true;
+    if (heartbeatTimer) clearTimeout(heartbeatTimer);
+  }
+}
+
 export async function runAgent(config: AgentConfig): Promise<void> {
   const client = new AgentClient(config.serverUrl, config.agentToken, config.agentId);
   const catalog = buildCatalogFromConfig(config);
   const pollIntervalMs = (config.pollIntervalSeconds ?? 5) * 1000;
 
-    console.log(`[Monitor Local Agent] Agent "${config.agentId}" started polling ${config.serverUrl}`);
+  console.log(`[Monitor Local Agent] Agent "${config.agentId}" started polling ${config.serverUrl}`);
 
   while (true) {
     try {
-      const job = await client.poll("1.0.0", catalog);
-      if (job) {
-      console.log(`[Monitor Local Agent] Claimed job ${job.id} (${job.projectId}:${job.presetId})`);
-        await executeClaimedJob(config, job, client);
+      // 1. Poll legacy preset queue if presets configured
+      const hasPresets = config.projects.some((p) => p.presets && p.presets.length > 0);
+      if (hasPresets) {
+        const job = await client.poll("1.0.0", catalog);
+        if (job) {
+          console.log(`[Monitor Local Agent] Claimed legacy job ${job.id} (${job.projectId}:${job.presetId})`);
+          await executeClaimedJob(config, job, client);
+          continue;
+        }
+      }
+
+      // 2. Poll Playwright queue if playwright configured
+      const hasPlaywright = config.projects.some((p) => p.playwright && p.playwright.enabled !== false);
+      if (hasPlaywright) {
+        const pwCatalog = await buildPlaywrightCatalogFromConfig(config);
+        const capabilities = detectBrowserCapabilities(config);
+        const pwJob = await client.pollPlaywright("2.0.0", pwCatalog, capabilities);
+        if (pwJob) {
+          console.log(`[Monitor Local Agent] Claimed Playwright job ${pwJob.id} (${pwJob.projectId}:${pwJob.source})`);
+          await executeClaimedPlaywrightJob(config, pwJob, client);
+          continue;
+        }
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Polling error";

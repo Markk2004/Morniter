@@ -2,26 +2,42 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import type {
-  TestProjectCatalog,
-  AgentPresence,
-  TestJob,
-  TestLogLine,
-} from "@/lib/test-runner/types";
-import { isActiveStatus, isTerminalStatus } from "@/lib/test-runner/lifecycle";
+  PlaywrightCatalog,
+  PlaywrightJob,
+  PlaywrightJobRequest,
+  PlaywrightLogChunk,
+} from "@/lib/playwright-runner/types";
+import { isPlaywrightActiveStatus } from "@/lib/playwright-runner/job-store-logic";
 import { fetchNoStore } from "@/lib/http/fetch-no-store";
 
 const ACTIVE_POLL_MS = 1_000;
 const IDLE_POLL_MS = 5_000;
 
+export interface AgentPresenceState {
+  agentId: string;
+  state: "online" | "lagging" | "offline";
+  lastHeartbeatAt: string;
+  activeJobId?: string;
+  capabilities?: {
+    browsers?: {
+      chromium?: boolean;
+      firefox?: boolean;
+      webkit?: boolean;
+    };
+    headed?: boolean;
+    workspaceExecution?: boolean;
+  };
+}
+
 export function useTestRunner() {
-  const [catalog, setCatalog] = useState<TestProjectCatalog | null>(null);
-  const [presence, setPresence] = useState<AgentPresence | null>(null);
+  const [catalog, setCatalog] = useState<PlaywrightCatalog | null>(null);
+  const [presence, setPresence] = useState<AgentPresenceState | null>(null);
   const [isUnlocked, setIsUnlocked] = useState(false);
 
-  const [activeJob, setActiveJob] = useState<TestJob | null>(null);
-  const [terminalLines, setTerminalLines] = useState<TestLogLine[]>([]);
+  const [activeJob, setActiveJob] = useState<PlaywrightJob | null>(null);
+  const [terminalLines, setTerminalLines] = useState<PlaywrightLogChunk[]>([]);
   const [nextSequence, setNextSequence] = useState(0);
-  const [history, setHistory] = useState<TestJob[]>([]);
+  const [history, setHistory] = useState<PlaywrightJob[]>([]);
 
   const [loadingCatalog, setLoadingCatalog] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -29,7 +45,7 @@ export function useTestRunner() {
 
   const isPollingRef = useRef(false);
   const activeJobIdRef = useRef<string | null>(null);
-  const activeJobRef = useRef<TestJob | null>(null);
+  const activeJobRef = useRef<PlaywrightJob | null>(null);
   const nextSeqRef = useRef(0);
 
   useEffect(() => {
@@ -51,10 +67,10 @@ export function useTestRunner() {
     }
   }, []);
 
-  // Fetch catalog & agent presence
+  // Fetch Playwright catalog & presence
   const fetchCatalogAndPresence = useCallback(async (signal?: AbortSignal) => {
     try {
-      const res = await fetchNoStore("/api/test-runner/catalog", { signal });
+      const res = await fetchNoStore("/api/playwright-runner/catalog", { signal });
       if (res.ok) {
         const data = await res.json();
         setCatalog((prev) =>
@@ -70,7 +86,7 @@ export function useTestRunner() {
         }
       }
     } catch {
-      // Keep existing catalog
+      // Keep existing
     } finally {
       setLoadingCatalog(false);
     }
@@ -79,7 +95,7 @@ export function useTestRunner() {
   // Fetch job list history
   const fetchHistory = useCallback(async () => {
     try {
-      const res = await fetchNoStore("/api/test-runner/jobs");
+      const res = await fetchNoStore("/api/playwright-runner/jobs");
       if (res.ok) {
         const data = await res.json();
         setHistory(data.jobs ?? []);
@@ -97,13 +113,13 @@ export function useTestRunner() {
     try {
       await fetchCatalogAndPresence(signal);
       const currentId = activeJobIdRef.current;
-      if (!currentId || !activeJobRef.current || !isActiveStatus(activeJobRef.current.status)) {
+      if (!currentId || !activeJobRef.current || !isPlaywrightActiveStatus(activeJobRef.current.status)) {
         return;
       }
 
       const seq = nextSeqRef.current;
       const res = await fetchNoStore(
-        `/api/test-runner/jobs/${currentId}?afterSequence=${seq - 1}&limit=200`,
+        `/api/playwright-runner/jobs/${currentId}?afterSequence=${seq - 1}&limit=200`,
         { signal },
       );
       if (res.ok) {
@@ -113,16 +129,18 @@ export function useTestRunner() {
           setActiveJob((prev) =>
             JSON.stringify(prev) === JSON.stringify(data.job) ? prev : data.job ?? null,
           );
-          if (previousStatus && isActiveStatus(previousStatus) && isTerminalStatus(data.job.status)) {
+          if (
+            previousStatus &&
+            isPlaywrightActiveStatus(previousStatus) &&
+            !isPlaywrightActiveStatus(data.job.status)
+          ) {
             await fetchHistory();
           }
         }
-        if (data.lines && data.lines.length > 0) {
+        if (data.logs && data.logs.length > 0) {
           setTerminalLines((prev) => {
-            const known = new Set(prev.map((line) => line.sequence));
-            const incoming = data.lines.filter(
-              (line: TestLogLine) => !known.has(line.sequence),
-            );
+            const known = new Set(prev.map((l) => l.sequence));
+            const incoming = data.logs.filter((l: PlaywrightLogChunk) => !known.has(l.sequence));
             const combined = [...prev, ...incoming];
             return combined.slice(-1000);
           });
@@ -133,7 +151,6 @@ export function useTestRunner() {
       }
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
-      // Network error, keep existing state
     } finally {
       isPollingRef.current = false;
     }
@@ -160,9 +177,10 @@ export function useTestRunner() {
         await pollActiveJobAndLogs(controller.signal);
         controller = null;
         if (!disposed && document.visibilityState === "visible") {
-          const delayMs = activeJobRef.current && isActiveStatus(activeJobRef.current.status)
-            ? ACTIVE_POLL_MS
-            : IDLE_POLL_MS;
+          const delayMs =
+            activeJobRef.current && isPlaywrightActiveStatus(activeJobRef.current.status)
+              ? ACTIVE_POLL_MS
+              : IDLE_POLL_MS;
           schedulePoll(delayMs);
         }
       }, delay);
@@ -196,29 +214,30 @@ export function useTestRunner() {
     };
   }, [checkUnlockStatus, fetchCatalogAndPresence, fetchHistory, pollActiveJobAndLogs]);
 
-  // Enqueue job with client-side Idempotency-Key
-  const createJob = async (projectId: string, presetId: string) => {
+  // Create Playwright job
+  const createJob = async (request: PlaywrightJobRequest) => {
     setIsSubmitting(true);
     setActionError(null);
 
-    const idempotencyKey = `run-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
+    const idempotencyKey = `plw-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
 
     try {
-      const res = await fetchNoStore("/api/test-runner/jobs", {
+      const res = await fetchNoStore("/api/playwright-runner/jobs", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "Idempotency-Key": idempotencyKey,
         },
-        body: JSON.stringify({ projectId, presetId }),
+        body: JSON.stringify(request),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        setActionError(data.error || "Failed to create job");
-        if (data.code === "ACTIVE_JOB_EXISTS" && data.activeJob) {
-          setActiveJob(data.activeJob);
+        setActionError(data.error || "Failed to create Playwright job");
+        if (data.code === "ACTIVE_JOB_EXISTS" && data.activeJobId) {
+          // Re-fetch catalog to get active job
+          await fetchCatalogAndPresence();
         }
         return false;
       }
@@ -229,7 +248,7 @@ export function useTestRunner() {
       await fetchHistory();
       return true;
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Failed to create job";
+      const msg = err instanceof Error ? err.message : "Failed to create Playwright job";
       setActionError(msg);
       return false;
     } finally {
@@ -237,13 +256,13 @@ export function useTestRunner() {
     }
   };
 
-  // Request cancel job
+  // Cancel Playwright job
   const cancelJob = async (jobId: string) => {
     setIsSubmitting(true);
     setActionError(null);
 
     try {
-      const res = await fetchNoStore(`/api/test-runner/jobs/${jobId}/cancel`, {
+      const res = await fetchNoStore(`/api/playwright-runner/jobs/${jobId}/cancel`, {
         method: "POST",
       });
       const data = await res.json();
@@ -251,7 +270,7 @@ export function useTestRunner() {
         setActionError(data.error || "Failed to cancel job");
         return false;
       }
-      setActiveJob(data);
+      setActiveJob(data.job);
       await fetchHistory();
       return true;
     } catch (err) {
@@ -263,36 +282,7 @@ export function useTestRunner() {
     }
   };
 
-  // Unlock execution session
-  const unlockSession = async (password: string) => {
-    setIsSubmitting(true);
-    setActionError(null);
-
-    try {
-      const res = await fetchNoStore("/api/test-runner/auth", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        setActionError(data.error || "Execution unlock failed");
-        return false;
-      }
-
-      setIsUnlocked(true);
-      return true;
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Execution unlock failed";
-      setActionError(msg);
-      return false;
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const isJobRunning = Boolean(activeJob && isActiveStatus(activeJob.status));
+  const isJobRunning = Boolean(activeJob && isPlaywrightActiveStatus(activeJob.status));
 
   return {
     catalog,
@@ -307,7 +297,6 @@ export function useTestRunner() {
     isJobRunning,
     createJob,
     cancelJob,
-    unlockSession,
     refreshHistory: fetchHistory,
   };
 }
