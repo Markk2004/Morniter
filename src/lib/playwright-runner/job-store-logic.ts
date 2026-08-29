@@ -97,8 +97,12 @@ export const MAX_HISTORY_ITEMS = 20;
 // --- Error classes ---
 
 export class PlaywrightActiveJobExistsError extends Error {
-  constructor(public readonly activeJobId: string) {
-    super(`An active job (${activeJobId}) already exists for this agent`);
+  // CONFIRMED property name "jobId" (not "activeJobId" as originally
+  // guessed) by a real compiler error on
+  // src/app/api/playwright-runner/jobs/route.ts, which reads
+  // `err.jobId` after catching this error.
+  constructor(public readonly jobId: string) {
+    super(`An active job (${jobId}) already exists for this agent`);
     this.name = "PlaywrightActiveJobExistsError";
   }
 }
