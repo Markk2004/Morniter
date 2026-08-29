@@ -5,7 +5,6 @@ import type { AgentConfig, ResolvedPreset } from "./types.js";
 
 const ID_REGEX = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const SRS_ID_REGEX = /^(?:FR|BR|NFR)-[A-Z0-9]+(?:-[A-Z0-9]+)*$/i;
-const ENV_VAR_NAME_PATTERN = /^[A-Z_][A-Z0-9_]*$/;
 
 export const TestPresetMetadataSchema = z
   .object({
@@ -62,7 +61,6 @@ export const AgentPresetSchema = z.object({
   metadata: TestPresetMetadataSchema,
 });
 
-<<<<<<< HEAD
 export const AgentPlaywrightProjectSchema = z.object({
   enabled: z.boolean().default(true),
   workspaceRoot: z.string().refine((val) => path.isAbsolute(val), {
@@ -76,35 +74,6 @@ export const AgentPlaywrightProjectSchema = z.object({
   maxTimeoutSeconds: z.number().int().min(1).max(1800).default(600),
   envAllowlist: z.array(z.string()).default([]),
   allowedBaseUrls: z.array(z.string()).default([]),
-=======
-export const PlaywrightBrowserNameSchema = z.enum([
-  "chromium",
-  "firefox",
-  "webkit",
-]);
-
-export const AgentPlaywrightConfigSchema = z.object({
-  testDir: z.string().refine((val) => path.isAbsolute(val), {
-    message: "testDir must be an absolute path",
-  }),
-  allowedBrowsers: z.array(PlaywrightBrowserNameSchema).min(1),
-  allowHeaded: z.boolean().default(false),
-  maxTimeoutSeconds: z.number().int().min(1).max(1800).default(300),
-  envAllowlist: z
-    .array(
-      z
-        .string()
-        .regex(ENV_VAR_NAME_PATTERN, "env var names must be UPPER_SNAKE_CASE"),
-    )
-    .default([]),
-});
-
-export const AgentProjectSchema = z.object({
-  id: z.string().regex(ID_REGEX),
-  name: z.string().min(1),
-  presets: z.array(AgentPresetSchema).min(1),
-  playwright: AgentPlaywrightConfigSchema.optional(),
->>>>>>> 8ef9a552828fca2885ac621be4efd4d25a15997f
 });
 
 export const AgentProjectSchema = z
@@ -217,7 +186,6 @@ export function buildCatalogFromConfig(
   return {
     version: "1.0.0",
     updatedAt: new Date().toISOString(),
-<<<<<<< HEAD
     projects: config.projects
       .filter((proj) => proj.presets && proj.presets.length > 0)
       .map((proj) => ({
@@ -234,22 +202,6 @@ export function buildCatalogFromConfig(
           risk: preset.metadata.risk,
           databaseTarget: preset.metadata.databaseTarget,
         })),
-=======
-    projects: config.projects.map((proj) => ({
-      id: proj.id,
-      name: proj.name,
-      presets: proj.presets.map((preset) => ({
-        id: preset.id,
-        name: preset.name,
-        description: preset.description,
-        commandPreview:
-          `${preset.command} ${(preset.args || []).join(" ")}`.trim(),
-        timeoutSeconds: preset.timeoutSeconds ?? 300,
-        category: preset.metadata.category,
-        srsIds: [...preset.metadata.srsIds],
-        risk: preset.metadata.risk,
-        databaseTarget: preset.metadata.databaseTarget,
->>>>>>> 8ef9a552828fca2885ac621be4efd4d25a15997f
       })),
   };
 }
