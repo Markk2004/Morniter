@@ -208,8 +208,18 @@ export interface PlaywrightCatalogProject {
   name: string;
   rootLabel?: string;
   capabilities?: PlaywrightCatalogProjectCapabilities;
-  /** UNCONFIRMED — see truncation note above. */
-  tests: PlaywrightTestDescriptor[];
+  /**
+   * UNCONFIRMED shape — the compiler error only showed
+   * `testGroups?: {...}[]` before truncating again. Kept minimal/opaque
+   * rather than guessed structure, since guessing wrong here would just
+   * produce a fourth round of the same error.
+   */
+  testGroups?: unknown[];
+  /**
+   * CONFIRMED optional (not required, as originally guessed) by the
+   * compiler: real callers pass `tests: undefined` for some projects.
+   */
+  tests?: PlaywrightTestDescriptor[];
 }
 
 export interface PlaywrightCatalog {
@@ -223,6 +233,11 @@ export interface PlaywrightTestDescriptor {
   title: string;
   group: string;
   relativePath: string;
+  /**
+   * CONFIRMED by the same compiler error as PlaywrightCatalogProject —
+   * was entirely missing from the earlier version of this interface.
+   */
+  tags?: string[];
   line?: number;
 }
 
