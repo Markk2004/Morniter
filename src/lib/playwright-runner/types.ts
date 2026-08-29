@@ -30,8 +30,11 @@
  *     the original file had no log-line type at all.
  *   - TestArtifact is now CONFIRMED (see its definition below) via a
  *     real Next.js typecheck error that exposed its actual shape.
- *     PlaywrightCatalog is still referenced only opaquely — left as an
- *     unconfirmed placeholder below.
+ *     PlaywrightCatalog is now PARTIALLY CONFIRMED the same way — real
+ *     shape is per-project (projects: [...]), not the flat tests[] this
+ *     file originally guessed. See PlaywrightCatalog's own comment for
+ *     exactly which part is still unconfirmed (truncated compiler
+ *     output).
  *
  * The client-request contract (PlaywrightJobRequest) is UNCHANGED from
  * the original — job-store.ts's enqueuePlaywrightJob destructures
@@ -164,15 +167,55 @@ export interface TestArtifact {
 }
 
 /**
- * UNCONFIRMED — same caveat as TestArtifact. job-store.ts's
- * publishPlaywrightCatalog/getPlaywrightCatalog pass this through
- * opaquely (redis.set/get<PlaywrightCatalog>) without touching its
- * internal fields.
+ * CONFIRMED (partially) by a real Next.js typecheck error on
+ * ./src/app/api/playwright-runner/agent/poll/route.ts. The compiler's
+ * structural-mismatch message showed:
+ *
+ *   { version: string; updatedAt: string; projects: { id: string;
+ *     name: string; rootLabel?: string; capabilities?: { browsers?:
+ *     { chromium?: boolean; firefox?: boolean; webkit?: boolean; };
+ *     headed?: boolean; workspaceExecution?: boolean; } ... }
+ *
+ * — CRITICALLY DIFFERENT from the original placeholder guess, which had
+ * a flat top-level `tests: PlaywrightTestDescriptor[]`. The real shape
+ * is per-project: each project in `projects` carries its own optional
+ * capabilities (which browsers/headed mode/workspace execution that
+ * SPECIFIC project's agent-side config allows — lines up with
+ * AgentPlaywrightConfigSchema's allowedBrowsers/allowHeaded from the
+ * real agent config.ts, one capabilities object per project rather than
+ * one for the whole catalog).
+ *
+ * TRUNCATED: TypeScript's error message was cut off with "..." right
+ * after `workspaceExecution?: boolean;`, so whatever comes after that in
+ * each project object (near-certainly each project's own list of
+ * discoverable tests — a catalog listing projects with no way to see
+ * their tests would be useless) is NOT confirmed. `tests` below is kept
+ * as the best guess for that trailing, unconfirmed part specifically —
+ * everything else in this interface came directly from the compiler.
  */
+export interface PlaywrightCatalogProjectCapabilities {
+  browsers?: {
+    chromium?: boolean;
+    firefox?: boolean;
+    webkit?: boolean;
+  };
+  headed?: boolean;
+  workspaceExecution?: boolean;
+}
+
+export interface PlaywrightCatalogProject {
+  id: string;
+  name: string;
+  rootLabel?: string;
+  capabilities?: PlaywrightCatalogProjectCapabilities;
+  /** UNCONFIRMED — see truncation note above. */
+  tests: PlaywrightTestDescriptor[];
+}
+
 export interface PlaywrightCatalog {
   version: string;
   updatedAt: string;
-  tests: PlaywrightTestDescriptor[];
+  projects: PlaywrightCatalogProject[];
 }
 
 export interface PlaywrightTestDescriptor {
