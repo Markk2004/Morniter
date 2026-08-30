@@ -67,6 +67,24 @@ export const BrowsersSchema = z
     "browsers must not contain duplicates",
   );
 
+/**
+ * CONFIRMED to exist by a real unit test (tests/unit/playwright-runner/
+ * schemas.test.ts) importing `sanitizeBrowsers` from this module and
+ * asserting it dedupes while preserving order:
+ *   sanitizeBrowsers(["chromium","firefox","chromium"])
+ *     -> ["chromium","firefox"]
+ * Kept as a standalone exported utility rather than folded into
+ * BrowsersSchema as a .transform() — no test evidence shows the main
+ * schema silently accepting/deduping a raw duplicate-browser request
+ * (the existing .refine() reject-on-duplicate behavior above is
+ * untouched, since nothing contradicts it); this is exported
+ * separately for whatever call site (likely the UI, before submission)
+ * needs a plain dedupe utility rather than a throwing validator.
+ */
+export function sanitizeBrowsers(browsers: string[]): string[] {
+  return Array.from(new Set(browsers));
+}
+
 // Test IDs are opaque stable hashes published by the catalog (Task 2.2),
 // never raw file paths.
 const TestIdSchema = z
@@ -225,13 +243,26 @@ const PlaywrightTestDescriptorSchema = z
   })
   .strict();
 
+/**
+ * CONFIRMED shape by a real unit test that constructs
+ * `testGroups: [{ name: "Auth", tests: [{...}] }]` and successfully
+ * parses it — was previously left as z.array(z.unknown()) pending
+ * evidence; genuinely resolved now, not a guess.
+ */
+const PlaywrightTestGroupSchema = z
+  .object({
+    name: z.string().min(1),
+    tests: z.array(PlaywrightTestDescriptorSchema),
+  })
+  .strict();
+
 const PlaywrightCatalogProjectSchema = z
   .object({
     id: z.string().min(1),
     name: z.string().min(1),
     rootLabel: z.string().optional(),
     capabilities: PlaywrightCatalogProjectCapabilitiesSchema,
-    testGroups: z.array(z.unknown()).optional(),
+    testGroups: z.array(PlaywrightTestGroupSchema).optional(),
     tests: z.array(PlaywrightTestDescriptorSchema).optional(),
   })
   .strict();

@@ -218,17 +218,21 @@ export interface PlaywrightCatalogProject {
   rootLabel?: string;
   capabilities?: PlaywrightCatalogProjectCapabilities;
   /**
-   * UNCONFIRMED shape — the compiler error only showed
-   * `testGroups?: {...}[]` before truncating again. Kept minimal/opaque
-   * rather than guessed structure, since guessing wrong here would just
-   * produce a fourth round of the same error.
+   * CONFIRMED by a real unit test (tests/unit/playwright-runner/
+   * schemas.test.ts) constructing and successfully parsing
+   * `testGroups: [{ name: "Auth", tests: [...] }]` — no longer opaque.
    */
-  testGroups?: unknown[];
+  testGroups?: PlaywrightTestGroup[];
   /**
    * CONFIRMED optional (not required, as originally guessed) by the
    * compiler: real callers pass `tests: undefined` for some projects.
    */
   tests?: PlaywrightTestDescriptor[];
+}
+
+export interface PlaywrightTestGroup {
+  name: string;
+  tests: PlaywrightTestDescriptor[];
 }
 
 export interface PlaywrightCatalog {
