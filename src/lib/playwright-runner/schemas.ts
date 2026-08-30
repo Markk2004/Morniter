@@ -144,20 +144,36 @@ const PlaywrightTestGroupSchema = z
 
 export const RunnerProfileSchema = z
   .object({
-    id: z.string().min(1).max(64).regex(/^[a-z0-9][a-z0-9-]{0,63}$/),
-    runner: z.enum(["playwright", "generated-playwright", "node-test", "jest", "jest-e2e"]),
+    id: z
+      .string()
+      .min(1)
+      .max(64)
+      .regex(/^[a-z0-9][a-z0-9-]{0,63}$/),
+    runner: z.enum([
+      "playwright",
+      "generated-playwright",
+      "node-test",
+      "jest",
+      "jest-e2e",
+    ]),
     workingDirectory: z
       .string()
       .min(1)
       .refine(
-        (val) => !val.startsWith("/") && !val.includes("\\") && !val.split("/").includes(".."),
+        (val) =>
+          !val.startsWith("/") &&
+          !val.includes("\\") &&
+          !val.split("/").includes(".."),
         { message: "workingDirectory must be a contained relative path" },
       ),
     config: z
       .string()
       .min(1)
       .refine(
-        (val) => !val.startsWith("/") && !val.includes("\\") && !val.split("/").includes(".."),
+        (val) =>
+          !val.startsWith("/") &&
+          !val.includes("\\") &&
+          !val.split("/").includes(".."),
         { message: "config must be a contained relative path" },
       )
       .optional(),
@@ -265,7 +281,13 @@ export const PlaywrightCatalogSchema = z
 
 export const NativeGroupResultSchema = z
   .object({
-    runner: z.enum(["playwright", "generated-playwright", "node-test", "jest", "jest-e2e"]),
+    runner: z.enum([
+      "playwright",
+      "generated-playwright",
+      "node-test",
+      "jest",
+      "jest-e2e",
+    ]),
     executionProfileId: z.string().min(1),
     status: z.enum(["passed", "failed", "cancelled", "timed_out"]),
     testIds: z.array(z.string().min(1)),
