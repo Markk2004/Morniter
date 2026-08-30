@@ -47,7 +47,16 @@ export type BrowserName = "chromium" | "firefox" | "webkit";
 
 export type PlaywrightSource = "project-test" | "workspace";
 
+/**
+ * CONFIRMED name "RunMode" (not "BrowserMode") by a real Next.js
+ * typecheck error on src/components/test-runner/BrowserSelector.tsx,
+ * which imports `RunMode` directly from this file. BrowserMode kept as
+ * a deprecated alias below so anything still referencing the old name
+ * doesn't silently break a second time.
+ */
 export type RunMode = "headless" | "headed";
+/** @deprecated use RunMode — kept only for backward compatibility. */
+export type BrowserMode = RunMode;
 
 export interface PlaywrightJobRequest {
   projectId: string;
@@ -55,7 +64,7 @@ export interface PlaywrightJobRequest {
   testIds?: string[];
   code?: string;
   browsers: BrowserName[];
-  mode: RunMode;
+  mode: BrowserMode;
 }
 
 /**
@@ -120,7 +129,7 @@ export interface PlaywrightJob {
   testIds?: string[];
   code?: string;
   browsers: BrowserName[];
-  mode: RunMode;
+  mode: BrowserMode;
   status: PlaywrightJobStatus;
   browserResults: BrowserExecutionResult[];
   artifacts?: TestArtifact[];
