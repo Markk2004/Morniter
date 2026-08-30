@@ -56,39 +56,7 @@ export const ProjectIdSchema = z
 
 export const BrowserNameSchema = z.enum(["chromium", "firefox", "webkit"]);
 
-<<<<<<< HEAD
-export const PlaywrightProjectCatalogSchema = z.object({
-  id: z.string().regex(ID_REGEX),
-  name: z.string().min(1).max(128),
-  rootLabel: z.string().max(256).optional(),
-  capabilities: z
-    .object({
-      browsers: z
-        .object({
-          chromium: z.boolean().optional(),
-          firefox: z.boolean().optional(),
-          webkit: z.boolean().optional(),
-        })
-        .optional(),
-      headed: z.boolean().optional(),
-      workspaceExecution: z.boolean().optional(),
-    })
-    .optional(),
-  testGroups: z
-    .array(
-      z.object({
-        name: z.string().min(1).max(128),
-        tests: z.array(PlaywrightTestDescriptorSchema),
-      }),
-    )
-    .optional(),
-  tests: z.array(PlaywrightTestDescriptorSchema).optional(),
-  scanPathLabel: z.string().max(256).optional(),
-  sourceByPath: z.record(z.string().min(1).max(512), z.string().max(200_000)).optional(),
-});
-=======
 export const BrowserModeSchema = z.enum(["headless", "headed"]);
->>>>>>> c733f3878859af1e9825b3652389c1e1d52d7e6a
 
 export const BrowsersSchema = z
   .array(BrowserNameSchema)
@@ -296,8 +264,15 @@ const PlaywrightCatalogProjectSchema = z
     capabilities: PlaywrightCatalogProjectCapabilitiesSchema,
     testGroups: z.array(PlaywrightTestGroupSchema).optional(),
     tests: z.array(PlaywrightTestDescriptorSchema).optional(),
+    scanPathLabel: z.string().max(256).optional(),
+    sourceByPath: z
+      .record(z.string().min(1).max(512), z.string().max(200_000))
+      .optional(),
   })
   .strict();
+
+// Public alias retained for callers that use the project-level catalog name.
+export const PlaywrightProjectCatalogSchema = PlaywrightCatalogProjectSchema;
 
 export const PlaywrightCatalogSchema = z
   .object({
