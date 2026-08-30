@@ -132,3 +132,195 @@ export type PlaywrightJobRequestInput = z.infer<
 export function parsePlaywrightJobRequest(body: unknown) {
   return PlaywrightJobRequestSchema.parse(body);
 }
+
+// ============================================================
+// AGENT-SIDE SCHEMAS — reconstructed against real build evidence
+// ============================================================
+//
+// Everything below was added after a real Turbopack build failure
+// listed these four exports as missing:
+//   AppendPlaywrightLogBatchSchema, PlaywrightCompleteJobSchema,
+//   PlaywrightHeartbeatSchema, PlaywrightPollRequestSchema
+//
+// Confidence varies per schema — noted individually. All are built to
+// structurally match the corresponding real types in types.ts
+// (BrowserExecutionResult, TestArtifact, PlaywrightCatalog), which are
+// themselves already evidence-corrected from earlier compiler errors.
+
+/**
+ * Matches BrowserExecutionResult in types.ts exactly (confirmed shape).
+ */
+export const BrowserExecutionResultSchema = z
+  .object({
+    browser: BrowserNameSchema,
+    status: z.enum([
+      "waiting",
+      "running",
+      "passed",
+      "failed",
+      "timed_out",
+      "cancelled",
+    ]),
+    passed: z.number().int().nonnegative(),
+    failed: z.number().int().nonnegative(),
+    skipped: z.number().int().nonnegative(),
+    durationMs: z.number().nonnegative().optional(),
+  })
+  .strict();
+
+/**
+ * Matches TestArtifact in types.ts exactly (confirmed shape, itself
+ * confirmed via a real compiler structural-mismatch error).
+ */
+export const TestArtifactSchema = z
+  .object({
+    id: z.string().min(1),
+    jobId: z.string().min(1),
+    type: z.enum(["screenshot", "trace", "video", "report"]),
+    filename: z.string().min(1),
+    size: z.number().int().nonnegative(),
+    createdAt: z.string().datetime(),
+    browser: BrowserNameSchema.optional(),
+    testId: z.string().optional(),
+    downloadUrl: z.string().optional(),
+  })
+  .strict();
+
+/**
+ * Matches PlaywrightCatalog/PlaywrightCatalogProject in types.ts.
+ * `testGroups` kept as z.array(z.unknown()) — its element shape is still
+ * genuinely unconfirmed (truncated compiler output), same caveat as in
+ * types.ts itself.
+ */
+const PlaywrightCatalogProjectCapabilitiesSchema = z
+  .object({
+    browsers: z
+      .object({
+        chromium: z.boolean().optional(),
+        firefox: z.boolean().optional(),
+        webkit: z.boolean().optional(),
+      })
+      .optional(),
+    headed: z.boolean().optional(),
+    workspaceExecution: z.boolean().optional(),
+  })
+  .optional();
+
+const PlaywrightTestDescriptorSchema = z
+  .object({
+    id: z.string().min(1),
+    title: z.string().min(1),
+    group: z.string(),
+    relativePath: z.string().min(1),
+    tags: z.array(z.string()).optional(),
+    line: z.number().int().positive().optional(),
+  })
+  .strict();
+
+const PlaywrightCatalogProjectSchema = z
+  .object({
+    id: z.string().min(1),
+    name: z.string().min(1),
+    rootLabel: z.string().optional(),
+    capabilities: PlaywrightCatalogProjectCapabilitiesSchema,
+    testGroups: z.array(z.unknown()).optional(),
+    tests: z.array(PlaywrightTestDescriptorSchema).optional(),
+  })
+  .strict();
+
+export const PlaywrightCatalogSchema = z
+  .object({
+    version: z.string().min(1),
+    updatedAt: z.string().datetime(),
+    projects: z.array(PlaywrightCatalogProjectSchema),
+  })
+  .strict();
+
+/**
+ * HIGH CONFIDENCE — status literal union confirmed directly by a real
+ * compiler error on the complete route (notably NOT the full
+ * PlaywrightJobStatus union: no "error", no "queued", etc. — only the
+ * four outcomes an agent actually reports on completion). `jobId` was
+ * also visible in that same error as present-but-optional on the parsed
+ * type (redundant with the route's own [jobId] path param, presumably
+ * kept for double-checking/logging).
+ */
+export const PlaywrightCompleteJobSchema = z
+  .object({
+    jobId: z.string().optional(),
+    status: z.enum(["passed", "failed", "cancelled", "timed_out"]),
+    browserResults: z.array(BrowserExecutionResultSchema).optional(),
+    artifacts: z.array(TestArtifactSchema).optional(),
+    startedAt: z.string().datetime().optional(),
+    finishedAt: z.string().datetime().optional(),
+    error: z.string().optional(),
+  })
+  .strict();
+
+/**
+ * MEDIUM CONFIDENCE — inferred from appendPlaywrightLogBatch's real
+ * parameter types in job-store.ts (sequenceStart: number, entries:
+ * Array<{stream, message, browser?}>, browserResults?) rather than from
+ * a direct compiler structural-mismatch error. Field NAMES and
+ * OPTIONALITY should be right; exact string-length limits
+ * (message/entries count) are a judgment call, not evidenced — kept
+ * consistent with this repo's own documented log-batch limits
+ * (ARCHITECTURE.md: 100 lines / 32 KiB per upload).
+ */
+export const AppendPlaywrightLogBatchSchema = z
+  .object({
+    sequenceStart: z.number().int().nonnegative(),
+    entries: z
+      .array(
+        z.object({
+          stream: z.enum(["stdout", "stderr", "system"]),
+          message: z.string().max(32_768),
+          browser: BrowserNameSchema.optional(),
+        }),
+      )
+      .min(1)
+      .max(100),
+    browserResults: z.array(BrowserExecutionResultSchema).optional(),
+  })
+  .strict();
+
+/**
+ * MEDIUM CONFIDENCE — inferred from heartbeatPlaywrightJob's real
+ * parameter types (browserResults? is the only body-derived data it
+ * takes; jobId/agentId come from the URL param + auth, not the body).
+ * Not directly evidenced by a compiler error.
+ */
+export const PlaywrightHeartbeatSchema = z
+  .object({
+    browserResults: z.array(BrowserExecutionResultSchema).optional(),
+  })
+  .strict();
+
+/**
+ * MEDIUM CONFIDENCE — inferred from the poll route's real usage
+ * (`if (catalog) { publishPlaywrightCatalog(catalog, capabilities,
+ * agentId) }` then `claimNextPlaywrightJob(agentId)`) — agentId itself
+ * comes from verifyAgentAuth(), not this schema. capabilities' shape
+ * matches PlaywrightAgentPresence["capabilities"] from the real
+ * job-store.ts exactly (that part IS directly evidenced, since
+ * job-store.ts's own type definition was pasted in full).
+ */
+export const PlaywrightPollRequestSchema = z
+  .object({
+    catalogVersion: z.string().optional(),
+    catalog: PlaywrightCatalogSchema.optional(),
+    capabilities: z
+      .object({
+        browsers: z
+          .object({
+            chromium: z.boolean().optional(),
+            firefox: z.boolean().optional(),
+            webkit: z.boolean().optional(),
+          })
+          .optional(),
+        headed: z.boolean().optional(),
+        workspaceExecution: z.boolean().optional(),
+      })
+      .optional(),
+  })
+  .strict();
