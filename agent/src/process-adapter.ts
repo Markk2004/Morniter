@@ -41,7 +41,7 @@ export function spawnProcessCommand(
   const executable = resolveExecutable(command);
   return spawn(executable, args, {
     cwd,
-    env: env,
+    env: { ...process.env, ...env },
     shell: false,
     windowsHide: true,
     stdio: ["ignore", "pipe", "pipe"],
