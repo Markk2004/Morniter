@@ -4,9 +4,29 @@ import {
 } from "./schemas";
 
 /**
+ * ⚠️ UNKNOWN COLLISION RISK — CHECK BEFORE USING. No build-log evidence
+ * has ever confirmed OR contradicted whether a real file already exists
+ * at this path — unlike job-store-logic.ts and redaction.ts (both
+ * proven superseded) or types.ts/schemas.ts (proven correct-ish via
+ * repeated real compiler errors), this one has simply never come up.
+ * Given how much of this codebase turned out to already exist elsewhere
+ * once evidence surfaced, don't assume this is safe to drop in — check
+ * whether src/lib/playwright-runner/client-validation.ts (or an
+ * equivalent form-validation file under a different name) already
+ * exists in the real repo first.
+ *
+ * The original "low collision risk" reasoning below is now WEAKER than
+ * it was written: it leaned on schemas.ts's shape being unchallenged —
+ * but schemas.ts has SINCE been shown to have had multiple real gaps
+ * (missing agentId, missing observedAt, three entirely missing
+ * schemas), discovered only once real build errors exposed them. The
+ * same could easily be true here; the only difference is no one has hit
+ * this file's gap yet, not that it doesn't have one.
+ *
  * Client-side form validation for the Playwright job creation UI.
  *
- * LOW COLLISION RISK NOTE: unlike job-store-logic.ts and redaction.ts
+ * LOW COLLISION RISK NOTE (original reasoning, kept for history — see
+ * caveat above): unlike job-store-logic.ts and redaction.ts
  * (both superseded by real files discovered later), this is new
  * UI-adjacent logic with no evidence of a pre-existing equivalent — it
  * only depends on schemas.ts, which job-store.ts's actual usage has not
