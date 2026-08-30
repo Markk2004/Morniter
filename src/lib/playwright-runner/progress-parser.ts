@@ -1,4 +1,21 @@
 /**
+ * ⚠️ USAGE UNCONFIRMED FOR PLAYWRIGHT JOBS — real agent/src/runner.ts's
+ * Playwright execution path (executeClaimedPlaywrightJob) does NOT call
+ * anything progress-parser-shaped: it just batches raw log lines
+ * straight through LogBatcher with no createProgressParser/consume()
+ * step. That pattern IS used, but only on the LEGACY preset-job path
+ * (executeClaimedJob calls createProgressParser from "./progress/index.js"
+ * — a different, not-yet-seen module). So either:
+ *   (a) Playwright jobs genuinely don't do live line-by-line progress
+ *       parsing the way legacy preset jobs do (browserResults updates
+ *       might be the only progress signal, sent via heartbeat instead), or
+ *   (b) something like this file's logic lives inside
+ *       playwright-executor.ts instead, one layer down from where
+ *       runner.ts would call it.
+ * Either way, this file has NOT been confirmed as wired into anything
+ * real yet — unlike job-store-logic.ts's fate, this isn't proven
+ * superseded either, just unconfirmed.
+ *
  * Playwright live-run progress parser.
  *
  * Parallel to the existing Jest/Vitest/Cypress "Framework Progress

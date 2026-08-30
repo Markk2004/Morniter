@@ -1,6 +1,21 @@
 import type { PlaywrightTestDescriptor } from "./types";
 
 /**
+ * ⚠️ LIKELY SUPERSEDED — real agent/src/playwright-catalog.ts exists
+ * (confirmed by agent/src/runner.ts's real import:
+ *   import { buildPlaywrightCatalogFromConfig, detectBrowserCapabilities }
+ *     from "./playwright-catalog.js";
+ * ) with a completely different export surface than this file
+ * (buildPlaywrightCatalogFromConfig/detectBrowserCapabilities vs this
+ * file's parsePlaywrightListOutput). Same pattern as job-store-logic.ts
+ * and redaction.ts earlier in this project: don't drop this in over the
+ * real file. The real one is async (`await
+ * buildPlaywrightCatalogFromConfig(config)`), takes the whole
+ * AgentConfig (not raw --list JSON output), and presumably produces the
+ * full nested PlaywrightCatalog shape directly — i.e. it may already
+ * solve the "flat scan -> nested catalog" assembly gap this file never
+ * did. Content not yet seen.
+ *
  * Playwright catalog scanner (Task 2.2).
  *
  * Parses the output of `playwright test --list --reporter=json`, run on

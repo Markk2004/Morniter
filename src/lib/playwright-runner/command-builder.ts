@@ -2,6 +2,17 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 /**
+ * ⚠️ LIKELY SUPERSEDED — real agent/src/playwright-executor.ts exists
+ * (confirmed by agent/src/runner.ts's real import:
+ *   import { preparePlaywrightExecution, runPlaywrightExecution }
+ *     from "./playwright-executor.js";
+ * ), which is the actual process-adapter code this file was trying to
+ * anticipate. Different export names, different apparent shape — the
+ * real functions take (config, job) and (prepared, job, callbacks,
+ * abortSignal) respectively, not this file's buildPlaywrightArgs(input).
+ * Same "don't overwrite, content not yet seen" caution as
+ * job-store-logic.ts/redaction.ts/catalog.ts.
+ *
  * Playwright command builder — Phase 1.
  *
  * Intended to compile as part of the agent/ project (same compilation unit
