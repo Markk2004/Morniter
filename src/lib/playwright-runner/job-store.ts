@@ -182,6 +182,8 @@ export async function enqueuePlaywrightJob(
     source: request.source,
     testIds: request.source === "project-test" ? request.testIds : undefined,
     code: request.source === "workspace" ? request.code : undefined,
+    risk: request.source === "workspace" ? request.risk : undefined,
+    recipeId: request.source === "workspace" ? request.recipeId : undefined,
     browsers: request.browsers,
     mode: request.mode,
     status: "queued",

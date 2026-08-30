@@ -1,0 +1,103 @@
+<style>
+  #tutorial-options { color: var(--foreground); }
+  #tutorial-options .intro { margin-bottom: 18px; }
+  #tutorial-options .choices { display: grid; gap: 18px; }
+  #tutorial-options .choice { cursor: pointer; }
+  #tutorial-options .choice:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }
+  #tutorial-options .preview { background: #090f1c; color: #e7edf7; border-radius: 14px; min-height: 300px; overflow: hidden; position: relative; }
+  #tutorial-options .appbar { height: 38px; display: flex; align-items: center; justify-content: space-between; padding: 0 14px; background: #111a2a; border-bottom: 1px solid #253149; font-size: 12px; }
+  #tutorial-options .dots { display: flex; gap: 5px; }
+  #tutorial-options .dot { width: 7px; height: 7px; border-radius: 50%; background: #536078; }
+  #tutorial-options .workspace { padding: 18px; display: grid; grid-template-columns: 0.8fr 1.2fr; gap: 12px; opacity: .56; }
+  #tutorial-options .panel { background: #111a2a; border-radius: 8px; height: 86px; }
+  #tutorial-options .panel.tall { height: 150px; }
+  #tutorial-options .guide-card { position: absolute; background: #121b2b; color: #e7edf7; border: 1px solid #384863; border-radius: 14px; }
+  #tutorial-options .icon-box { width: 54px; height: 54px; display: grid; place-items: center; border-radius: 12px; background: #1f2d47; color: #8eb5ff; }
+  #tutorial-options .icon-box svg { width: 27px; height: 27px; }
+  #tutorial-options .eyeline { color: #8eb5ff; font-size: 11px; font-weight: 600; }
+  #tutorial-options .title { font-size: 16px; font-weight: 600; margin: 3px 0 5px; }
+  #tutorial-options .copy { font-size: 12px; color: #bac5d8; line-height: 1.55; }
+  #tutorial-options .actions { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; }
+  #tutorial-options .steps { display: flex; gap: 5px; }
+  #tutorial-options .step { width: 18px; height: 4px; border-radius: 3px; background: #33415b; }
+  #tutorial-options .step.active { background: #78a7ff; }
+  #tutorial-options .next { border: 0; border-radius: 7px; padding: 7px 11px; background: #e7edf7; color: #111827; font-size: 11px; font-weight: 600; }
+  #tutorial-options .a .guide-card { width: 330px; left: 50%; bottom: 20px; transform: translateX(-50%); padding: 16px; }
+  #tutorial-options .a .guide-head { display: grid; grid-template-columns: 54px 1fr; gap: 13px; }
+  #tutorial-options .spot { position: absolute; right: 38px; top: 63px; width: 145px; height: 74px; border: 2px solid #78a7ff; border-radius: 10px; box-shadow: 0 0 0 999px rgba(3,8,18,.28); }
+  #tutorial-options .b .workspace { padding-right: 260px; }
+  #tutorial-options .b .guide-card { right: 0; top: 38px; bottom: 0; width: 246px; border-width: 0 0 0 1px; border-radius: 0; padding: 18px; }
+  #tutorial-options .b .icon-box { margin-bottom: 16px; }
+  #tutorial-options .b .chapter { display: flex; align-items: center; gap: 9px; margin: 16px 0; color: #aebbd0; font-size: 11px; }
+  #tutorial-options .b .chapter span { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 6px; background: #1f2d47; color: #8eb5ff; }
+  #tutorial-options .c .workspace { opacity: .14; }
+  #tutorial-options .c .learning { position: absolute; inset: 38px 0 0; display: grid; grid-template-columns: 190px 1fr; background: #0b1220; }
+  #tutorial-options .c .rail { padding: 18px 14px; border-right: 1px solid #253149; }
+  #tutorial-options .c .rail-item { display: flex; gap: 9px; align-items: center; padding: 8px; color: #7f8ca3; font-size: 11px; }
+  #tutorial-options .c .rail-item.active { color: #e7edf7; background: #172238; border-radius: 7px; }
+  #tutorial-options .c .stage { padding: 24px; display: grid; grid-template-columns: 64px 1fr; gap: 16px; align-content: center; }
+  #tutorial-options .c .stage .icon-box { width: 64px; height: 64px; }
+  #tutorial-options .card-body p { max-width: 68ch; }
+  @media (max-width: 620px) {
+    #tutorial-options .preview { min-height: 350px; }
+    #tutorial-options .b .workspace { padding-right: 0; }
+    #tutorial-options .b .guide-card { left: 10px; right: 10px; top: auto; bottom: 10px; width: auto; height: 210px; border: 1px solid #384863; border-radius: 12px; }
+    #tutorial-options .c .learning { grid-template-columns: 1fr; }
+    #tutorial-options .c .rail { display: none; }
+  }
+</style>
+
+<div id="tutorial-options">
+  <div class="intro">
+    <h2>เลือกโครง UI Tutorial ใหม่</h2>
+    <p class="subtitle">ทั้ง 3 แบบเพิ่ม icon, visual hierarchy และความชัดเจนของแต่ละขั้น โดยไม่ใช้ gradient</p>
+  </div>
+
+  <div class="cards choices">
+    <div class="card choice" data-choice="a" onclick="toggleSelect(this)" role="button" aria-label="เลือกแบบ A Guided spotlight card">
+      <div class="card-image preview a">
+        <div class="appbar"><span>Morniter · Tests</span><div class="dots"><i class="dot"></i><i class="dot"></i><i class="dot"></i></div></div>
+        <div class="workspace"><div class="panel tall"></div><div><div class="panel"></div><div class="panel" style="margin-top:12px"></div></div></div>
+        <div class="spot"></div>
+        <div class="guide-card">
+          <div class="guide-head">
+            <div class="icon-box"><i data-lucide="mouse-pointer-click" aria-hidden="true"></i></div>
+            <div><div class="eyeline">ขั้นตอน 4 จาก 9 · Test Explorer</div><div class="title">เลือก Test ที่ต้องการรัน</div><div class="copy">ค้นหาจากชื่อหรือหมวด แล้วเลือก checkbox ก่อนเปิดดู source</div></div>
+          </div>
+          <div class="actions"><div class="steps"><i class="step"></i><i class="step"></i><i class="step"></i><i class="step active"></i><i class="step"></i></div><button class="next">ถัดไป <span aria-hidden="true">→</span></button></div>
+        </div>
+      </div>
+      <div class="card-body"><h3>A · Guided spotlight</h3><p>แนะนำ: ยังชี้ตำแหน่งจริงบนหน้าจอ แต่ card อ่านง่ายขึ้น มี icon ใหญ่และ progress แบบเงียบ ไม่แย่งพื้นที่จากงานหลัก</p></div>
+    </div>
+
+    <div class="card choice" data-choice="b" onclick="toggleSelect(this)" role="button" aria-label="เลือกแบบ B Side coach panel">
+      <div class="card-image preview b">
+        <div class="appbar"><span>Morniter · Tests</span><div class="dots"><i class="dot"></i><i class="dot"></i><i class="dot"></i></div></div>
+        <div class="workspace"><div class="panel tall"></div><div class="panel tall"></div></div>
+        <div class="guide-card">
+          <div class="icon-box"><i data-lucide="list-checks" aria-hidden="true"></i></div>
+          <div class="eyeline">บทที่ 2 · เตรียมการทดสอบ</div>
+          <div class="title">เลือก Test</div>
+          <div class="copy">Tutorial อยู่ข้างงานตลอดเวลา ทำให้เห็นหน้าจอจริงและคำอธิบายพร้อมกัน</div>
+          <div class="chapter"><span>3</span>เลือก Project</div>
+          <div class="chapter"><span>4</span>เลือก Test</div>
+          <div class="chapter"><span>5</span>เลือก Browser</div>
+          <div class="actions"><button class="next">ย้อนกลับ</button><button class="next">ถัดไป →</button></div>
+        </div>
+      </div>
+      <div class="card-body"><h3>B · Side coach</h3><p>เหมาะกับ desktop และคนที่อยากเห็นขั้นตอนทั้งหมด แต่กินพื้นที่ด้านข้างและต้องเปลี่ยนเป็น bottom sheet บนจอเล็ก</p></div>
+    </div>
+
+    <div class="card choice" data-choice="c" onclick="toggleSelect(this)" role="button" aria-label="เลือกแบบ C Learning mode">
+      <div class="card-image preview c">
+        <div class="appbar"><span>Morniter · Learning mode</span><div class="dots"><i class="dot"></i><i class="dot"></i><i class="dot"></i></div></div>
+        <div class="workspace"><div class="panel tall"></div><div class="panel tall"></div></div>
+        <div class="learning">
+          <div class="rail"><div class="rail-item">✓ Agent</div><div class="rail-item">✓ Execution Lock</div><div class="rail-item">✓ Project</div><div class="rail-item active">4 · Select Test</div><div class="rail-item">5 · Browsers</div><div class="rail-item">6 · Code</div></div>
+          <div class="stage"><div class="icon-box"><i data-lucide="route" aria-hidden="true"></i></div><div><div class="eyeline">เรียนรู้ workflow</div><div class="title">เลือก Test ก่อนเริ่มรัน</div><div class="copy">หน้าเรียนแยกเต็มพื้นที่ เหมาะกับ onboarding ครั้งแรก และสามารถเพิ่มภาพเคลื่อนไหวหรือ screenshot ในแต่ละบทได้</div><div class="actions"><div class="steps"><i class="step"></i><i class="step active"></i><i class="step"></i></div><button class="next">ลองทำขั้นตอนนี้ →</button></div></div></div>
+        </div>
+      </div>
+      <div class="card-body"><h3>C · Learning mode</h3><p>สอนละเอียดที่สุดและรองรับภาพประกอบเต็มรูปแบบ แต่พาผู้ใช้ออกจากหน้าทำงานจริง ทำให้ onboarding ยาวและดูหนักกว่าเดิม</p></div>
+    </div>
+  </div>
+</div>

@@ -15,6 +15,8 @@ export interface PlaywrightJobRequest {
   source: PlaywrightSource;
   testIds?: string[];
   code?: string;
+  risk?: "read-only" | "mutating";
+  recipeId?: string;
   browsers: BrowserName[];
   mode: RunMode;
 }

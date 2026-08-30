@@ -308,7 +308,9 @@ export async function runAgent(config: AgentConfig): Promise<void> {
       try {
         await recoverRecipeTransactions(project.playwright.workspaceRoot);
       } catch (err) {
-        console.warn(`[Monitor Local Agent] Startup recovery warning for ${project.playwright.workspaceRoot}:`, err);
+        throw new Error(
+          `Startup recovery failed for project '${project.id}': ${err instanceof Error ? err.message : String(err)}`,
+        );
       }
     }
   }

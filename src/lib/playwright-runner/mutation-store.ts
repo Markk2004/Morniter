@@ -44,6 +44,7 @@ export interface CreateMutationRequest {
 export interface CompleteMutationResult {
   accepted: boolean;
   code?: string;
+  error?: string;
   mutation?: RecipeSaveMutation;
 }
 
@@ -226,11 +227,12 @@ export async function claimNextMutation(
     }
 
     try {
-      if (typeof (redis as unknown as { zadd: unknown }).zadd === "function") {
-        await (redis as unknown as {
-          zadd: (key: string, member: { score: number; member: string }) => Promise<number>;
-        }).zadd(claimedKey, { score: leaseExpiresAtMs, member: mutationId });
+      if (typeof (redis as unknown as { zadd: unknown }).zadd !== "function") {
+        throw new Error("Redis durable mutation claim index is unavailable");
       }
+      await (redis as unknown as {
+        zadd: (key: string, member: { score: number; member: string }) => Promise<number>;
+      }).zadd(claimedKey, { score: leaseExpiresAtMs, member: mutationId });
     } catch (err) {
       // If writing to durable claimed index fails, roll back active lease and return mutation to queue
       await redis.del(activeKey);
@@ -326,8 +328,15 @@ export async function completeMutation(
         return { accepted: false, code: "LEASE_LOST" };
       }
     }
-  } catch {
-    // Fallback if eval is not available (e.g. basic mock object)
+  } catch (err) {
+    if (typeof (redis as unknown as { eval: unknown }).eval === "function") {
+      return {
+        accepted: false,
+        code: "LEASE_LOST",
+        error: `Atomic mutation lease verification failed: ${err instanceof Error ? err.message : String(err)}`,
+      };
+    }
+    // Fallback is reserved for the in-memory test adapter, which has no eval capability.
   }
 
   if (!luaSuccess) {

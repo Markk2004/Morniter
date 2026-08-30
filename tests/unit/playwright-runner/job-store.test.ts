@@ -149,6 +149,28 @@ describe("Playwright Job Store Persistence", () => {
     expect(claimed?.status).toBe("claimed");
   });
 
+  it("persists workspace risk metadata for Agent-side target safety", async () => {
+    const job = await enqueuePlaywrightJob(
+      {
+        projectId: "projectsts",
+        source: "workspace",
+        code: "test('mutating draft', async ({ page }) => {})",
+        risk: "mutating",
+        recipeId: "recipe-students-create",
+        browsers: ["chromium"],
+        mode: "headless",
+      },
+      "agent-1",
+      "idemp-risk-metadata",
+      new Date(),
+      fakeRedis,
+    );
+
+    const stored = await getPlaywrightJob(job.id, fakeRedis);
+    expect(stored?.risk).toBe("mutating");
+    expect(stored?.recipeId).toBe("recipe-students-create");
+  });
+
   it("supports idempotent job creation", async () => {
     const job1 = await enqueuePlaywrightJob(
       {

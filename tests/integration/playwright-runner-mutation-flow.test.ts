@@ -14,6 +14,7 @@ import type { RecipeDraft } from "@/lib/playwright-runner/recipe-types";
 
 const fakeStore = new Map<string, unknown>();
 const fakeLists = new Map<string, string[]>();
+const fakeSortedSets = new Map<string, Map<string, number>>();
 
 vi.mock("@/lib/test-runner/redis", () => ({
   getRunnerRedis: () => ({
@@ -28,6 +29,7 @@ vi.mock("@/lib/test-runner/redis", () => ({
     del: vi.fn(async (key: string) => {
       fakeStore.delete(key);
       fakeLists.delete(key);
+      fakeSortedSets.delete(key);
       return 1;
     }),
     rpush: vi.fn(async (key: string, val: string) => {
@@ -53,6 +55,23 @@ vi.mock("@/lib/test-runner/redis", () => ({
       return list.length;
     }),
     expire: vi.fn(async () => 1),
+    zadd: vi.fn(async (key: string, value: { score: number; member: string }) => {
+      const set = fakeSortedSets.get(key) || new Map<string, number>();
+      set.set(value.member, value.score);
+      fakeSortedSets.set(key, set);
+      return 1;
+    }),
+    zrange: vi.fn(async (key: string, min: number, max: number, options?: { byScore?: boolean }) => {
+      const set = fakeSortedSets.get(key) || new Map<string, number>();
+      return Array.from(set.entries())
+        .filter(([, score]) => !options?.byScore || (score >= min && score <= max))
+        .sort((a, b) => a[1] - b[1])
+        .map(([member]) => member);
+    }),
+    zrem: vi.fn(async (key: string, member: string) => {
+      const set = fakeSortedSets.get(key);
+      return set?.delete(member) ? 1 : 0;
+    }),
   }),
 }));
 
@@ -65,6 +84,7 @@ describe("Playwright Runner Mutation Queue API & Flow", () => {
   beforeEach(async () => {
     fakeStore.clear();
     fakeLists.clear();
+    fakeSortedSets.clear();
     resetServerEnvCache();
     vi.stubEnv("GROUP_ACCESS_PASSWORD_HASH", "$2b$12$hash");
     vi.stubEnv("SESSION_SIGNING_SECRET", secret);

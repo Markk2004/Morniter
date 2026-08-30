@@ -1,6 +1,6 @@
 # Project plan status
 
-Last reviewed: 2026-08-30
+Last reviewed: 2026-08-31
 
 This page is the team-facing source of truth for implementation progress. A plan marked "implemented locally" may still require deployment or production verification. Detailed checklists remain in each linked plan.
 
@@ -11,11 +11,11 @@ Historical task checkboxes inside older plans are not retroactively marked compl
 - Deployment blocker from the overwritten legacy schema is fixed in the local workspace.
 - `npm run typecheck`: passed on 2026-08-31 (0 errors).
 - `npm run lint`: passed on 2026-08-31 (0 errors, 0 warnings).
-- `npm test`: passed, 90 files and 379 tests on 2026-08-31.
+- `npm test`: passed, 90 files and 380 tests on 2026-08-31.
 - `npm run test-agent:build` / `npm run agent:build`: passed on 2026-08-31.
 - `npm run build`: passed and generated 26/26 static & dynamic routes on 2026-08-31.
 - **Gate A (Native Multi-Runner Automation)**: Implemented locally. Mixed-runner command planning, sequential execution, and single-terminal stream tagging are in place and verified in Vitest. Real ProjectSTS Local Agent smoke test remains required before release.
-- **Gate B (Recipe Builder & Safe Mutation)**: Hardened locally with all production safety and integrity review remediations:
+- **Gate B (Recipe Builder & Safe Mutation)**: Local hardening is implemented and automated checks pass:
   - Explicit `risk` & `recipeId` job metadata on workspace draft runs preventing mutating bypasses (P0).
   - Agent-owned `testTarget` contract with safe catalog exposure (without publishing `baseUrl`).
   - Canonical URL resolution against `testTarget.baseUrl` with strict `productionHostDenylist` enforcement for both draft runs and mutations.
@@ -27,18 +27,27 @@ Historical task checkboxes inside older plans are not retroactively marked compl
 
 ## Active work
 
-### In Progress: Multi-Runner Automation and Recipe Builder (Gate A & Gate B)
+### Active UI delivery: Playwright Tutorial Learning Mode
 
-Status: Implementation and P0/P1 hardening complete in local codebase (88 test files / 361 tests passing in Vitest, Next.js build clean, 0 lint warnings). Real Agent integration and production verification remain in progress.
+Status: Approved design and implementation plan are complete. Source implementation has not started.
 
-- Gate A: Native runner command plans for Playwright, Node, Jest, and Jest E2E configured in `test-automation-map.json`, selectable in Test Explorer with filter chips, and running sequentially with tagged logs.
-- Gate B: Structured Recipe Builder UI with live deterministic code preview, "Save as Automated Test" mutation workflow requiring a passing verified draft, atomic `rename()` safe writing with rollback, NX mutation lease with stale recovery, recursive flow URL denylist inspection, and `mapRevision` consistency.
-- Design: [Multi-Runner Automation and Recipe Builder design](../specs/2026-08-30-multi-runner-recipe-builder-design.md)
-- Plan: [Multi-Runner Automation and Recipe Builder implementation plan](2026-08-30-multi-runner-recipe-builder.md)
+- Plan: [Playwright Tutorial Learning Mode Implementation Plan](2026-08-31-playwright-tutorial-learning-mode.md)
+- Design: [Playwright Tutorial Learning Mode Design](../specs/2026-08-31-playwright-tutorial-learning-mode-design.md)
 
-### Active delivery: Playwright Production Release Hardening & Acceptance Fixes
+Remaining work:
 
-Status: Implemented locally; production acceptance blocked by: live Local Agent ProjectSTS smoke test and installed Chrome/Edge Desktop PWA manual verification.
+1. Extend the nine-step tutorial catalog with typed chapter, icon, and visual metadata.
+2. Build local SVG icons, code-rendered mini UI diagrams, and chapter navigation without external assets or gradients.
+3. Replace the spotlight layout with full-screen Learning mode while preserving storage, keyboard, focus, unavailable-state, and reduced-motion behavior.
+4. Verify desktop and 320-pixel layouts, authenticated E2E behavior, and all automated release gates.
+
+### Active release: Playwright Production Release Hardening
+
+Status: Local implementation and automated verification are complete. Production acceptance remains open.
+
+- Plan: [Playwright Production Release Hardening Plan](2026-08-30-playwright-production-release-hardening.md)
+- Supporting acceptance plan: [Playwright Production Acceptance Fixes Plan](2026-08-30-playwright-production-acceptance-fixes.md)
+- Supporting hardening plan: [Recipe Mutation Production Safety Fixes Plan](2026-08-31-recipe-mutation-production-safety-fixes.md)
 
 Completed in local source:
 
@@ -60,7 +69,7 @@ Completed in local source:
   - Focus restoration on Escape dismissal to trigger button;
   - Storage persistence assertion (`morniter:playwright-tutorial:v1:seen="true"`);
   - Zero mutation requests assertion (`expect(mutationRequests).toEqual([])`);
-- Clean automated release gate (typecheck, lint, Vitest 75 files / 313 tests, Agent build, Next.js build, and Playwright E2E).
+- Clean automated release gate (typecheck, lint, Vitest 90 files / 380 tests, Agent build, Next.js build, and Playwright E2E).
 
 Remaining for final production sign-off:
 
@@ -68,7 +77,20 @@ Remaining for final production sign-off:
 2. Manual verification matrix on installed Chrome/Edge Desktop PWA (manifest, standalone display, cat logo icon, session termination on window close, and service-worker cache boundaries).
 3. Deploy verified revision to Vercel and complete production smoke test.
 
-### Implemented feature (Local): Playwright Interactive Tutorial
+## Completed local implementation records
+
+The following plans are complete at the local implementation level and are no longer active work. Their remaining live/deploy checks are tracked under the active release plan and the production verification list below.
+
+### Multi-Runner Automation and Recipe Builder
+
+- Plan: [Multi-Runner Automation and Recipe Builder Plan](2026-08-30-multi-runner-recipe-builder.md)
+- Design: [Multi-Runner Automation and Recipe Builder design](../specs/2026-08-30-multi-runner-recipe-builder-design.md)
+
+### Recipe Mutation Production Safety Fixes
+
+- Plan: [Recipe Mutation Production Safety Fixes Plan](2026-08-31-recipe-mutation-production-safety-fixes.md)
+
+### Playwright Interactive Tutorial
 
 Status: Fully implemented and verified locally via Vitest (component & hook tests) and Playwright E2E (browser & accessibility tests).
 
@@ -84,7 +106,7 @@ Completed in this delivery:
 - Deterministic browser E2E test passing in Playwright (`e2e/monitor.spec.ts`);
 - Non-caching boundary verified in Service Worker (`public/sw.js`).
 
-### Implemented feature (Local): ProjectSTS UAT Test Discovery
+### ProjectSTS UAT Test Discovery
 
 Status: implemented locally and verified with Agent build, typecheck, lint, full Vitest, and a real local catalog scan. Production Agent and deployed UI verification remain pending.
 
@@ -106,11 +128,7 @@ Remaining for complete acceptance:
 - Add and verify real recipe-backed coverage targets when the project supplies exact route/assertion recipes; the initial manifest intentionally has no guessed generated tests;
 - Deploy and repeat the production smoke test.
 
-Design specifications & plans:
-
-- [Playwright Production Acceptance Fixes Plan](2026-08-30-playwright-production-acceptance-fixes.md)
-- [Playwright Production Release Hardening Plan](2026-08-30-playwright-production-release-hardening.md)
-- [Playwright Interactive Tutorial design](../specs/2026-08-30-playwright-interactive-tutorial-design.md)
+Design: [Playwright Interactive Tutorial design](../specs/2026-08-30-playwright-interactive-tutorial-design.md)
 
 ## Existing features with production verification still required
 

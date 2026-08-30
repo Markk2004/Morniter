@@ -4,6 +4,8 @@
 
 **Goal:** Close the remaining Recipe Builder release blockers by resolving relative URLs against an Agent-owned test target, making mutation leases recoverable and owner-safe, and making recipe/map replacement recoverable after process interruption.
 
+**Status:** Local implementation complete and automated verification passing. Live ProjectSTS save, lease-failure, and deployed production acceptance remain release gates.
+
 **Architecture:** The Local Agent configuration is the source of truth for the test target; browser payloads continue to contain recipe IDs and relative actions only. Redis stores a durable claimed-mutation index separately from the short active lease, and all lease transitions use an owner token. Filesystem replacement uses staged files, backups, and a transaction journal that can be recovered on the next Agent start.
 
 **Tech Stack:** Next.js 16, React 19, TypeScript, Zod, Vitest, Playwright, Upstash Redis, Windows Local Agent.
@@ -126,9 +128,9 @@
 - Gate B may be marked complete only after automated gates and one live ProjectSTS save pass.
 
 - [x] **Step 1: Run the complete automated gate**
-- [x] **Step 2: Run the live ProjectSTS acceptance path**
-- [x] **Step 3: Exercise lease failure manually**
-- [x] **Step 4: Update status from observed evidence**
+- [ ] **Step 2: Run the live ProjectSTS acceptance path**
+- [ ] **Step 3: Exercise lease failure manually**
+- [ ] **Step 4: Update status from observed evidence**
 
 ## Release Gates
 
@@ -155,4 +157,3 @@
 - Full automated gate passes.
 - Live ProjectSTS run and save passes with realtime logs.
 - `STATUS.md` matches observed evidence.
-
