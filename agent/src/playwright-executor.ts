@@ -83,6 +83,8 @@ export async function preparePlaywrightExecution(
   }
 
   const testRoot = pw.testRoot || "e2e";
+  const testRootPath = resolveInsideRoot(workspaceRoot, testRoot);
+  const configPath = pw.config ? resolveInsideRoot(workspaceRoot, pw.config) : undefined;
   let specPaths: string[] = [];
   let cleanup = async () => {};
 
@@ -112,7 +114,7 @@ export async function preparePlaywrightExecution(
       throw new Error("Workspace code is empty.");
     }
 
-    const workspaceDir = path.join(workspaceRoot, testRoot, "__workspace__");
+    const workspaceDir = resolveInsideRoot(testRootPath, "__workspace__");
     await fs.mkdir(workspaceDir, { recursive: true });
 
     const specFile = path.join(workspaceDir, `${job.id}.spec.ts`);
@@ -130,7 +132,11 @@ export async function preparePlaywrightExecution(
   }
 
   const executable = resolveExecutable("npx");
-  const args = ["playwright", "test", ...specPaths];
+  const args = ["-y", "playwright", "test", ...specPaths];
+
+  if (configPath) {
+    args.push("--config", configPath);
+  }
 
   for (const b of job.browsers) {
     args.push(`--project=${b}`);
@@ -151,6 +157,44 @@ export async function preparePlaywrightExecution(
     timeoutSeconds,
     cleanup,
   };
+}
+
+async function harvestArtifacts(
+  workspaceRoot: string,
+  jobId: string,
+): Promise<NonNullable<PlaywrightExecutionResult["artifacts"]>> {
+  const artifacts: NonNullable<PlaywrightExecutionResult["artifacts"]> = [];
+  const resultsDir = path.join(workspaceRoot, "test-results");
+  try {
+    const entries = await fs.readdir(resultsDir, { withFileTypes: true, recursive: true });
+    for (const entry of entries) {
+      if (entry.isFile()) {
+        const fullPath = path.join(entry.parentPath || resultsDir, entry.name);
+        const stat = await fs.stat(fullPath);
+        const ext = path.extname(entry.name).toLowerCase();
+        let type: "trace" | "screenshot" | "video" | "report" = "report";
+        if (ext === ".zip" || entry.name.includes("trace")) {
+          type = "trace";
+        } else if (ext === ".png" || ext === ".jpg") {
+          type = "screenshot";
+        } else if (ext === ".webm" || ext === ".mp4") {
+          type = "video";
+        }
+
+        artifacts.push({
+          id: `art-${jobId}-${artifacts.length + 1}`,
+          jobId,
+          type,
+          filename: entry.name,
+          size: stat.size,
+          createdAt: new Date().toISOString(),
+        });
+      }
+    }
+  } catch {
+    // ignore if test-results directory does not exist
+  }
+  return artifacts;
 }
 
 export async function runPlaywrightExecution(
@@ -241,9 +285,12 @@ export async function runPlaywrightExecution(
         br.durationMs = durationMs;
       });
 
+      const artifacts = await harvestArtifacts(prepared.cwd, job.id);
+
       resolve({
         status: finalStatus,
         browserResults,
+        artifacts: artifacts.length > 0 ? artifacts : undefined,
         startedAt,
         finishedAt,
         durationMs,

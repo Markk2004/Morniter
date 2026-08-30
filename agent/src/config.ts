@@ -74,6 +74,20 @@ export const AgentPlaywrightProjectSchema = z.object({
   maxTimeoutSeconds: z.number().int().min(1).max(1800).default(600),
   envAllowlist: z.array(z.string()).default([]),
   allowedBaseUrls: z.array(z.string()).default([]),
+}).superRefine((project, ctx) => {
+  const root = path.resolve(project.workspaceRoot);
+  for (const [field, value] of [["testRoot", project.testRoot], ["config", project.config]] as const) {
+    if (!value) continue;
+    if (path.isAbsolute(value)) {
+      ctx.addIssue({ code: "custom", path: [field], message: `${field} must be relative to workspaceRoot` });
+      continue;
+    }
+    const resolved = path.resolve(root, value);
+    const relative = path.relative(root, resolved);
+    if (relative.startsWith("..") || path.isAbsolute(relative)) {
+      ctx.addIssue({ code: "custom", path: [field], message: `${field} must stay inside workspaceRoot` });
+    }
+  }
 });
 
 export const AgentProjectSchema = z

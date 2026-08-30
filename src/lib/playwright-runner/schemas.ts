@@ -264,8 +264,15 @@ const PlaywrightCatalogProjectSchema = z
     capabilities: PlaywrightCatalogProjectCapabilitiesSchema,
     testGroups: z.array(PlaywrightTestGroupSchema).optional(),
     tests: z.array(PlaywrightTestDescriptorSchema).optional(),
+    scanPathLabel: z.string().max(256).optional(),
+    sourceByPath: z
+      .record(z.string().min(1).max(512), z.string().max(200_000))
+      .optional(),
   })
   .strict();
+
+// Public alias retained for callers that use the project-level catalog name.
+export const PlaywrightProjectCatalogSchema = PlaywrightCatalogProjectSchema;
 
 export const PlaywrightCatalogSchema = z
   .object({

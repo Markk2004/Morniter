@@ -1,17 +1,18 @@
 # Playwright Automation Workspace Implementation Plan
 
-## Implementation status (reviewed 2026-08-29)
+## Implementation status (reviewed 2026-08-30)
 
-Status: in progress. Core server, agent, and UI modules exist, but this plan is not complete and production is not yet approved.
+Status: in progress. Core server, agent, and UI modules exist; ProjectSTS discovery and local smoke pass, but production is not yet approved.
 
 - [x] Core job types and strict request schemas exist under `src/lib/playwright-runner`.
 - [x] Redis job-store logic and `job-store.ts` exist with unit coverage.
 - [x] Separate browser and agent routes exist under `/api/playwright-runner`.
 - [x] Local Agent contains `playwright-catalog.ts` and `playwright-executor.ts`.
 - [x] Test UI contains `PlaywrightJobSelector.tsx` and `BrowserSelector.tsx`.
-- [x] Local verification passes for typecheck, 64 test files/274 tests, Agent build, and Next production build.
-- [ ] Lint currently fails with 9 errors and 9 warnings.
-- [ ] Browser E2E and real STS execution through the Local Agent have not been verified in this review.
+- [x] Local verification passes for lint, typecheck, 71 test files/289 tests, Agent build, and Next production build.
+- [x] ProjectSTS catalog discovers 3 real Playwright tests in 3 groups.
+- [x] ProjectSTS Playwright smoke passes 3/3 tests against a temporary local frontend server.
+- [ ] Real STS execution through the Local Agent has not been verified in this review.
 - [ ] Production Vercel smoke, cancellation, timeout, stale-agent recovery, and polling-load checks remain.
 - [ ] Artifacts, custom reporter, retention, low-privilege Agent guidance, and network policy remain future work and do not block the initial Playwright runner release unless explicitly promoted into scope.
 

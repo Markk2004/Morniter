@@ -1,5 +1,7 @@
 # Test failure summary Implementation Plan
 
+> Status: Completed and verified. Archived from active tracking on 2026-08-30.
+
 > **For agentic workers:** This plan is being executed inline in the current task. Git operations are intentionally omitted; the user will handle them manually.
 
 **Goal:** Add a server-side rules-only failure analyzer that persists a useful cause-and-fix summary on failed test jobs and renders it in the existing test runner.

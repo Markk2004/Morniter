@@ -5,8 +5,6 @@ import {
   JOB_TTL_SECONDS,
   PRESENCE_TTL_SECONDS,
   LEASE_SECONDS,
-  MAX_LOG_LINES,
-  MAX_LOG_BYTES,
   MAX_QUEUE_LENGTH,
   MAX_HISTORY_ITEMS,
   playwrightKeys,
@@ -74,6 +72,27 @@ export async function publishPlaywrightCatalog(
     capabilities,
   };
   await redis.set(presKey, presence, { ex: PRESENCE_TTL_SECONDS });
+}
+
+export async function heartbeatPlaywrightAgent(
+  capabilities?: PlaywrightAgentPresence["capabilities"],
+  agentId = "windows-local-agent-1",
+  now: Date = new Date(),
+  redisClient?: Redis,
+): Promise<void> {
+  const redis = redisClient ?? getRunnerRedis();
+  const activeJobId = (await redis.get<string>(playwrightKeys.active(agentId))) ?? undefined;
+  await redis.set(
+    playwrightKeys.presence(agentId),
+    {
+      agentId,
+      state: "online",
+      lastHeartbeatAt: now.toISOString(),
+      activeJobId,
+      capabilities,
+    } satisfies PlaywrightAgentPresence,
+    { ex: PRESENCE_TTL_SECONDS },
+  );
 }
 
 export async function getPlaywrightCatalog(

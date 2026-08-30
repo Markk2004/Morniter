@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import type {
   PlaywrightCatalog,
   PlaywrightJob,
@@ -12,7 +12,7 @@ import { BrowserSelector } from "./BrowserSelector";
 
 interface PlaywrightJobSelectorProps {
   catalog: PlaywrightCatalog | null;
-  activeJob: PlaywrightJob | null;
+  activeJob?: PlaywrightJob | null;
   isUnlocked: boolean;
   isAgentOnline: boolean;
   isJobRunning: boolean;
@@ -30,7 +30,6 @@ test('verify application login flow', async ({ page }) => {
 
 export function PlaywrightJobSelector({
   catalog,
-  activeJob,
   isUnlocked,
   isAgentOnline,
   isJobRunning,
@@ -38,32 +37,15 @@ export function PlaywrightJobSelector({
   onRunJob,
 }: PlaywrightJobSelectorProps) {
   const projects = catalog?.projects || [];
-  const [selectedProjectId, setSelectedProjectId] = useState<string>(
-    projects[0]?.id || "",
-  );
+  const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const [activeTab, setActiveTab] = useState<"project-test" | "workspace">("project-test");
   const [selectedTestIds, setSelectedTestIds] = useState<string[]>([]);
   const [workspaceCode, setWorkspaceCode] = useState<string>(DEFAULT_WORKSPACE_CODE);
   const [browsers, setBrowsers] = useState<BrowserName[]>(["chromium"]);
   const [mode, setMode] = useState<RunMode>("headless");
 
-  const currentProject = projects.find((p) => p.id === selectedProjectId) || projects[0];
-
-  useEffect(() => {
-    if (!selectedProjectId && projects.length > 0) {
-      setSelectedProjectId(projects[0].id);
-    }
-  }, [projects, selectedProjectId]);
-
-  // When project changes, reset selection
-  useEffect(() => {
-    if (currentProject?.tests && currentProject.tests.length > 0) {
-      setSelectedTestIds([currentProject.tests[0].id]);
-    } else {
-      setSelectedTestIds([]);
-    }
-  }, [currentProject]);
-
+  const effectiveProjectId = selectedProjectId || (projects[0]?.id ?? "");
+  const currentProject = projects.find((p) => p.id === effectiveProjectId) || projects[0];
   const allAvailableTests = currentProject?.tests || [];
 
   const handleToggleTest = (testId: string) => {
@@ -79,6 +61,16 @@ export function PlaywrightJobSelector({
       setSelectedTestIds([]);
     } else {
       setSelectedTestIds(allAvailableTests.map((t) => t.id));
+    }
+  };
+
+  const handleProjectChange = (newProjectId: string) => {
+    setSelectedProjectId(newProjectId);
+    const newProject = projects.find((p) => p.id === newProjectId);
+    if (newProject?.tests && newProject.tests.length > 0) {
+      setSelectedTestIds([newProject.tests[0].id]);
+    } else {
+      setSelectedTestIds([]);
     }
   };
 
@@ -134,8 +126,8 @@ export function PlaywrightJobSelector({
           <select
             id="project-select"
             aria-label="Project"
-            value={selectedProjectId}
-            onChange={(e) => setSelectedProjectId(e.target.value)}
+            value={effectiveProjectId}
+            onChange={(e) => handleProjectChange(e.target.value)}
             disabled={isJobRunning || isSubmitting}
             className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-mono text-white focus:border-indigo-500 focus:outline-none"
           >
@@ -197,9 +189,9 @@ export function PlaywrightJobSelector({
                 No scanned Playwright tests found in this project.
               </div>
             ) : (
-              allAvailableTests.map((t) => (
+              allAvailableTests.map((t, idx) => (
                 <label
-                  key={t.id}
+                  key={`${t.id}-${idx}`}
                   className={`flex items-center justify-between p-2.5 rounded-lg border text-xs cursor-pointer transition-colors ${
                     selectedTestIds.includes(t.id)
                       ? "bg-slate-800/80 border-indigo-500/50 text-slate-200"
@@ -278,3 +270,5 @@ export function PlaywrightJobSelector({
     </div>
   );
 }
+
+export default PlaywrightJobSelector;

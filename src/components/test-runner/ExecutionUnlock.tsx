@@ -48,7 +48,7 @@ export function ExecutionUnlock({ onUnlocked }: ExecutionUnlockProps) {
         <div>
           <h3 className="font-semibold text-slate-200 text-sm">Execution Lock Active</h3>
           <p className="text-xs text-slate-400">
-            Enter group execution password to enable test runner execution (15-minute session).
+            Enter the same group password used for Monitor access to enable test execution (15-minute session).
           </p>
         </div>
       </div>
@@ -58,7 +58,7 @@ export function ExecutionUnlock({ onUnlocked }: ExecutionUnlockProps) {
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder="Execution password..."
+          placeholder="Group password..."
           className="flex-1 px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-200 focus:outline-none focus:border-amber-500/50"
           disabled={loading}
         />

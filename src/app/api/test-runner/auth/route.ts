@@ -27,9 +27,9 @@ export async function POST(req: NextRequest) {
   }
 
   const env = getServerEnv();
-  if (!env.TEST_RUNNER_PASSWORD_HASH) {
+  if (!env.GROUP_ACCESS_PASSWORD_HASH) {
     return NextResponse.json(
-      { error: "Test Runner execution password not configured" },
+      { error: "Group password not configured" },
       { status: 503 },
     );
   }
@@ -55,10 +55,10 @@ export async function POST(req: NextRequest) {
   }
 
   const password = body.password || "";
-  const isValid = await bcrypt.compare(password, env.TEST_RUNNER_PASSWORD_HASH);
+  const isValid = await bcrypt.compare(password, env.GROUP_ACCESS_PASSWORD_HASH);
 
   if (!isValid) {
-    return NextResponse.json({ error: "Invalid execution password" }, { status: 401 });
+    return NextResponse.json({ error: "Invalid group password" }, { status: 401 });
   }
 
   const token = await createExecuteSessionToken();

@@ -255,7 +255,7 @@ describe("Playwright Runner Full E2E Flow & Agent Reconnection", () => {
     const historyRes = await jobsGet(historyReq);
     expect(historyRes.status).toBe(200);
     const historyData = await historyRes.json();
-    expect(historyData.jobs.some((j: any) => j.id === createdJob.id)).toBe(true);
+    expect(historyData.jobs.some((j: { id: string }) => j.id === createdJob.id)).toBe(true);
   });
 
   it("handles agent disconnect / stale lease reaping and subsequent agent reconnection", async () => {

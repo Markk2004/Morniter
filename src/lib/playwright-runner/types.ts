@@ -228,7 +228,12 @@ export interface PlaywrightCatalogProject {
    * compiler: real callers pass `tests: undefined` for some projects.
    */
   tests?: PlaywrightTestDescriptor[];
+  sourceByPath?: Record<string, string>;
+  scanPathLabel?: string;
 }
+
+/** Compatibility alias for the project-level catalog name used by the UI. */
+export type PlaywrightProjectCatalog = PlaywrightCatalogProject;
 
 export interface PlaywrightTestGroup {
   name: string;

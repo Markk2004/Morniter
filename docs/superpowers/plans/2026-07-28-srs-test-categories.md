@@ -1,5 +1,7 @@
 # ProjectSTS SRS test categories Implementation Plan
 
+> Status: Completed locally. Archived from active tracking on 2026-08-30.
+
 > **For agentic workers:** Implement this plan task-by-task with a test checkpoint after each task. Do not run Git commands automatically; the workspace owner handles Git operations manually.
 
 **Goal:** ให้ Monitor แสดงประเภท automated testing, execution test และ UAT พร้อมเลือกกลุ่ม SRS/BR ของ ProjectSTS แล้วส่งงานไปยัง Windows Local Agent แบบ allowlist เท่านั้น

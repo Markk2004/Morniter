@@ -1,5 +1,7 @@
 # Vercel Schema Export Fix Implementation Plan
 
+> Status: Completed and verified. Archived from active tracking on 2026-08-30.
+
 > **For agentic workers:** Execute inline and track with checkboxes. Git operations are intentionally omitted because the user manages Git manually.
 
 **Goal:** Restore the legacy test-runner schema file overwritten by the latest Playwright schema change so Vercel can compile while the project continues migrating to the new runner.

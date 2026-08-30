@@ -4,6 +4,7 @@ import { PlaywrightPollRequestSchema } from "@/lib/playwright-runner/schemas";
 import {
   claimNextPlaywrightJob,
   publishPlaywrightCatalog,
+  heartbeatPlaywrightAgent,
 } from "@/lib/playwright-runner/job-store";
 
 export async function POST(req: NextRequest) {
@@ -31,6 +32,8 @@ export async function POST(req: NextRequest) {
   try {
     if (catalog) {
       await publishPlaywrightCatalog(catalog, capabilities, agentId);
+    } else {
+      await heartbeatPlaywrightAgent(capabilities, agentId);
     }
 
     const job = await claimNextPlaywrightJob(agentId);

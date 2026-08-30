@@ -80,6 +80,9 @@ export interface PlaywrightProjectCatalog {
     tests: PlaywrightTestDescriptor[];
   }[];
   tests?: PlaywrightTestDescriptor[];
+  /** Agent-to-server source cache keyed once per relative test file. */
+  sourceByPath?: Record<string, string>;
+  scanPathLabel?: string;
 }
 
 export interface PlaywrightCatalog {

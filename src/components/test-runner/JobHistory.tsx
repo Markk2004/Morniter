@@ -2,11 +2,32 @@
 
 import React from "react";
 
+export interface HistoricalJobItem {
+  id: string;
+  projectId: string;
+  presetName?: string;
+  source?: string;
+  testIds?: string[];
+  browsers?: string[];
+  status: string;
+  queuedAt?: string;
+  createdAt?: string;
+  failureAnalysis?: {
+    category?: string;
+    title: string;
+    cause: string;
+    fixLocation: string;
+    recommendation?: string;
+    evidence?: string[];
+    confidence?: string;
+  };
+}
+
 interface JobHistoryProps {
-  jobs?: any[];
-  history?: any[];
+  jobs?: HistoricalJobItem[];
+  history?: HistoricalJobItem[];
   activeJobId?: string | null;
-  onSelectJob?: (job: any) => void;
+  onSelectJob?: (job: HistoricalJobItem) => void;
   onRefresh?: () => void;
 }
 
