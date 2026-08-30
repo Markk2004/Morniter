@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import LocalTime from "@/components/LocalTime";
 import type { TestLogLine } from "@/lib/test-runner/types";
 
 interface JobTerminalProps {
@@ -41,7 +42,7 @@ export default function JobTerminal({ lines, isRunning, truncated }: JobTerminal
         lines.map((line, idx) => (
           <div key={line.sequence ?? idx} className="flex items-start gap-2 leading-relaxed">
             <span className="text-slate-600 shrink-0 text-[10px]">
-              {new Date(line.timestamp).toLocaleTimeString()}
+              <LocalTime value={line.timestamp} />
             </span>
             <span
               className={`px-1.5 py-0.5 text-[9px] rounded font-bold uppercase shrink-0 ${

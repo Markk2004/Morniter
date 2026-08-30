@@ -19,6 +19,9 @@ function getClientIp(req: NextRequest): string {
 }
 
 function isRateLimited(ip: string): boolean {
+  if (process.env.NODE_ENV === "test" || process.env.PLAYWRIGHT_AUTH_E2E === "1") {
+    return false;
+  }
   const now = Date.now();
   const entry = attemptsMap.get(ip);
   if (!entry) return false;

@@ -49,7 +49,7 @@
 - `usePlaywrightRunner` must append log pages by sequence without duplicates and perform a bounded final reconciliation after a job becomes terminal.
 - Only one local Agent process may use a given `agentId` on the same machine at a time.
 
-- [ ] **Step 1: Reproduce the loss with failing batching tests**
+- [x] **Step 1: Reproduce the loss with failing batching tests**
 
 Add tests where the first two uploads reject and the third succeeds. Assert that the same lines and starting sequence remain pending until acknowledgment, the accepted upload contains every line exactly once, and `drain()` rejects if its retry budget is exhausted.
 
@@ -61,27 +61,27 @@ npx vitest run tests/unit/test-agent/log-batcher.test.ts
 
 Expected before the fix: at least one assertion fails because the current queue is removed or its sequence advances before upload acknowledgment.
 
-- [ ] **Step 2: Make log batching acknowledgment-based**
+- [x] **Step 2: Make log batching acknowledgment-based**
 
 Change `LogBatcher` to copy the pending slice, await upload, and only then remove that slice and advance its sequence. Serialize flushes so timer and explicit drains cannot upload the same range concurrently. Retry transient upload failures with bounded exponential delays of 250 ms, 500 ms, 1 s, 2 s, and 4 s; do not retry authentication or validation failures indefinitely.
 
-- [ ] **Step 3: Surface safe Agent upload diagnostics**
+- [x] **Step 3: Surface safe Agent upload diagnostics**
 
 Update `AgentClient.appendPlaywrightLogs` so a failed response reports a safe shape such as `log upload failed: HTTP 401 unauthorized` or `HTTP 500 upstream_error`. Cap the response excerpt, parse JSON defensively, and redact authorization values, URLs containing credentials, absolute workspace paths, and environment output.
 
-- [ ] **Step 4: Prevent completion before log delivery settles**
+- [x] **Step 4: Prevent completion before log delivery settles**
 
 Add a system start line before spawning Playwright. Await `LogBatcher.drain()` after the child process closes and before completing the job. If delivery still fails after bounded retries, do not report a clean pass; finish with a safe log-delivery failure reason that remains visible through the job status API.
 
-- [ ] **Step 5: Prevent duplicate Local Agents with the same ID**
+- [x] **Step 5: Prevent duplicate Local Agents with the same ID**
 
 Add or reuse a Windows-safe single-instance guard keyed by `agentId`. A second process must exit with a clear message before polling or claiming work. Release the guard on normal shutdown and reject a stale guard only after verifying that its owning process is no longer alive. Unit-test active-owner and stale-owner behavior without exposing machine paths to the frontend.
 
-- [ ] **Step 6: Reconcile browser logs without an unbounded loop**
+- [x] **Step 6: Reconcile browser logs without an unbounded loop**
 
 Keep one log-page request in flight per job, append only sequences not yet displayed, and retain the existing bounded polling interval. When status first becomes `passed`, `failed`, `cancelled`, or `timed_out`, fetch one final log page after the current request settles, then stop polling when no newer sequence remains.
 
-- [ ] **Step 7: Run focused automated verification**
+- [x] **Step 7: Run focused automated verification**
 
 Run:
 

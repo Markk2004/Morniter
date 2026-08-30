@@ -4,7 +4,7 @@ import { SignJWT } from "jose";
 async function makeValidSessionToken(): Promise<string> {
   const secret =
     process.env.SESSION_SIGNING_SECRET ||
-    "RoLw5fpZO-N4TBtm-WirNonWWftIrY4fW6pjN8MAF30T1e6bBZWBTh3rP-nvArSY";
+    "e2e-only-session-signing-secret-with-at-least-48-characters";
   const secretBytes = new TextEncoder().encode(secret);
   return new SignJWT({ scope: "monitor:read" })
     .setProtectedHeader({ alg: "HS256" })

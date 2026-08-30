@@ -68,6 +68,8 @@ export const AgentPlaywrightProjectSchema = z.object({
   }),
   testRoot: z.string().default("e2e"),
   config: z.string().optional(),
+  automationMap: z.string().optional(),
+  generateMissingTests: z.boolean().default(false),
   allowedBrowsers: z.array(z.enum(["chromium", "firefox", "webkit"])).default(["chromium"]),
   allowHeaded: z.boolean().default(true),
   allowWorkspaceExecution: z.boolean().default(true),
@@ -76,7 +78,7 @@ export const AgentPlaywrightProjectSchema = z.object({
   allowedBaseUrls: z.array(z.string()).default([]),
 }).superRefine((project, ctx) => {
   const root = path.resolve(project.workspaceRoot);
-  for (const [field, value] of [["testRoot", project.testRoot], ["config", project.config]] as const) {
+  for (const [field, value] of [["testRoot", project.testRoot], ["config", project.config], ["automationMap", project.automationMap]] as const) {
     if (!value) continue;
     if (path.isAbsolute(value)) {
       ctx.addIssue({ code: "custom", path: [field], message: `${field} must be relative to workspaceRoot` });

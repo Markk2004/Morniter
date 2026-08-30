@@ -1,4 +1,20 @@
+import bcrypt from "bcryptjs";
 import { defineConfig, devices } from "@playwright/test";
+
+const e2ePassword = process.env.E2E_GROUP_PASSWORD;
+const runAuthenticatedE2E = process.env.PLAYWRIGHT_AUTH_E2E === "1";
+
+if (runAuthenticatedE2E && !e2ePassword) {
+  throw new Error("E2E_GROUP_PASSWORD is required when PLAYWRIGHT_AUTH_E2E=1");
+}
+
+const e2ePasswordHash = bcrypt.hashSync(
+  e2ePassword ?? "disabled-authenticated-e2e-password",
+  4,
+);
+
+const E2E_SESSION_SECRET =
+  "e2e-only-session-signing-secret-with-at-least-48-characters";
 
 export default defineConfig({
   testDir: "./e2e",
@@ -18,12 +34,13 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "npm run dev -- --port 3100",
+    command: "npx next start -p 3100",
     url: "http://localhost:3100",
-    reuseExistingServer: false,
+    reuseExistingServer: process.env.PLAYWRIGHT_REUSE_SERVER === "1",
     env: {
-      SESSION_SIGNING_SECRET: "RoLw5fpZO-N4TBtm-WirNonWWftIrY4fW6pjN8MAF30T1e6bBZWBTh3rP-nvArSY",
-      GROUP_ACCESS_PASSWORD_HASH: "$2b$12$RoLw5fpZO-N4TBtm-WirNonWWftIrY4fW6pjN8MAF30T1e6bBZWBTh3rP-nvArSY",
+      SESSION_SIGNING_SECRET:
+        process.env.SESSION_SIGNING_SECRET ?? E2E_SESSION_SECRET,
+      GROUP_ACCESS_PASSWORD_HASH: e2ePasswordHash,
     },
   },
 });

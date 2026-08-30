@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import LocalTime from "@/components/LocalTime";
 import type { AgentPresence } from "@/lib/test-runner/types";
 
 interface AgentStatusBannerProps {
@@ -38,7 +39,9 @@ export function AgentStatusBanner({ presence }: AgentStatusBannerProps) {
 
       <div className="text-xs text-slate-400 font-mono">
         {presence?.lastHeartbeatAt && presence.lastHeartbeatAt !== "1970-01-01T00:00:00.000Z" ? (
-          <span>Last heartbeat: {new Date(presence.lastHeartbeatAt).toLocaleTimeString()}</span>
+          <span>
+            Last heartbeat: <LocalTime value={presence.lastHeartbeatAt} />
+          </span>
         ) : (
           <span>No heartbeat detected</span>
         )}

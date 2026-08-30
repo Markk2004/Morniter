@@ -82,6 +82,65 @@ describe("Playwright Source Loading API Route", () => {
     const data = await res.json();
     expect(data.projectId).toBe("projectsts");
     expect(data.testId).toBe("auth-spec-1");
+    expect(data.runner).toBe("playwright");
     expect(data.content).toContain('@playwright/test');
+  });
+
+  it("loads source for coverage group tests across runners", async () => {
+    // Add coverage group with jest test
+    fakeStore.set("monitor:playwright:v1:agent:windows-local-agent-1:catalog", {
+      version: "2.0.0",
+      updatedAt: new Date().toISOString(),
+      projects: [
+        {
+          id: "projectsts",
+          name: "ProjectSTS",
+          coverageGroups: [
+            {
+              id: "FN-STS-01",
+              name: "Authentication",
+              tests: [
+                {
+                  id: "jest-auth-test-1",
+                  title: "Auth Service Test",
+                  relativePath: "backend/src/auth.service.spec.ts",
+                  runner: "jest",
+                  executionProfileId: "backend-jest",
+                  executable: false,
+                  origin: "manual",
+                  confidence: "high",
+                  matchedBy: ["path"],
+                },
+              ],
+              gaps: [],
+            },
+          ],
+          sourceByPath: {
+            "backend/src/auth.service.spec.ts": 'describe("AuthService", () => { it("validates", () => {}); });',
+          },
+        },
+      ],
+    });
+
+    const req = new NextRequest(
+      "http://localhost:3000/api/playwright-runner/source?projectId=projectsts&testId=jest-auth-test-1",
+      { headers: { cookie: sessionCookie } },
+    );
+    const res = await GET(req);
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.projectId).toBe("projectsts");
+    expect(data.testId).toBe("jest-auth-test-1");
+    expect(data.runner).toBe("jest");
+    expect(data.content).toContain('describe("AuthService"');
+  });
+
+  it("returns 404 for unknown test IDs", async () => {
+    const req = new NextRequest(
+      "http://localhost:3000/api/playwright-runner/source?projectId=projectsts&testId=non-existent-id",
+      { headers: { cookie: sessionCookie } },
+    );
+    const res = await GET(req);
+    expect(res.status).toBe(404);
   });
 });

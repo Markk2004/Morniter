@@ -163,4 +163,60 @@ describe("Playwright Runner Zod Schemas", () => {
     });
     expect(complete.status).toBe("passed");
   });
+
+  it("validates PlaywrightCatalogSchema with coverageGroups and runner profiles", () => {
+    const valid = PlaywrightCatalogSchema.parse({
+      version: "2.0.0",
+      updatedAt: new Date().toISOString(),
+      projects: [
+        {
+          id: "sts-playwright",
+          name: "ProjectSTS",
+          coverageGroups: [
+            {
+              id: "FN-STS-01",
+              name: "Authentication",
+              tests: [
+                {
+                  id: "test-auth-1",
+                  title: "Login spec",
+                  relativePath: "frontend/e2e/auth/login.spec.ts",
+                  runner: "playwright",
+                  executionProfileId: "frontend-playwright",
+                  executable: true,
+                  risk: "read-only",
+                  origin: "manual",
+                  confidence: "high",
+                  matchedBy: ["path"],
+                },
+              ],
+              gaps: [],
+            },
+          ],
+        },
+      ],
+    });
+    expect(valid.projects[0].coverageGroups).toHaveLength(1);
+    expect(valid.projects[0].coverageGroups?.[0].tests[0].executionProfileId).toBe("frontend-playwright");
+  });
+
+  it("validates PlaywrightCatalogSchema with testTarget", () => {
+    const valid = PlaywrightCatalogSchema.parse({
+      version: "2.0.0",
+      updatedAt: new Date().toISOString(),
+      projects: [
+        {
+          id: "sts-playwright",
+          name: "ProjectSTS",
+          testTarget: {
+            id: "projectsts-uat",
+            label: "ProjectSTS UAT",
+            allowMutating: true,
+          },
+        },
+      ],
+    });
+    expect(valid.projects[0].testTarget?.id).toBe("projectsts-uat");
+    expect(valid.projects[0].testTarget?.allowMutating).toBe(true);
+  });
 });

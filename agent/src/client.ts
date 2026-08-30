@@ -194,7 +194,16 @@ export class AgentClient {
     });
 
     if (!res.ok) {
-      throw new Error(`Failed to append Playwright logs: HTTP ${res.status}`);
+      let errorReason = "";
+      try {
+        const errJson = (await res.json()) as { error?: string };
+        if (errJson && typeof errJson.error === "string") {
+          errorReason = `: ${errJson.error.slice(0, 120)}`;
+        }
+      } catch {
+        // Ignore body parse errors
+      }
+      throw new Error(`Failed to append Playwright logs: HTTP ${res.status}${errorReason}`);
     }
 
     return (await res.json()) as { sequenceStart: number; nextSequence: number; truncated: boolean };
@@ -217,6 +226,44 @@ export class AgentClient {
 
     if (!res.ok) {
       throw new Error(`Failed to complete Playwright job: HTTP ${res.status}`);
+    }
+  }
+
+  async pollMutation(): Promise<import("./types.js").RecipeSaveMutation | null> {
+    const url = `${this.serverUrl}/api/playwright-runner/agent/mutations/poll`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: this.headers,
+      body: JSON.stringify({ agentId: this.agentId }),
+    });
+
+    if (!res.ok || res.status === 204) {
+      return null;
+    }
+
+    const data = (await res.json()) as { mutation?: import("./types.js").RecipeSaveMutation };
+    return data.mutation ?? null;
+  }
+
+  async completeMutation(
+    mutationId: string,
+    leaseToken: string,
+    result: {
+      status: "succeeded" | "conflict" | "rejected" | "failed";
+      newRevision?: string;
+      writtenFiles?: string[];
+      error?: string;
+    },
+  ): Promise<void> {
+    const url = `${this.serverUrl}/api/playwright-runner/agent/mutations/${mutationId}/complete`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: this.headers,
+      body: JSON.stringify({ leaseToken, ...result }),
+    });
+
+    if (!res.ok) {
+      throw new Error(`Failed to complete mutation: HTTP ${res.status}`);
     }
   }
 }

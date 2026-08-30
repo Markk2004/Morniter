@@ -81,7 +81,7 @@ import { BrowserNameSchema } from "./schemas";
  * side) being shared.
  */
 
-const ID_REGEX = /^[a-z0-9][a-z0-9-]{0,63}$/;
+export const ID_REGEX = /^[a-z0-9][a-z0-9-]{0,63}$/;
 
 const ENV_VAR_NAME_PATTERN = /^[A-Z_][A-Z0-9_]*$/;
 const EnvVarNameSchema = z.string().regex(ENV_VAR_NAME_PATTERN, {
@@ -116,7 +116,7 @@ export type PlaywrightProjectSecurityConfig = z.infer<
 >;
 
 const DEFAULT_TEST_ROOT = "e2e";
-const DEFAULT_MAX_TIMEOUT_SECONDS = 300;
+export const DEFAULT_MAX_TIMEOUT_SECONDS = 300;
 
 /**
  * Resolve a client-supplied relative test path against the project's

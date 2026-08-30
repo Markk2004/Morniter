@@ -13,7 +13,8 @@
     "test:e2e": "playwright test",
     "hash-password": "node scripts/hash-password.mjs",
     "test-agent": "node --enable-source-maps agent/dist/index.js",
-    "test-agent:build": "tsc -p agent/tsconfig.json"
+    "test-agent:build": "tsc -p agent/tsconfig.json",
+    "agent:build": "tsc -p agent/tsconfig.json"
   },
   "dependencies": {
     "@types/cross-spawn": "^6.0.6",

@@ -9,57 +9,108 @@ Historical task checkboxes inside older plans are not retroactively marked compl
 ## Current release status
 
 - Deployment blocker from the overwritten legacy schema is fixed in the local workspace.
-- `npm run typecheck`: passed on 2026-08-30.
-- `npm test`: passed, 71 files and 289 tests on 2026-08-30.
-- `npm run test-agent:build`: passed on 2026-08-30.
-- `npm run build`: passed and generated legacy and Playwright routes on 2026-08-30.
-- `npm run lint`: passed on 2026-08-30.
-- ProjectSTS discovery: passed, 3 real Playwright tests in 3 folder groups.
-- ProjectSTS smoke: passed, 3/3 tests against a temporary local frontend server.
-- ProjectSTS smoke with configured `webServer`: passed, 3/3 tests.
-- Playwright catalog: Agent published `sts-playwright` with Authentication, Monitor, and Students groups.
-- Execution Lock: now uses the same `GROUP_ACCESS_PASSWORD_HASH` as Monitor login.
-- Realtime terminal delivery: release blocker; a real failed `sts-playwright` job was observed with `logCount: 0`, so Agent upload reliability must be fixed before further smoke or deployment work.
-- Deployed Vercel smoke test and a real job through the online Local Agent have not been verified in this review.
+- `npm run typecheck`: passed on 2026-08-31 (0 errors).
+- `npm run lint`: passed on 2026-08-31 (0 errors, 0 warnings).
+- `npm test`: passed, 90 files and 379 tests on 2026-08-31.
+- `npm run test-agent:build` / `npm run agent:build`: passed on 2026-08-31.
+- `npm run build`: passed and generated 26/26 static & dynamic routes on 2026-08-31.
+- **Gate A (Native Multi-Runner Automation)**: Implemented locally. Mixed-runner command planning, sequential execution, and single-terminal stream tagging are in place and verified in Vitest. Real ProjectSTS Local Agent smoke test remains required before release.
+- **Gate B (Recipe Builder & Safe Mutation)**: Hardened locally with all production safety and integrity review remediations:
+  - Explicit `risk` & `recipeId` job metadata on workspace draft runs preventing mutating bypasses (P0).
+  - Agent-owned `testTarget` contract with safe catalog exposure (without publishing `baseUrl`).
+  - Canonical URL resolution against `testTarget.baseUrl` with strict `productionHostDenylist` enforcement for both draft runs and mutations.
+  - Owner-safe mutation leases using unique `leaseToken`, durable sorted set indexing (`monitor:playwright:v1:mutation-claimed:<agentId>`), stale claim reaping, atomic Lua compare-and-delete, and `LEASE_LOST` rejection if active lease expired or disappeared (P1).
+  - Durable claimed index failure handling rolling back active lease and restoring queued mutation (P1).
+  - Multi-phase filesystem transaction journal (`.morniter-mutation-journal.json`) with `fsync` durable writing, startup crash recovery (`recoverRecipeTransactions`), SHA-256 hash verification before backup removal, and strict corruption error handling (P1, P2 & Standards).
+  - Base revision verification via SHA-256 `mapRevision` of `test-automation-map.json`.
+- **Production Ready**: Not passed yet. Real ProjectSTS Local Agent smoke test with realtime terminal streaming, installed Chrome/Edge Desktop PWA manual acceptance, and deployed Vercel smoke test remain the required production release gates.
 
 ## Active work
 
-### Active delivery: Playwright Production Release Hardening
+### In Progress: Multi-Runner Automation and Recipe Builder (Gate A & Gate B)
 
-Status: in progress; realtime terminal log delivery is the mandatory first blocker. Local implementation and the independent ProjectSTS smoke pass, but production job verification must wait for reliable Agent log delivery.
+Status: Implementation and P0/P1 hardening complete in local codebase (88 test files / 361 tests passing in Vitest, Next.js build clean, 0 lint warnings). Real Agent integration and production verification remain in progress.
 
-Completed or present in the workspace:
+- Gate A: Native runner command plans for Playwright, Node, Jest, and Jest E2E configured in `test-automation-map.json`, selectable in Test Explorer with filter chips, and running sequentially with tagged logs.
+- Gate B: Structured Recipe Builder UI with live deterministic code preview, "Save as Automated Test" mutation workflow requiring a passing verified draft, atomic `rename()` safe writing with rollback, NX mutation lease with stale recovery, recursive flow URL denylist inspection, and `mapRevision` consistency.
+- Design: [Multi-Runner Automation and Recipe Builder design](../specs/2026-08-30-multi-runner-recipe-builder-design.md)
+- Plan: [Multi-Runner Automation and Recipe Builder implementation plan](2026-08-30-multi-runner-recipe-builder.md)
 
-- separate Playwright request schemas and types;
-- Redis job store and bounded store logic;
-- browser and agent API routes under `/api/playwright-runner`;
-- local-agent catalog and Playwright executor modules;
-- Playwright job and browser selectors in the Test UI;
-- unit and integration coverage, including the Playwright end-to-end flow at integration level;
-- clean TypeScript, agent, test, and Next.js build results.
+### Active delivery: Playwright Production Release Hardening & Acceptance Fixes
 
-Remaining:
+Status: Implemented locally; production acceptance blocked by: live Local Agent ProjectSTS smoke test and installed Chrome/Edge Desktop PWA manual verification.
 
-- fix acknowledged Agent log batching, bounded retry, final browser reconciliation, and duplicate-Agent protection before all other tasks;
-- run one real ProjectSTS job through the online Local Agent;
-- run browser recovery paths, including failure, cancel, timeout, and Agent reconnect;
-- verify polling/backoff, terminal bounds, cancellation, timeout, and stale-agent recovery in a live environment;
-- update production documentation and environment checklist;
-- deploy and complete the Vercel production smoke test.
+Completed in local source:
 
-Primary plan:
+- Separate Playwright request schemas and types (`schemas.ts`, `types.ts`);
+- Redis job store and bounded store logic (`job-store.ts`);
+- Browser and agent API routes under `/api/playwright-runner/*`;
+- Local-agent catalog and Playwright executor modules;
+- Realtime terminal delivery hardening:
+  - `agent/src/log-batcher.ts`: Log batches retained until HTTP upload acknowledged; bounded exponential retry;
+  - `agent/src/client.ts`: Safe error diagnostics reporting without exposing tokens, paths, or secrets;
+  - `agent/src/runner.ts`: Initial system start log emission and log drain before job completion;
+  - `agent/src/single-instance.ts`: Windows-safe process liveness check and single-instance lock per `agentId`;
+  - `src/components/playwright-runner/usePlaywrightRunner.ts`: Bounded final log reconciliation upon reaching terminal state;
+- Deterministic authenticated E2E test suite in `playwright.config.ts` and `e2e/monitor.spec.ts`:
+  - Test-only bcrypt hash derived at runtime via `E2E_GROUP_PASSWORD`;
+  - Public `/login` flow with real cookies and sessions;
+  - Read-only stubs for catalog and job queries;
+  - Keyboard navigation (`ArrowRight`, `ArrowLeft`) & focus containment assertions;
+  - Focus restoration on Escape dismissal to trigger button;
+  - Storage persistence assertion (`morniter:playwright-tutorial:v1:seen="true"`);
+  - Zero mutation requests assertion (`expect(mutationRequests).toEqual([])`);
+- Clean automated release gate (typecheck, lint, Vitest 75 files / 313 tests, Agent build, Next.js build, and Playwright E2E).
 
-- [Production release hardening plan](2026-08-30-playwright-production-release-hardening.md)
-- [Previous deploy-readiness plan](2026-08-29-playwright-runner-deploy-readiness.md)
+Remaining for final production sign-off:
 
-### Immediate release blockers
+1. Start exactly one Local Agent with the updated `sts-playwright` config and run one real ProjectSTS smoke test against a live instance; confirm terminal grows while running and finishes with `logCount > 0`.
+2. Manual verification matrix on installed Chrome/Edge Desktop PWA (manifest, standalone display, cat logo icon, session termination on window close, and service-worker cache boundaries).
+3. Deploy verified revision to Vercel and complete production smoke test.
 
-1. Restore realtime terminal delivery: retain unacknowledged batches, retry safely, drain before completion, reconcile final browser logs, and prevent two local Agents from sharing one `agentId`.
-2. Pass the focused log batching, Agent runner, route, and end-to-end tests plus Agent build and typecheck.
-3. Start exactly one Local Agent with the updated `sts-playwright` config and confirm its catalog contains the 3 groups.
-4. Run one safe ProjectSTS smoke test through Morniter and confirm the terminal updates while running and finishes with `logCount > 0`.
-5. Run cancel, timeout, Agent offline, and reconnect checks.
-6. Deploy the exact verified source revision and repeat the production smoke test.
+### Implemented feature (Local): Playwright Interactive Tutorial
+
+Status: Fully implemented and verified locally via Vitest (component & hook tests) and Playwright E2E (browser & accessibility tests).
+
+Completed in this delivery:
+
+- Typed 9-step tutorial catalog in `src/components/playwright-runner/tutorial/tutorial-steps.ts`;
+- Catalog error gating in `usePlaywrightRunner.ts` (`catalogError: boolean`) preventing auto-open on failed catalog requests;
+- First-visit auto-open and `localStorage` persistence hook `usePlaywrightTutorial.ts`;
+- Accessible spotlight modal `PlaywrightTutorial.tsx` with progress bar, step navigation, Arrow key controls (`ArrowRight`/`ArrowDown`/`ArrowLeft`/`ArrowUp`), focus trapping, focus restoration, `prefers-reduced-motion` scroll adaptation, Escape dismissal, and background `#playwright-workspace-root` `inert` management;
+- Tutorial header trigger button and 9 stable `data-tutorial-id` wrappers integrated into `PlaywrightWorkspace.tsx`;
+- Unavailable state detection (`data-tutorial-state="unavailable"` and 0-dimension detection) displaying friendly fallback explanations;
+- Unit and component test suites passing in Vitest (79 test files, 321 tests passed);
+- Deterministic browser E2E test passing in Playwright (`e2e/monitor.spec.ts`);
+- Non-caching boundary verified in Service Worker (`public/sw.js`).
+
+### Implemented feature (Local): ProjectSTS UAT Test Discovery
+
+Status: implemented locally and verified with Agent build, typecheck, lint, full Vitest, and a real local catalog scan. Production Agent and deployed UI verification remain pending.
+
+Completed in this delivery:
+
+- ProjectSTS-owned `test-automation-map.json` with 11 FN-STS categories and explicit mappings for the existing Playwright files;
+- Agent manifest validation with relative-path and generated-output containment;
+- Multi-runner file discovery for Playwright, generated Playwright, Frontend Node, Backend Jest, and Backend Jest E2E;
+- Deterministic path/title/source-ID/keyword matching with confidence metadata;
+- Recipe-backed generated Playwright writer with atomic writes and manual-file overwrite protection;
+- Catalog `coverageGroups` metadata without absolute ProjectSTS paths;
+- Test Explorer runner badges, UAT groups, disabled non-Playwright coverage rows, search, and coverage-gap display;
+- Playwright execution cwd resolution from `frontend/playwright.config.ts` when the secure scan root is `E:\ProjectSTS`.
+
+Remaining for complete acceptance:
+
+- Start the updated Local Agent against the real ProjectSTS installation and verify the deployed Morniter UI receives the 11 coverage groups;
+- Run one selected existing Playwright file from Explorer and verify realtime Terminal output;
+- Add and verify real recipe-backed coverage targets when the project supplies exact route/assertion recipes; the initial manifest intentionally has no guessed generated tests;
+- Deploy and repeat the production smoke test.
+
+Design specifications & plans:
+
+- [Playwright Production Acceptance Fixes Plan](2026-08-30-playwright-production-acceptance-fixes.md)
+- [Playwright Production Release Hardening Plan](2026-08-30-playwright-production-release-hardening.md)
+- [Playwright Interactive Tutorial design](../specs/2026-08-30-playwright-interactive-tutorial-design.md)
 
 ## Existing features with production verification still required
 
@@ -75,21 +126,7 @@ Primary plan:
 - [Render timeout handling](2026-07-28-render-provider-timeout.md): timeout handling exists; verify against a real slow Render response.
 - [Vercel and Render diagnostics](2026-07-28-vercel-render-deployment-diagnostics.md): provider diagnostics are implemented; production project/token mapping remains an environment check.
 - [Cybersecurity login](2026-07-29-cybersecurity-login.md): session login exists; repeat browser session-close behavior after deployment.
-- [Login UI](2026-07-29-login-ui-impeccable.md): redesigned login is implemented; no current release blocker recorded here.
 - [Redis usage status](2026-07-29-redis-usage-status.md): status endpoint/UI exists; verify with production Upstash credentials.
-
-## Completed plans removed from active tracking
-
-The following plan files remain in this folder as history, but are no longer part of active work:
-
-- [SRS test categories](2026-07-28-srs-test-categories.md)
-- [Test failure summary](2026-07-29-test-failure-summary.md)
-- [Vercel schema export fix](2026-08-29-fix-vercel-schema-export.md)
-- [Playwright IDE UI](2026-08-30-playwright-automation-ide-ui.md)
-
-## Completed fix
-
-- [Vercel schema export fix](2026-08-29-fix-vercel-schema-export.md): legacy and Playwright schema modules are separated again; current typecheck, tests, agent build, lint, and Next build pass.
 
 ## Supersession rules
 

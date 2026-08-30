@@ -28,7 +28,7 @@ export function BrowserSelector({
   disabled = false,
 }: BrowserSelectorProps) {
   const availableBrowsers: { id: BrowserName; label: string; icon: string }[] = [
-    { id: "chromium", label: "Chromium", icon: "🌐" },
+    { id: "chromium", label: "Google Chrome", icon: "🌐" },
     { id: "firefox", label: "Firefox", icon: "🦊" },
     { id: "webkit", label: "WebKit (Safari)", icon: "🧭" },
   ];

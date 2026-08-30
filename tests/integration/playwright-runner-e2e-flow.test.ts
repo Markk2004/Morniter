@@ -334,4 +334,101 @@ describe("Playwright Runner Full E2E Flow & Agent Reconnection", () => {
     const pollData = await reconnectPollRes.json();
     expect(pollData.job.id).toBe(newJob.id);
   });
+
+  it("handles mixed runner job completion with sequential runnerResults", async () => {
+    // 1. Operator submits mixed runner job
+    const submitReq = new NextRequest("http://localhost:3000/api/playwright-runner/jobs", {
+      method: "POST",
+      headers: {
+        origin: "http://localhost:3000",
+        cookie: `${monitorCookie}; ${executeCookie}`,
+        "content-type": "application/json",
+        "idempotency-key": "mixed-runner-job-01",
+      },
+      body: JSON.stringify({
+        projectId: "projectsts",
+        source: "project-test",
+        testIds: ["jest-test-1", "node-test-1"],
+        browsers: ["chromium"],
+        mode: "headless",
+        agentId: "agent-mixed-1",
+      }),
+    });
+    const submitRes = await jobsPost(submitReq);
+    expect(submitRes.status).toBe(201);
+    const job = await submitRes.json();
+
+    // 2. Agent claims job
+    const claimReq = new NextRequest("http://localhost:3000/api/playwright-runner/agent/poll", {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${agentToken}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ agentId: "agent-mixed-1", catalogVersion: "2.0.0" }),
+    });
+    const claimRes = await pollPost(claimReq);
+    expect(claimRes.status).toBe(200);
+
+    // 3. Agent streams mixed runner logs
+    const logReq = new NextRequest(`http://localhost:3000/api/playwright-runner/agent/jobs/${job.id}/logs`, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${agentToken}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        sequenceStart: 0,
+        entries: [
+          { stream: "system", message: "[NODE] Running node tests..." },
+          { stream: "stdout", message: "[NODE] ✓ auth contract passed" },
+          { stream: "system", message: "[JEST] Running jest tests..." },
+          { stream: "stdout", message: "[JEST] ✓ auth service passed" },
+        ],
+      }),
+    });
+    const logRes = await logsPost(logReq, { params: Promise.resolve({ jobId: job.id }) });
+    expect(logRes.status).toBe(200);
+
+    // 4. Agent completes with runnerResults
+    const completeReq = new NextRequest(`http://localhost:3000/api/playwright-runner/agent/jobs/${job.id}/complete`, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${agentToken}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        status: "passed",
+        runnerResults: [
+          {
+            runner: "node-test",
+            executionProfileId: "frontend-node",
+            status: "passed",
+            testIds: ["node-test-1"],
+            startedAt: new Date().toISOString(),
+            finishedAt: new Date().toISOString(),
+            durationMs: 400,
+            exitCode: 0,
+          },
+          {
+            runner: "jest",
+            executionProfileId: "backend-jest",
+            status: "passed",
+            testIds: ["jest-test-1"],
+            startedAt: new Date().toISOString(),
+            finishedAt: new Date().toISOString(),
+            durationMs: 800,
+            exitCode: 0,
+          },
+        ],
+      }),
+    });
+    const completeRes = await completePost(completeReq, { params: Promise.resolve({ jobId: job.id }) });
+    expect(completeRes.status).toBe(200);
+    const completeData = await completeRes.json();
+    expect(completeData.job.status).toBe("passed");
+    expect(completeData.job.runnerResults).toHaveLength(2);
+    expect(completeData.job.runnerResults[0].runner).toBe("node-test");
+    expect(completeData.job.runnerResults[1].runner).toBe("jest");
+  });
 });

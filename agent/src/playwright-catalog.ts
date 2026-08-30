@@ -7,6 +7,10 @@ import type {
   PlaywrightProjectCatalog,
   PlaywrightTestDescriptor,
 } from "./types.js";
+import { loadAutomationMap } from "./automation-map.js";
+import { discoverProjectTests } from "./project-test-discovery.js";
+import { matchTestsToUat } from "./uat-test-matcher.js";
+import { generateMissingPlaywrightTests } from "./playwright-recipe-generator.js";
 
 export function resolveInsideRoot(root: string, relativePath: string): string {
   const rootPath = path.resolve(root);
@@ -213,6 +217,101 @@ export async function buildPlaywrightCatalogFromConfig(
 
     const tests = scan.tests;
 
+    // Coverage discovery is file-based, while Playwright execution resolves
+    // declaration-based IDs. Publish the canonical declaration IDs for
+    // runnable coverage rows so a selection from Explorer can be executed.
+    const playwrightTestsByPath = new Map<string, PlaywrightTestDescriptor[]>();
+    for (const test of tests) {
+      const current = playwrightTestsByPath.get(test.relativePath) || [];
+      current.push(test);
+      playwrightTestsByPath.set(test.relativePath, current);
+    }
+
+    let coverageGroups: PlaywrightProjectCatalog["coverageGroups"];
+    let runnerProfiles: PlaywrightProjectCatalog["runnerProfiles"];
+    let testTarget: PlaywrightProjectCatalog["testTarget"];
+    let mapRevision: string | undefined;
+    const mergedSourceByPath: Record<string, string> = { ...scan.sourceByPath };
+
+    if (pw.automationMap) {
+      try {
+        const fullMapPath = resolveInsideRoot(pw.workspaceRoot, pw.automationMap);
+        const rawMap = await fs.readFile(fullMapPath, "utf8");
+        mapRevision = crypto.createHash("sha256").update(rawMap).digest("hex");
+        const automationMap = await loadAutomationMap(pw.workspaceRoot, pw.automationMap);
+        if (automationMap.testTarget) {
+          testTarget = {
+            id: automationMap.testTarget.id,
+            label: automationMap.testTarget.label,
+            allowMutating: automationMap.testTarget.allowMutating,
+          };
+        }
+        runnerProfiles = automationMap.runnerProfiles;
+        let discoveryResult = await discoverProjectTests(pw.workspaceRoot, automationMap);
+        Object.assign(mergedSourceByPath, discoveryResult.sourceByPath);
+        let discovered = discoveryResult.tests;
+        let coverage = matchTestsToUat(discovered, automationMap);
+
+        if (pw.generateMissingTests) {
+          const gaps = coverage.flatMap((group) => group.gaps);
+          const generated = await generateMissingPlaywrightTests({
+            workspaceRoot: pw.workspaceRoot,
+            map: automationMap,
+            gaps,
+          });
+          if (generated.some((result) => result.status === "generated")) {
+            discoveryResult = await discoverProjectTests(pw.workspaceRoot, automationMap);
+            Object.assign(mergedSourceByPath, discoveryResult.sourceByPath);
+            discovered = discoveryResult.tests;
+            coverage = matchTestsToUat(discovered, automationMap);
+          }
+        }
+
+        coverageGroups = coverage.map((group) => ({
+          id: group.id,
+          name: group.name,
+          tests: group.tests.flatMap((test) => {
+            const canonicalTests = test.executable && test.runner === "playwright"
+              ? playwrightTestsByPath.get(test.relativePath) || []
+              : [];
+            if (canonicalTests.length > 0) {
+              return canonicalTests.map((canonical) => ({
+                id: canonical.id,
+                title: canonical.title,
+                relativePath: canonical.relativePath,
+                runner: test.runner,
+                executionProfileId: test.executionProfileId,
+                executable: true,
+                risk: "read-only" as const,
+                origin: test.origin,
+                confidence: test.confidence,
+                matchedBy: test.matchedBy,
+              }));
+            }
+            return [{
+              id: test.id,
+              title: test.title,
+              relativePath: test.relativePath,
+              runner: test.runner,
+              executionProfileId: test.executionProfileId,
+              executable: test.executable,
+              risk: "read-only" as const,
+              origin: test.origin,
+              confidence: test.confidence,
+              matchedBy: test.matchedBy,
+            }];
+          }),
+          gaps: group.gaps.map((gap) => ({
+            targetId: gap.targetId,
+            title: gap.title,
+            status: gap.status,
+          })),
+        }));
+      } catch {
+        coverageGroups = undefined;
+      }
+    }
+
     const groupMap = new Map<string, PlaywrightTestDescriptor[]>();
     for (const t of tests) {
       const g = groupMap.get(t.group) || [];
@@ -239,12 +338,16 @@ export async function buildPlaywrightCatalogFromConfig(
     projects.push({
       id: proj.id,
       name: proj.name,
+      mapRevision,
+      testTarget,
       rootLabel: path.basename(pw.workspaceRoot),
       capabilities,
+      runnerProfiles,
       testGroups,
       tests,
-      sourceByPath: scan.sourceByPath,
+      sourceByPath: mergedSourceByPath,
       scanPathLabel: scan.scanPathLabel,
+      coverageGroups,
     });
   }
 

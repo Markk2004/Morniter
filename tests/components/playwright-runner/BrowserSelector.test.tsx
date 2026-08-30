@@ -20,7 +20,7 @@ describe("Browser & Mode Selectors", () => {
       />,
     );
 
-    expect(screen.getByText("Chromium")).toBeInTheDocument();
+    expect(screen.getByText("Google Chrome")).toBeInTheDocument();
     expect(screen.getByText("Firefox")).toBeInTheDocument();
     expect(screen.getByText(/not installed/i)).toBeInTheDocument();
 

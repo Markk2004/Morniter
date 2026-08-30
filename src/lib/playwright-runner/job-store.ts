@@ -402,6 +402,7 @@ export async function completePlaywrightJob(
   result: {
     status: PlaywrightJobStatus;
     browserResults?: BrowserExecutionResult[];
+    runnerResults?: import("./types").NativeGroupResult[];
     artifacts?: TestArtifact[];
     startedAt?: string;
     finishedAt?: string;
@@ -424,6 +425,7 @@ export async function completePlaywrightJob(
     ...job,
     status: result.status,
     browserResults: result.browserResults || job.browserResults,
+    runnerResults: result.runnerResults || job.runnerResults,
     artifacts: result.artifacts || job.artifacts,
     startedAt: result.startedAt ?? job.startedAt,
     completedAt: result.finishedAt ?? nowStr,

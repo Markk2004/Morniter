@@ -38,6 +38,19 @@ export function BrowserExecutionStatus({ results }: BrowserExecutionStatusProps)
     }
   };
 
+  const getBrowserLabel = (browser: string) => {
+    switch (browser) {
+      case "chromium":
+        return "Google Chrome";
+      case "firefox":
+        return "Firefox";
+      case "webkit":
+        return "WebKit (Safari)";
+      default:
+        return browser;
+    }
+  };
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
       {results.map((res) => (
@@ -49,7 +62,7 @@ export function BrowserExecutionStatus({ results }: BrowserExecutionStatusProps)
             <div className="flex items-center gap-2">
               <span>{getBrowserIcon(res.browser)}</span>
               <span className="text-xs font-mono font-bold uppercase tracking-wider text-slate-200">
-                {res.browser}
+                {getBrowserLabel(res.browser)}
               </span>
             </div>
             <span

@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import LocalTime from "@/components/LocalTime";
 
 export interface HistoricalJobItem {
   id: string;
@@ -122,7 +123,7 @@ export function JobHistory({
                   )}
                 </div>
                 <div className="text-[10px] text-slate-400 font-mono">
-                  {new Date(time).toLocaleString()}
+                  <LocalTime value={time} format="datetime" />
                 </div>
 
                 {job.failureAnalysis && ["failed", "timed_out", "agent_lost"].includes(job.status) && (

@@ -36,11 +36,18 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const allTests = [
+    // 1. Search in canonical Playwright tests and groups
+    const canonicalTests = [
       ...(project.tests || []),
       ...(project.testGroups?.flatMap((g) => g.tests) || []),
     ];
-    const testItem = allTests.find((t) => t.id === testId);
+    const canonicalItem = canonicalTests.find((t) => t.id === testId);
+
+    // 2. Search in coverage groups (multi-runner tests)
+    const coverageTests = project.coverageGroups?.flatMap((g) => g.tests) || [];
+    const coverageItem = coverageTests.find((t) => t.id === testId);
+
+    const testItem = canonicalItem || coverageItem;
 
     if (!testItem) {
       return NextResponse.json(
@@ -49,7 +56,10 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const content = project.sourceByPath?.[testItem.relativePath];
+    const relativePath = testItem.relativePath;
+    const runner = "runner" in testItem ? testItem.runner : "playwright";
+
+    const content = project.sourceByPath?.[relativePath];
     if (typeof content !== "string") {
       return NextResponse.json(
         { error: "Test source is not available; refresh the Agent catalog" },
@@ -60,7 +70,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       projectId,
       testId,
-      relativePath: testItem.relativePath,
+      runner,
+      relativePath,
       content,
     }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (err) {

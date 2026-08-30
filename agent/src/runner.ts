@@ -6,11 +6,18 @@ import {
   buildPlaywrightCatalogFromConfig,
   detectBrowserCapabilities,
 } from "./playwright-catalog.js";
+import { loadAutomationMap } from "./automation-map.js";
+import { discoverProjectTests } from "./project-test-discovery.js";
+import { buildNativeExecutionPlan } from "./native-runner-plan.js";
+import { runNativeExecutionGroup } from "./native-runner-executor.js";
 import {
   preparePlaywrightExecution,
   runPlaywrightExecution,
 } from "./playwright-executor.js";
-import type { AgentConfig, PlaywrightJob } from "./types.js";
+import { executeRecipeMutation } from "./recipe-mutator.js";
+import { recoverRecipeTransactions } from "./mutation-transaction.js";
+import { resolveAndAssertSafeTestTarget } from "./test-target-policy.js";
+import type { AgentConfig, PlaywrightJob, NativeGroupResult, BrowserExecutionResult } from "./types.js";
 import { AgentClient } from "./client.js";
 
 export { buildCatalogFromConfig };
@@ -96,6 +103,9 @@ export async function executeClaimedPlaywrightJob(
     await client.appendPlaywrightLogs(job.id, seqStart, entries);
   });
 
+  // Emit immediate system start line so terminal updates immediately
+  logBatcher.push("system", ["[SYSTEM] Starting test execution..."]);
+
   const abortController = new AbortController();
   let heartbeatTimer: NodeJS.Timeout | null = null;
   let heartbeatStopped = false;
@@ -119,6 +129,118 @@ export async function executeClaimedPlaywrightJob(
   scheduleHeartbeat();
 
   try {
+    const project = config.projects.find((p) => p.id === job.projectId);
+    if (!project || !project.playwright) {
+      throw new Error(`Project '${job.projectId}' does not have Playwright configured on this agent.`);
+    }
+
+    const pw = project.playwright;
+
+    // Check if project has an automation map and we can build a native multi-runner plan
+    let nativePlan: import("./native-runner-plan.js").NativeExecutionGroup[] | null = null;
+    let automationMap: import("./types.js").AutomationMap | null = null;
+
+    if (pw.automationMap) {
+      automationMap = await loadAutomationMap(pw.workspaceRoot, pw.automationMap);
+    }
+
+    // Target safety check for workspace executions using explicit job.risk metadata
+    if (job.source === "workspace" && job.code && automationMap) {
+      const risk = job.risk ?? "read-only";
+      if (risk === "mutating" && automationMap.testTarget?.allowMutating === false) {
+        throw new Error("Execution rejected: target does not allow mutating execution");
+      }
+
+      const urlMatches = job.code.match(/(?:goto\s*\(\s*["']([^"']+)["']|https?:\/\/[^\s"'`)]+)/g) || [];
+      const cleanUrls = urlMatches.map((m) => m.replace(/^goto\s*\(\s*["']/, "").replace(/["']$/, ""));
+      for (const url of cleanUrls) {
+        resolveAndAssertSafeTestTarget(
+          url,
+          automationMap.testTarget,
+          risk,
+          automationMap.productionHostDenylist || [],
+        );
+      }
+    }
+
+    if (job.source === "project-test" && pw.automationMap && job.testIds && job.testIds.length > 0) {
+      const map = automationMap || (await loadAutomationMap(pw.workspaceRoot, pw.automationMap));
+      const discovery = await discoverProjectTests(pw.workspaceRoot, map);
+      const hasNativeTests = job.testIds.some((id) => discovery.tests.some((t) => t.id === id));
+      if (hasNativeTests) {
+        nativePlan = buildNativeExecutionPlan({
+          workspaceRoot: pw.workspaceRoot,
+          map,
+          selectedTestIds: job.testIds,
+          discoveredTests: discovery.tests,
+          browsers: job.browsers,
+          mode: job.mode,
+          envAllowlist: pw.envAllowlist,
+          timeoutSeconds: pw.maxTimeoutSeconds,
+        });
+      }
+    }
+
+    if (nativePlan && nativePlan.length > 0) {
+      const runnerResults: NativeGroupResult[] = [];
+      let aggregateStatus: "passed" | "failed" | "cancelled" | "timed_out" = "passed";
+      const startedAt = new Date().toISOString();
+
+      for (const group of nativePlan) {
+        if (abortController.signal.aborted) {
+          aggregateStatus = "cancelled";
+          break;
+        }
+
+        const groupResult = await runNativeExecutionGroup(
+          group,
+          {
+            onLines: (stream, lines) => {
+              logBatcher.push(stream, lines);
+            },
+          },
+          abortController.signal,
+        );
+
+        runnerResults.push(groupResult);
+
+        if (groupResult.status !== "passed") {
+          aggregateStatus = groupResult.status;
+          break;
+        }
+      }
+
+      const finishedAt = new Date().toISOString();
+      const durationMs = new Date(finishedAt).getTime() - new Date(startedAt).getTime();
+
+      const browserResults: BrowserExecutionResult[] = job.browsers.map((b) => ({
+        browser: b,
+        status: aggregateStatus === "passed" ? "passed" : "failed",
+        passed: aggregateStatus === "passed" ? runnerResults.length : 0,
+        failed: aggregateStatus === "passed" ? 0 : 1,
+        skipped: 0,
+        durationMs,
+      }));
+
+      try {
+        await logBatcher.drain();
+      } catch (drainErr) {
+        console.error("[Monitor Local Agent] Log drain warning before completion:", drainErr);
+      }
+
+      await client.completePlaywright(job.id, {
+        status: aggregateStatus,
+        browserResults,
+        runnerResults,
+        startedAt,
+        finishedAt,
+        durationMs,
+        truncated: false,
+      });
+      return;
+    }
+
+    // Standard Playwright execution (workspace code or pure Playwright specs)
     const prepared = await preparePlaywrightExecution(config, job);
     const result = await runPlaywrightExecution(
       prepared,
@@ -131,12 +253,20 @@ export async function executeClaimedPlaywrightJob(
       abortController.signal,
     );
 
-    await logBatcher.drain();
+    try {
+      await logBatcher.drain();
+    } catch (drainErr) {
+      console.error("[Monitor Local Agent] Log drain warning before completion:", drainErr);
+    }
     await client.completePlaywright(job.id, result);
   } catch (err) {
     const nowStr = new Date().toISOString();
-    const errMsg = err instanceof Error ? err.message : "Playwright execution failed";
-    await logBatcher.drain();
+    const errMsg = err instanceof Error ? err.message : "Test execution failed";
+    try {
+      await logBatcher.drain();
+    } catch (drainErr) {
+      console.error("[Monitor Local Agent] Log drain warning during error handler:", drainErr);
+    }
     await client.completePlaywright(job.id, {
       status: "failed",
       browserResults: job.browsers.map((b) => ({
@@ -158,7 +288,12 @@ export async function executeClaimedPlaywrightJob(
   }
 }
 
+import { SingleInstanceGuard } from "./single-instance.js";
+
 export async function runAgent(config: AgentConfig): Promise<void> {
+  const guard = new SingleInstanceGuard(config.agentId);
+  guard.acquire();
+
   const client = new AgentClient(config.serverUrl, config.agentToken, config.agentId);
   const catalog = buildCatalogFromConfig(config);
   const pollIntervalMs = (config.pollIntervalSeconds ?? 5) * 1000;
@@ -166,6 +301,17 @@ export async function runAgent(config: AgentConfig): Promise<void> {
   let cachedPlaywrightCatalog: Awaited<ReturnType<typeof buildPlaywrightCatalogFromConfig>> | undefined;
   let nextCatalogRefreshAt = 0;
   let lastPublishedPlaywrightCatalogVersion: string | undefined;
+
+  // Startup crash recovery for recipe mutations across all Playwright workspaces
+  for (const project of config.projects) {
+    if (project.playwright?.workspaceRoot) {
+      try {
+        await recoverRecipeTransactions(project.playwright.workspaceRoot);
+      } catch (err) {
+        console.warn(`[Monitor Local Agent] Startup recovery warning for ${project.playwright.workspaceRoot}:`, err);
+      }
+    }
+  }
 
   console.log(`[Monitor Local Agent] Agent "${config.agentId}" started polling ${config.serverUrl}`);
 
@@ -198,6 +344,16 @@ export async function runAgent(config: AgentConfig): Promise<void> {
         if (pwJob) {
           console.log(`[Monitor Local Agent] Claimed Playwright job ${pwJob.id} (${pwJob.projectId}:${pwJob.source})`);
           await executeClaimedPlaywrightJob(config, pwJob, client);
+          continue;
+        }
+
+        // 3. Poll Recipe Mutation queue
+        const mutation = await client.pollMutation();
+        if (mutation) {
+          console.log(`[Monitor Local Agent] Claimed recipe mutation ${mutation.id} for project ${mutation.projectId}`);
+          const result = await executeRecipeMutation(config, mutation);
+          await client.completeMutation(mutation.id, mutation.leaseToken || "", result);
+          cachedPlaywrightCatalog = undefined; // invalidate cached catalog
           continue;
         }
       }

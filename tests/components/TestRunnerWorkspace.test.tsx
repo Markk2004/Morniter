@@ -66,7 +66,7 @@ describe("TestRunnerWorkspace with Playwright", () => {
     expect(screen.getByLabelText("Project")).toHaveValue("student-tracking");
 
     expect(screen.getByText(/Login Flow/i)).toBeInTheDocument();
-    expect(screen.getByLabelText("Select Chromium")).toBeChecked();
+    expect(screen.getByLabelText("Select Google Chrome")).toBeChecked();
 
     const runBtn = screen.getByRole("button", { name: /Unlock Execution Required/i });
     expect(runBtn).toBeDisabled();

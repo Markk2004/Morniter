@@ -1,8 +1,9 @@
-import type { TestProgress } from "./types";
+import type { TestProgress } from "./types.js";
 
 export interface LogBatchEntry {
   stream: "stdout" | "stderr" | "system";
   message: string;
+  browser?: string;
 }
 
 export type UploadHandler = (
@@ -16,6 +17,12 @@ const MAX_BATCH_BYTES = 32 * 1024; // 32 KiB
 const MAX_PENDING_BYTES = 512 * 1024; // 512 KiB
 const FLUSH_INTERVAL_MS = 250;
 
+export interface LogBatcherOptions {
+  maxRetries?: number;
+  retryDelays?: number[];
+  flushIntervalMs?: number;
+}
+
 export class LogBatcher {
   private queue: LogBatchEntry[] = [];
   private currentSequence = 0;
@@ -25,10 +32,25 @@ export class LogBatcher {
   private isFlushing = false;
   private flushPromise: Promise<void> | null = null;
   private latestProgress?: TestProgress;
+  private maxRetries: number;
+  private retryDelays: number[];
+  private flushIntervalMs: number;
 
-  constructor(private uploadHandler: UploadHandler) {}
+  constructor(
+    private uploadHandler: UploadHandler,
+    options?: LogBatcherOptions,
+  ) {
+    this.maxRetries = options?.maxRetries ?? 5;
+    this.retryDelays = options?.retryDelays ?? [250, 500, 1000, 2000, 4000];
+    this.flushIntervalMs = options?.flushIntervalMs ?? FLUSH_INTERVAL_MS;
+  }
 
-  push(stream: "stdout" | "stderr" | "system", lines: string[], progress?: TestProgress): void {
+  push(
+    stream: "stdout" | "stderr" | "system",
+    lines: string[],
+    progress?: TestProgress,
+    browser?: string,
+  ): void {
     if (progress) {
       this.latestProgress = progress;
     }
@@ -49,7 +71,7 @@ export class LogBatcher {
         break;
       }
 
-      this.queue.push({ stream, message: line });
+      this.queue.push({ stream, message: line, browser });
       this.currentPendingBytes += lineBytes;
     }
 
@@ -64,12 +86,22 @@ export class LogBatcher {
     return this.currentPendingBytes;
   }
 
+  pendingCount(): number {
+    return this.queue.length;
+  }
+
+  getSequence(): number {
+    return this.currentSequence;
+  }
+
   private scheduleFlush() {
     if (this.timer || this.queue.length === 0) return;
     this.timer = setTimeout(() => {
       this.timer = null;
-      void this.flush();
-    }, FLUSH_INTERVAL_MS);
+      void this.flush().catch(() => {
+        // Background timer errors will be retried on next flush or caught by drain()
+      });
+    }, this.flushIntervalMs);
   }
 
   async flush(): Promise<void> {
@@ -93,25 +125,50 @@ export class LogBatcher {
           const batchEntries: LogBatchEntry[] = [];
           let batchBytes = 0;
 
-          while (this.queue.length > 0 && batchEntries.length < MAX_BATCH_LINES) {
-            const next = this.queue[0];
-            const nextBytes = Buffer.byteLength(next.message, "utf-8");
-
+          for (const item of this.queue) {
+            const nextBytes = Buffer.byteLength(item.message, "utf-8");
             if (batchEntries.length > 0 && batchBytes + nextBytes > MAX_BATCH_BYTES) {
               break;
             }
-
-            const item = this.queue.shift()!;
             batchEntries.push(item);
             batchBytes += nextBytes;
-            this.currentPendingBytes = Math.max(0, this.currentPendingBytes - nextBytes);
+            if (batchEntries.length >= MAX_BATCH_LINES) {
+              break;
+            }
           }
 
-          if (batchEntries.length > 0) {
-            const seqStart = this.currentSequence;
-            this.currentSequence += batchEntries.length;
-            await this.uploadHandler(seqStart, batchEntries, this.latestProgress);
+          if (batchEntries.length === 0) break;
+
+          const seqStart = this.currentSequence;
+          let succeeded = false;
+          let lastErr: unknown = null;
+
+          for (let attempt = 0; attempt < this.maxRetries; attempt++) {
+            try {
+              await this.uploadHandler(seqStart, batchEntries, this.latestProgress);
+              succeeded = true;
+              break;
+            } catch (err) {
+              lastErr = err;
+              const errMsg = err instanceof Error ? err.message : String(err);
+              if (errMsg.includes("401") || errMsg.includes("unauthorized") || errMsg.includes("403")) {
+                break;
+              }
+              const delay = this.retryDelays[attempt] ?? 4000;
+              if (attempt < this.maxRetries - 1) {
+                await new Promise((r) => setTimeout(r, delay));
+              }
+            }
           }
+
+          if (!succeeded) {
+            throw lastErr || new Error("Log batch upload failed after retries");
+          }
+
+          // Acknowledged upload: remove batch from queue and advance sequence
+          this.queue.splice(0, batchEntries.length);
+          this.currentSequence += batchEntries.length;
+          this.currentPendingBytes = Math.max(0, this.currentPendingBytes - batchBytes);
         }
       } finally {
         this.isFlushing = false;
@@ -123,10 +180,10 @@ export class LogBatcher {
   }
 
   async drain(): Promise<void> {
-    await this.flush();
-    while (this.queue.length > 0 || this.isFlushing) {
-      await this.flush();
-      await new Promise((r) => setTimeout(r, 50));
+    if (this.timer) {
+      clearTimeout(this.timer);
+      this.timer = null;
     }
+    await this.flush();
   }
 }

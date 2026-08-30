@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { LogBatcher } from "../../../agent/src/log-batcher";
 
 describe("LogBatcher", () => {
@@ -14,6 +14,8 @@ describe("LogBatcher", () => {
     expect(uploads).toHaveLength(2);
     expect(uploads[0]).toHaveLength(100);
     expect(uploads[1]).toHaveLength(100);
+    expect(batcher.getSequence()).toBe(200);
+    expect(batcher.pendingCount()).toBe(0);
   });
 
   it("truncates at 512 KiB pending memory limit", async () => {
@@ -24,5 +26,56 @@ describe("LogBatcher", () => {
     batcher.push("stdout", Array.from({ length: 600 }, () => hugeLine));
 
     expect(batcher.isTruncated()).toBe(true);
+  });
+
+  it("retains pending batch and sequence across transient failures, then succeeds", async () => {
+    let callCount = 0;
+    const uploadedSeqs: number[] = [];
+    const uploadedMsgs: string[][] = [];
+
+    const mockUpload = vi.fn(async (seqStart: number, entries: Array<{ message: string }>) => {
+      callCount++;
+      if (callCount < 3) {
+        throw new Error("HTTP 500 transient upstream error");
+      }
+      uploadedSeqs.push(seqStart);
+      uploadedMsgs.push(entries.map((e) => e.message));
+    });
+
+    const batcher = new LogBatcher(mockUpload, {
+      maxRetries: 4,
+      retryDelays: [10, 10, 10, 10], // Fast delays for tests
+    });
+
+    batcher.push("stdout", ["line-A", "line-B"]);
+    await batcher.drain();
+
+    expect(callCount).toBe(3);
+    expect(uploadedSeqs).toEqual([0]);
+    expect(uploadedMsgs).toEqual([["line-A", "line-B"]]);
+    expect(batcher.getSequence()).toBe(2);
+    expect(batcher.pendingCount()).toBe(0);
+  });
+
+  it("throws and retains pending logs when max retries are exhausted", async () => {
+    let callCount = 0;
+    const mockUpload = vi.fn(async () => {
+      callCount++;
+      throw new Error("HTTP 503 Service Unavailable");
+    });
+
+    const batcher = new LogBatcher(mockUpload, {
+      maxRetries: 3,
+      retryDelays: [5, 5, 5],
+    });
+
+    batcher.push("stdout", ["important-log-1", "important-log-2"]);
+
+    await expect(batcher.drain()).rejects.toThrow("HTTP 503 Service Unavailable");
+
+    // Queue must retain the unacknowledged logs
+    expect(callCount).toBe(3);
+    expect(batcher.pendingCount()).toBe(2);
+    expect(batcher.getSequence()).toBe(0);
   });
 });

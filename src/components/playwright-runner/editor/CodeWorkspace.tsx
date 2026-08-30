@@ -7,6 +7,7 @@ interface CodeWorkspaceProps {
   onChange: (code: string) => void;
   dirty?: boolean;
   onReset?: () => void;
+  onCreateDraft?: () => void;
   disabled?: boolean;
 }
 
@@ -53,6 +54,7 @@ export function CodeWorkspace({
   onChange,
   dirty = false,
   onReset,
+  onCreateDraft,
   disabled = false,
 }: CodeWorkspaceProps) {
   const lineCount = code ? code.split("\n").length : 1;
@@ -113,6 +115,18 @@ export function CodeWorkspace({
               </option>
             ))}
           </select>
+
+          {onCreateDraft && (
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={onCreateDraft}
+              className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-mono text-indigo-300 bg-indigo-950/40 border border-indigo-500/30 hover:bg-indigo-900/50 hover:text-white rounded transition-colors cursor-pointer"
+            >
+              <span>✨</span>
+              <span>Create Draft</span>
+            </button>
+          )}
 
           {onReset && dirty && (
             <button

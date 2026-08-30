@@ -1,3 +1,4 @@
+import LocalTime from "@/components/LocalTime";
 import type { RedisStatusResponse } from "@/lib/test-runner/redis-status";
 
 interface RedisStatusPanelProps {
@@ -16,11 +17,6 @@ function formatBytes(value: number | null): string {
   if (value < 1024) return `${value} B`;
   if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
   return `${(value / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function formatCheckedAt(value: string): string {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? "Unavailable" : date.toLocaleTimeString();
 }
 
 export function RedisStatusPanel({ data, isLoading }: RedisStatusPanelProps) {
@@ -74,7 +70,9 @@ export function RedisStatusPanel({ data, isLoading }: RedisStatusPanelProps) {
               </div>
               <div className="shrink-0 sm:text-right">
                 <p>Keys: {data?.metrics.totalKeys?.toLocaleString() ?? "Unavailable"}</p>
-                <p className="mt-1">Checked: {data ? formatCheckedAt(data.checkedAt) : "Unavailable"}</p>
+                <p className="mt-1">
+                  Checked: {data ? <LocalTime value={data.checkedAt} /> : "Unavailable"}
+                </p>
               </div>
             </div>
 

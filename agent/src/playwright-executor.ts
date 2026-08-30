@@ -85,6 +85,7 @@ export async function preparePlaywrightExecution(
   const testRoot = pw.testRoot || "e2e";
   const testRootPath = resolveInsideRoot(workspaceRoot, testRoot);
   const configPath = pw.config ? resolveInsideRoot(workspaceRoot, pw.config) : undefined;
+  const executionCwd = configPath ? path.dirname(configPath) : workspaceRoot;
   let specPaths: string[] = [];
   let cleanup = async () => {};
 
@@ -152,7 +153,7 @@ export async function preparePlaywrightExecution(
   return {
     command: executable,
     args,
-    cwd: workspaceRoot,
+    cwd: executionCwd,
     env: safeEnv,
     timeoutSeconds,
     cleanup,

@@ -7,6 +7,7 @@ import {
   generateTestId,
   detectBrowserCapabilities,
   scanPlaywrightProject,
+  buildPlaywrightCatalogFromConfig,
 } from "../../../agent/src/playwright-catalog";
 import {
   buildSafeTestEnv,
@@ -55,6 +56,53 @@ describe("Local Agent Playwright Runner", () => {
     expect(result.sourceByPath[result.tests[0].relativePath]).toContain("@playwright/test");
     expect(result.scanPathLabel).toBe(`${path.basename(root)}/e2e`);
 
+    await fs.rm(root, { recursive: true, force: true });
+  });
+
+  it("publishes canonical Playwright IDs for coverage rows", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "agent-playwright-coverage-"));
+    await fs.mkdir(path.join(root, "e2e", "auth"), { recursive: true });
+    await fs.writeFile(
+      path.join(root, "e2e", "auth", "login.spec.ts"),
+      'import { test } from "@playwright/test";\ntest("login page", async () => {});',
+    );
+    await fs.writeFile(
+      path.join(root, "map.json"),
+      JSON.stringify({
+        version: 1,
+        projectId: "example",
+        scanRoots: [{ path: "e2e", runner: "playwright", executable: true }],
+        excludeDirectories: [],
+        generatedRoot: "e2e/generated",
+        functions: [{ id: "auth", name: "Authentication", keywords: ["login"] }],
+        explicitMappings: [{ path: "e2e/auth/login.spec.ts", functionId: "auth" }],
+        coverageTargets: [],
+        recipes: [],
+      }),
+    );
+
+    const config: AgentConfig = {
+      agentId: "agent-coverage",
+      serverUrl: "http://localhost:3000",
+      agentToken: "token-1234567890123456",
+      projects: [{
+        id: "example",
+        name: "Example",
+        playwright: {
+          workspaceRoot: root,
+          testRoot: "e2e",
+          automationMap: "map.json",
+        },
+      }],
+    };
+
+    const catalog = await buildPlaywrightCatalogFromConfig(config);
+    const project = catalog.projects[0];
+    const canonicalId = project.tests?.[0]?.id;
+    const coverageId = project.coverageGroups?.[0]?.tests[0]?.id;
+
+    expect(canonicalId).toBeDefined();
+    expect(coverageId).toBe(canonicalId);
     await fs.rm(root, { recursive: true, force: true });
   });
 
