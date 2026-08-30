@@ -64,7 +64,7 @@ export interface PlaywrightJobRequest {
   testIds?: string[];
   code?: string;
   browsers: BrowserName[];
-  mode: BrowserMode;
+  mode: RunMode;
 }
 
 /**
@@ -129,7 +129,7 @@ export interface PlaywrightJob {
   testIds?: string[];
   code?: string;
   browsers: BrowserName[];
-  mode: BrowserMode;
+  mode: RunMode;
   status: PlaywrightJobStatus;
   browserResults: BrowserExecutionResult[];
   artifacts?: TestArtifact[];
