@@ -3,7 +3,37 @@ import path from "node:path";
 import { BrowserNameSchema } from "./schemas";
 
 /**
- * ⚠️ REVISED against real evidence — agent/src/types.ts (pasted directly
+ * ⚠️ CONFIRMED SUPERSEDED — real agent/src/playwright-executor.ts
+ * (preparePlaywrightExecution) does its OWN inline validation directly
+ * against the AgentConfig object, using resolveInsideRoot/
+ * scanPlaywrightTests from playwright-catalog.js for path handling and
+ * a much simpler buildSafeTestEnv function for env — it does not call
+ * anything from a module shaped like this one. This file is not wired
+ * into anything real and, based on the inline logic seen, likely never
+ * will be in its current form. Kept only as a corrected reference for
+ * the CONFIG SHAPE (which does match AgentPlaywrightProjectConfig
+ * exactly) and its two default-value bugs are now fixed below, but
+ * don't expect this module itself to be imported by real code.
+ *
+ * Also confirmed NOT enforced anywhere in the real execution path:
+ * `allowedBaseUrls` is a real field on the type, but
+ * preparePlaywrightExecution never reads or checks it. Either it's
+ * enforced somewhere else not yet seen, or it's a not-yet-implemented
+ * field. assertBaseUrlAllowed below remains speculative.
+ *
+ * Also confirmed: the real env blocklist (BLOCKED_ENV_KEYS in
+ * playwright-executor.ts) is much narrower than this file's — just 5
+ * exact names (TEST_RUNNER_AGENT_TOKEN, UPSTASH_REDIS_REST_TOKEN,
+ * SESSION_SIGNING_SECRET, GROUP_ACCESS_PASSWORD_HASH,
+ * TEST_RUNNER_PASSWORD_HASH), no pattern-based matching at all — this
+ * file's broader ENV_NAME_DENY_PATTERNS is stricter than real behavior,
+ * not identical to it. And the real default timeout fallback is
+ * `pw.maxTimeoutSeconds || 600` (600s) — this schema leaves
+ * maxTimeoutSeconds without a hardcoded default since the fallback is
+ * applied in executor code, not the config schema itself in the real
+ * system either.
+ *
+ * REVISED against real evidence — agent/src/types.ts (pasted directly
  * from the real repo) exports `AgentPlaywrightProjectConfig`, and its
  * shape is meaningfully different from this file's earlier version:
  *
@@ -187,35 +217,53 @@ export function buildAllowedEnv(
  * genuinely could go either way and false is the safer default absent
  * evidence of the real fallback).
  */
+/**
+ * CONFIRMED against real agent/src/playwright-executor.ts
+ * (preparePlaywrightExecution). The earlier version of this function
+ * had BOTH defaults backwards — a genuine correctness bug, not just a
+ * location/naming mismatch like catalog.ts/command-builder.ts:
+ *
+ *   Real: `const allowedBrowsers = pw.allowedBrowsers || ["chromium"];`
+ *     — omitted allowedBrowsers defaults to CHROMIUM ONLY, not
+ *     "unrestricted" as this function previously assumed.
+ *   Real: `if (job.mode === "headed" && pw.allowHeaded === false)`
+ *     — headed mode is ALLOWED unless allowHeaded is explicitly false.
+ *     Omitted/undefined allowHeaded means headed IS allowed — the
+ *     opposite of this function's earlier fail-closed default.
+ *
+ * If this function is ever actually used, it must fail the same way
+ * the real code does, not a safer-seeming but factually wrong default.
+ */
 export function assertBrowserModeAllowed(
   config: PlaywrightProjectSecurityConfig,
   browsers: readonly string[],
   mode: "headless" | "headed",
 ): void {
-  if (config.allowedBrowsers) {
-    const disallowed = browsers.filter(
-      (browser) => !config.allowedBrowsers!.includes(browser as never),
+  const allowedBrowsers = config.allowedBrowsers ?? ["chromium"];
+  const disallowed = browsers.filter(
+    (browser) => !allowedBrowsers.includes(browser as never),
+  );
+  if (disallowed.length > 0) {
+    throw new Error(
+      `browser(s) not allowed for this project: ${disallowed.join(", ")}`,
     );
-    if (disallowed.length > 0) {
-      throw new Error(
-        `browser(s) not allowed for this project: ${disallowed.join(", ")}`,
-      );
-    }
   }
-  if (mode === "headed" && !(config.allowHeaded ?? false)) {
+  if (mode === "headed" && config.allowHeaded === false) {
     throw new Error("headed mode is not allowed for this project");
   }
 }
 
 /**
- * Reject a "workspace" (ad-hoc code) job outright if the project doesn't
- * explicitly allow it. Fail-closed default (false) for the same reason
- * as assertBrowserModeAllowed's boolean gates above.
+ * CONFIRMED against real agent/src/playwright-executor.ts: `if
+ * (pw.allowWorkspaceExecution === false) throw ...` — same fail-open
+ * pattern as allowHeaded above. Omitted means ALLOWED, only an explicit
+ * `false` blocks it. Previous version of this function had this
+ * backwards too.
  */
 export function assertWorkspaceExecutionAllowed(
   config: PlaywrightProjectSecurityConfig,
 ): void {
-  if (!(config.allowWorkspaceExecution ?? false)) {
+  if (config.allowWorkspaceExecution === false) {
     throw new Error(
       "workspace (ad-hoc code) execution is not allowed for this project",
     );

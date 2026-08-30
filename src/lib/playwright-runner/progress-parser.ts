@@ -1,20 +1,16 @@
 /**
- * ⚠️ USAGE UNCONFIRMED FOR PLAYWRIGHT JOBS — real agent/src/runner.ts's
- * Playwright execution path (executeClaimedPlaywrightJob) does NOT call
- * anything progress-parser-shaped: it just batches raw log lines
- * straight through LogBatcher with no createProgressParser/consume()
- * step. That pattern IS used, but only on the LEGACY preset-job path
- * (executeClaimedJob calls createProgressParser from "./progress/index.js"
- * — a different, not-yet-seen module). So either:
- *   (a) Playwright jobs genuinely don't do live line-by-line progress
- *       parsing the way legacy preset jobs do (browserResults updates
- *       might be the only progress signal, sent via heartbeat instead), or
- *   (b) something like this file's logic lives inside
- *       playwright-executor.ts instead, one layer down from where
- *       runner.ts would call it.
- * Either way, this file has NOT been confirmed as wired into anything
- * real yet — unlike job-store-logic.ts's fate, this isn't proven
- * superseded either, just unconfirmed.
+ * ⚠️ CONFIRMED NOT USED for Playwright jobs in the real agent. Real
+ * agent/src/playwright-executor.ts's runPlaywrightExecution does its own
+ * pass/fail counting with dead-simple per-line substring matching —
+ * every stdout/stderr line is checked for "passed" or a checkmark
+ * character to increment ALL browsers' passed count, and "failed" / an
+ * X character / "Error:" to increment ALL browsers' failed count. No
+ * "[i/N]" step parsing, no summary-line parsing, nothing resembling this
+ * file's structured PlaywrightRunProgress state machine. This file's
+ * earlier "usage unconfirmed" flag is now upgraded to "confirmed
+ * unused, at least in this code path" — the real code doesn't need or
+ * want the precision this file provides; it takes a much cruder
+ * approach and moves on.
  *
  * Playwright live-run progress parser.
  *
