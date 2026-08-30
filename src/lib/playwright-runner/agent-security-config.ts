@@ -2,59 +2,82 @@ import { z } from "zod";
 import path from "node:path";
 import { BrowserNameSchema } from "./schemas";
 
-// DUPLICATION NOTE: same as schemas.ts — the legacy ID_REGEX's file path
-// hasn't been located yet, so this is redeclared locally rather than left
-// on a guessed import. Consolidate once found (see schemas.ts for the
-// grep command to locate it).
+/**
+ * ⚠️ REVISED against real evidence — agent/src/types.ts (pasted directly
+ * from the real repo) exports `AgentPlaywrightProjectConfig`, and its
+ * shape is meaningfully different from this file's earlier version:
+ *
+ *   export interface AgentPlaywrightProjectConfig {
+ *     enabled?: boolean;
+ *     workspaceRoot: string;
+ *     testRoot?: string;
+ *     config?: string;
+ *     allowedBrowsers?: ("chromium" | "firefox" | "webkit")[];
+ *     allowHeaded?: boolean;
+ *     allowWorkspaceExecution?: boolean;
+ *     maxTimeoutSeconds?: number;
+ *     envAllowlist?: string[];
+ *     allowedBaseUrls?: string[];
+ *   }
+ *
+ * Concretely, versus the earlier version of this file:
+ *   - field is `workspaceRoot` + separate optional `testRoot`, NOT a
+ *     single combined `testDir` — this actually matches this file's
+ *     very first draft (before it got collapsed into `testDir` in a
+ *     later revision), so the original instinct was closer to right.
+ *   - `allowedBrowsers` is OPTIONAL here, not required/min(1) — a
+ *     project with it omitted presumably falls back to some agent-wide
+ *     default, not "no browsers allowed".
+ *   - THREE fields this file never had at all:
+ *       `enabled?` — lets a project opt out of Playwright entirely
+ *       `config?` — path to a project-specific playwright.config.ts
+ *       `allowWorkspaceExecution?` — gates whether "workspace" (ad-hoc
+ *         code) jobs are permitted for this project at all, separate
+ *         from allowHeaded
+ *       `allowedBaseUrls?` — a real security control this file
+ *         completely missed: restricts what URLs ad-hoc workspace code
+ *         may navigate to. Exact enforcement point is NOT evidenced by
+ *         agent/src/types.ts alone (it's only a type, not the code that
+ *         reads it) — see assertBaseUrlAllowed's comment below for the
+ *         reasonable-but-unconfirmed interpretation used here.
+ *
+ * Where this actually integrates: agent/src/ (a real, separate
+ * compilation unit from src/lib/playwright-runner/ — confirmed by
+ * multiple pieces of evidence throughout this conversation, e.g. the
+ * duplicated ID_REGEX). This file is NOT wired into that real code; it's
+ * a corrected reference implementation matching the confirmed type,
+ * pending the actual config-loading/validation code from agent/src/
+ * (e.g. wherever AgentConfigSchema or equivalent lives on the agent
+ * side) being shared.
+ */
+
 const ID_REGEX = /^[a-z0-9][a-z0-9-]{0,63}$/;
 
-/**
- * Agent-side security config for Playwright jobs (Tasks 0.3 / 0.4).
- *
- * INTEGRATION NOTE: this is a new, self-contained module. It has not yet
- * been wired into the existing agent config loader for
- * test-runner.config.local.json (that file wasn't available at the time
- * this was written). Once that loader is shared, the intent is:
- *   - add an optional `playwright` section per project entry validated by
- *     `PlaywrightProjectSecurityConfigSchema` below
- *   - call `resolveTestFilePath` / `buildAllowedEnv` from wherever the
- *     agent currently resolves a preset's cwd/env before spawning, using
- *     the SAME cross-spawn + taskkill.exe process adapter already in use
- *     for preset jobs (Task 1.6) — this module does not spawn anything
- *     itself, it only validates and resolves inputs.
- *
- * Everything here is local-config-only: none of these fields are ever
- * accepted from the browser (see schemas.ts / PlaywrightJobRequestSchema,
- * which only carries projectId + testIds|code + browsers + mode).
- */
-
-// --- Task 0.3: per-project security config -------------------------------
-
-/**
- * Env var names must look like env var names — this is a syntactic check,
- * not a secrecy check. The actual secrecy filtering happens in
- * buildAllowedEnv via ENV_NAME_DENY_PATTERNS below.
- */
 const ENV_VAR_NAME_PATTERN = /^[A-Z_][A-Z0-9_]*$/;
-
 const EnvVarNameSchema = z.string().regex(ENV_VAR_NAME_PATTERN, {
   message: "env var names must be UPPER_SNAKE_CASE",
 });
 
+/**
+ * Matches AgentPlaywrightProjectConfig from agent/src/types.ts field for
+ * field. `projectId` is NOT part of that real interface (it's implied by
+ * nesting under a project entry, same as job-store's real
+ * AgentProjectConfig.playwright) — added here only as an explicit param
+ * to the functions below rather than a schema field, so this module's
+ * functions don't need the caller to thread project id separately.
+ */
 export const PlaywrightProjectSecurityConfigSchema = z
   .object({
-    projectId: z.string().regex(ID_REGEX),
-    // Absolute path on the agent machine. Comes from local config only —
-    // never derived from client input.
+    enabled: z.boolean().optional(),
     workspaceRoot: z.string().min(1),
-    // Path relative to workspaceRoot that project-test jobs may read from.
-    // Defaults to "e2e" to match the existing playwright.config.ts testDir.
-    testRoot: z.string().min(1).default("e2e"),
-    allowedBrowsers: z.array(BrowserNameSchema).min(1),
-    allowHeaded: z.boolean().default(false),
-    maxTimeoutSeconds: z.number().int().min(1).max(1800).default(300),
-    // Task 0.4 — see below.
-    envAllowlist: z.array(EnvVarNameSchema).default([]),
+    testRoot: z.string().optional(),
+    config: z.string().optional(),
+    allowedBrowsers: z.array(BrowserNameSchema).optional(),
+    allowHeaded: z.boolean().optional(),
+    allowWorkspaceExecution: z.boolean().optional(),
+    maxTimeoutSeconds: z.number().int().min(1).max(1800).optional(),
+    envAllowlist: z.array(EnvVarNameSchema).optional(),
+    allowedBaseUrls: z.array(z.string().url()).optional(),
   })
   .strict();
 
@@ -62,18 +85,14 @@ export type PlaywrightProjectSecurityConfig = z.infer<
   typeof PlaywrightProjectSecurityConfigSchema
 >;
 
+const DEFAULT_TEST_ROOT = "e2e";
+const DEFAULT_MAX_TIMEOUT_SECONDS = 300;
+
 /**
  * Resolve a client-supplied relative test path against the project's
- * configured test root, and verify the result cannot escape it.
- *
- * Rejects:
- *   - absolute paths (POSIX or Windows-style, e.g. "/etc/passwd", "C:\\...")
- *   - traversal via "..", including after normalization
- *     (e.g. "foo/../../secret.spec.ts")
- *   - null bytes
- *
- * Returns the resolved absolute path, or throws with a message safe to
- * surface to the caller (it never echoes the configured workspaceRoot).
+ * configured workspaceRoot + testRoot (testRoot defaults to "e2e" to
+ * match the existing playwright.config.ts testDir, same default as
+ * before), and verify the result cannot escape it.
  */
 export function resolveTestFilePath(
   config: PlaywrightProjectSecurityConfig,
@@ -86,7 +105,10 @@ export function resolveTestFilePath(
     throw new Error("test path must be relative");
   }
 
-  const testRootAbs = path.resolve(config.workspaceRoot, config.testRoot);
+  const testRootAbs = path.resolve(
+    config.workspaceRoot,
+    config.testRoot ?? DEFAULT_TEST_ROOT,
+  );
   const resolved = path.resolve(testRootAbs, relativePath);
 
   const relationToRoot = path.relative(testRootAbs, resolved);
@@ -100,32 +122,6 @@ export function resolveTestFilePath(
   return resolved;
 }
 
-// --- Task 0.4: environment allowlisting -----------------------------------
-
-/**
- * Defense in depth against operator misconfiguration of envAllowlist.
- *
- * This is deliberately NOT a blunt substring match on words like
- * "PASSWORD" or "TOKEN" — this project's own UAT presets legitimately
- * use STS_UAT_PASSWORD (see README.md), so a generic "*PASSWORD*" block
- * would break a real, intended use case rather than catch a real threat.
- *
- * Instead this targets two things specifically:
- *   1. The exact names of known system/infra secrets already documented
- *      in this repo's README.md / CLAUDE.md (session signing secret,
- *      group + execution password hashes, agent bearer token, Redis
- *      REST credentials) — these must never reach a spawned test
- *      process under any project's envAllowlist.
- *   2. Generic infra-secret *shapes* that should never legitimately be
- *      a per-project test fixture credential, e.g. a signing secret, a
- *      bcrypt hash, a database connection string, a cloud provider API
- *      key, or anything explicitly named as a private key / credential.
- *
- * A project-specific test credential like STS_UAT_PASSWORD or a future
- * STS_UAT_TOKEN is intentionally NOT caught here — those are gated by
- * requiring explicit per-project envAllowlist entry instead, which is a
- * deliberate operator decision rather than an accidental leak.
- */
 const KNOWN_SYSTEM_SECRET_NAMES = new Set([
   "GROUP_ACCESS_PASSWORD_HASH",
   "SESSION_SIGNING_SECRET",
@@ -157,14 +153,9 @@ function isDeniedEnvName(name: string): boolean {
 }
 
 /**
- * Build the environment object to pass to a spawned Playwright process:
- * only names in the project's envAllowlist, intersected with what's
- * actually present in the agent process's own environment, minus anything
- * matching the deny patterns above — plus a minimal safe baseline
- * (PATH-equivalent) so the spawned process can actually run.
- *
- * This never returns process.env directly, and never includes a variable
- * whose name was not explicitly allowlisted by local config.
+ * Build the environment object to pass to a spawned Playwright process.
+ * envAllowlist is now optional (matching the real type) — treated as
+ * "no extra env vars allowed" when omitted, same as an empty array.
  */
 export function buildAllowedEnv(
   config: PlaywrightProjectSecurityConfig,
@@ -172,8 +163,7 @@ export function buildAllowedEnv(
   baseline: string[] = ["PATH", "PATHEXT", "SystemRoot", "TEMP", "TMP"],
 ): Record<string, string> {
   const result: Record<string, string> = {};
-
-  const allowedNames = new Set([...baseline, ...config.envAllowlist]);
+  const allowedNames = new Set([...baseline, ...(config.envAllowlist ?? [])]);
 
   for (const name of allowedNames) {
     if (isDeniedEnvName(name)) {
@@ -189,24 +179,98 @@ export function buildAllowedEnv(
 }
 
 /**
- * Validate a requested browser/mode pair against a project's security
- * config before a job is dispatched to this agent. Throws a message safe
- * to surface to the client.
+ * Validate a requested browser/mode pair. allowedBrowsers being optional
+ * now means "no restriction beyond the agent's own capabilities" when
+ * omitted — NOT "nothing allowed" (that would make the field's
+ * optionality pointless). allowHeaded/allowWorkspaceExecution default to
+ * false when omitted (fail-closed for the two boolean gates, since those
+ * genuinely could go either way and false is the safer default absent
+ * evidence of the real fallback).
  */
 export function assertBrowserModeAllowed(
   config: PlaywrightProjectSecurityConfig,
   browsers: readonly string[],
   mode: "headless" | "headed",
 ): void {
-  const disallowed = browsers.filter(
-    (browser) => !config.allowedBrowsers.includes(browser as never),
-  );
-  if (disallowed.length > 0) {
+  if (config.allowedBrowsers) {
+    const disallowed = browsers.filter(
+      (browser) => !config.allowedBrowsers!.includes(browser as never),
+    );
+    if (disallowed.length > 0) {
+      throw new Error(
+        `browser(s) not allowed for this project: ${disallowed.join(", ")}`,
+      );
+    }
+  }
+  if (mode === "headed" && !(config.allowHeaded ?? false)) {
+    throw new Error("headed mode is not allowed for this project");
+  }
+}
+
+/**
+ * Reject a "workspace" (ad-hoc code) job outright if the project doesn't
+ * explicitly allow it. Fail-closed default (false) for the same reason
+ * as assertBrowserModeAllowed's boolean gates above.
+ */
+export function assertWorkspaceExecutionAllowed(
+  config: PlaywrightProjectSecurityConfig,
+): void {
+  if (!(config.allowWorkspaceExecution ?? false)) {
     throw new Error(
-      `browser(s) not allowed for this project: ${disallowed.join(", ")}`,
+      "workspace (ad-hoc code) execution is not allowed for this project",
     );
   }
-  if (mode === "headed" && !config.allowHeaded) {
-    throw new Error("headed mode is not allowed for this project");
+}
+
+/**
+ * Check a target base URL against the project's allowedBaseUrls.
+ *
+ * UNCONFIRMED ENFORCEMENT POINT: agent/src/types.ts only proves this
+ * FIELD exists on the config, not how/where it's actually checked. The
+ * most plausible use (given "workspace" jobs run arbitrary test author
+ * code that could navigate anywhere) is validating an intended baseURL
+ * — supplied alongside the job, or extracted from the workspace code's
+ * own playwright.config.ts equivalent / BASE_URL usage — against this
+ * allowlist before the job runs. That extraction step is NOT built here
+ * (it would require parsing the submitted code, which is a much bigger
+ * task than this function). This only does the allowlist COMPARISON
+ * once a candidate URL is known by some other means; wiring in the
+ * actual "how do we know what URL the code will hit" logic is still
+ * open. Matches by origin (scheme + host + port), not exact string
+ * equality, since e.g. "https://example.com" should reasonably allow
+ * "https://example.com/login".
+ */
+export function assertBaseUrlAllowed(
+  config: PlaywrightProjectSecurityConfig,
+  targetUrl: string,
+): void {
+  if (!config.allowedBaseUrls || config.allowedBaseUrls.length === 0) {
+    // No restriction configured. Whether an EMPTY/omitted list should
+    // instead mean "nothing allowed" (fail-closed) rather than "no
+    // restriction" is itself unconfirmed — flagged rather than guessed
+    // silently either way.
+    return;
+  }
+
+  let target: URL;
+  try {
+    target = new URL(targetUrl);
+  } catch {
+    throw new Error("target URL is invalid");
+  }
+
+  const allowed = config.allowedBaseUrls.some((allowedUrl) => {
+    try {
+      const allowedOrigin = new URL(allowedUrl).origin;
+      return target.origin === allowedOrigin;
+    } catch {
+      return false;
+    }
+  });
+
+  if (!allowed) {
+    throw new Error(
+      `target URL is not in the project's allowedBaseUrls: ${target.origin}`,
+    );
   }
 }
