@@ -288,10 +288,15 @@ export const AppendPlaywrightLogBatchSchema = z
  * MEDIUM CONFIDENCE — inferred from heartbeatPlaywrightJob's real
  * parameter types (browserResults? is the only body-derived data it
  * takes; jobId/agentId come from the URL param + auth, not the body).
- * Not directly evidenced by a compiler error.
+ * `observedAt` CONFIRMED required by a real compiler error: the route
+ * passes `new Date(parseResult.data.observedAt)` directly as the `now`
+ * argument with no fallback/optional-chaining, and originally this
+ * schema omitted the field entirely — a genuine miss, not a confidence
+ * judgment call like the rest of this schema.
  */
 export const PlaywrightHeartbeatSchema = z
   .object({
+    observedAt: z.string().datetime(),
     browserResults: z.array(BrowserExecutionResultSchema).optional(),
   })
   .strict();
