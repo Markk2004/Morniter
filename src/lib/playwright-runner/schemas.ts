@@ -86,6 +86,14 @@ const BaseJobFields = {
   projectId: ProjectIdSchema,
   browsers: BrowsersSchema,
   mode: BrowserModeSchema,
+  // CONFIRMED by a real compiler error on jobs/route.ts: the route reads
+  // `parseResult.data.agentId || "windows-local-agent-1"` — this field
+  // was entirely missing from the original schema, a genuine miss (this
+  // schema was never touched/challenged until this error, unlike the
+  // agent-side ones which I'd already flagged as lower-confidence).
+  // Optional, letting a client target a specific agent; not a violation
+  // of the "no command/cwd/env/path" contract — it's routing metadata.
+  agentId: z.string().min(1).max(128).optional(),
 };
 
 // source: "project-test" — requires testIds, forbids code.
