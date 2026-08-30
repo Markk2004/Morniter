@@ -17,7 +17,10 @@ import path from "node:path";
  */
 
 export type BrowserName = "chromium" | "firefox" | "webkit";
-export type BrowserMode = "headless" | "headed";
+// Named RunMode (not BrowserMode) to match the confirmed real name from
+// types.ts — a real Next.js typecheck error on BrowserSelector.tsx
+// proved the project-wide name is RunMode.
+export type RunMode = "headless" | "headed";
 
 // Duplicated from config.ts's resolveExecutable rather than imported —
 // same cross-compilation-unit reasoning as ID_REGEX (see prior discussion).
@@ -49,7 +52,7 @@ export interface BuildPlaywrightArgsInput {
    */
   testFilePaths: string[];
   browsers: BrowserName[];
-  mode: BrowserMode;
+  mode: RunMode;
   timeoutSeconds: number;
 }
 
