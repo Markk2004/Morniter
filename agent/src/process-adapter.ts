@@ -72,9 +72,19 @@ export function spawnProcessCommand(
   env: Record<string, string>,
 ) {
   const executable = resolveExecutable(command);
+  // NODE_ENV is declared as a required (non-optional) field of
+  // NodeJS.ProcessEnv somewhere in this repo's ambient types — a real
+  // compiler error on the standalone-`env` fix proved this. The safe
+  // way to satisfy that WITHOUT reopening the env-inheritance leak is a
+  // default that gets overridden if `env` already has its own NODE_ENV
+  // (which it always will in practice — buildSafeTestEnv() in
+  // playwright-executor.ts unconditionally sets it) — NOT
+  // `{ ...process.env, ...env }`, which is the exact pattern that leaked
+  // secrets in the first place.
+  const spawnEnv: NodeJS.ProcessEnv = { NODE_ENV: "production", ...env };
   return spawn(executable, args, {
     cwd,
-    env,
+    env: spawnEnv,
     shell: false,
     windowsHide: true,
     stdio: ["ignore", "pipe", "pipe"],
