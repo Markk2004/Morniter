@@ -17,6 +17,9 @@ export interface PlaywrightJobRequest {
   code?: string;
   browsers: BrowserName[];
   mode: RunMode;
+  agentId?: string;
+  risk?: "read-only" | "mutating";
+  recipeId?: string;
 }
 
 export type PlaywrightJobStatus =
@@ -114,9 +117,20 @@ export interface PlaywrightCatalogProjectCapabilities {
   workspaceExecution?: boolean;
 }
 
-export type NativeRunner = "playwright" | "generated-playwright" | "node-test" | "jest" | "jest-e2e";
+export type NativeRunner =
+  | "playwright"
+  | "generated-playwright"
+  | "node-test"
+  | "jest"
+  | "jest-e2e";
 export type CatalogTestRunner = NativeRunner;
-export type CatalogMatchMethod = "explicit" | "source-id" | "path" | "title" | "keyword" | "unmatched";
+export type CatalogMatchMethod =
+  | "explicit"
+  | "source-id"
+  | "path"
+  | "title"
+  | "keyword"
+  | "unmatched";
 
 export interface RunnerProfile {
   id: string;
@@ -142,7 +156,11 @@ export interface ProjectCoverageTest {
 export interface ProjectCoverageGap {
   targetId: string;
   title: string;
-  status: "missing-recipe" | "ready-to-generate" | "unsupported" | "stale-generated";
+  status:
+    | "missing-recipe"
+    | "ready-to-generate"
+    | "unsupported"
+    | "stale-generated";
 }
 
 export interface ProjectCoverageGroup {
