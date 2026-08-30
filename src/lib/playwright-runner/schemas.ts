@@ -302,16 +302,19 @@ export const PlaywrightHeartbeatSchema = z
   .strict();
 
 /**
- * MEDIUM CONFIDENCE — inferred from the poll route's real usage
- * (`if (catalog) { publishPlaywrightCatalog(catalog, capabilities,
- * agentId) }` then `claimNextPlaywrightJob(agentId)`) — agentId itself
- * comes from verifyAgentAuth(), not this schema. capabilities' shape
- * matches PlaywrightAgentPresence["capabilities"] from the real
- * job-store.ts exactly (that part IS directly evidenced, since
- * job-store.ts's own type definition was pasted in full).
+ * MEDIUM CONFIDENCE overall, but `agentId` specifically is now CONFIRMED
+ * by a real compiler error — a genuine miss, not a judgment call: I'd
+ * assumed agentId came from verifyAgentAuth() the way it does in the
+ * other agent routes, but the poll route destructures it directly off
+ * the parsed body instead (`const { agentId, catalog, capabilities } =
+ * parseResult.data`). capabilities' shape matches
+ * PlaywrightAgentPresence["capabilities"] from the real job-store.ts
+ * exactly (that part IS directly evidenced, since job-store.ts's own
+ * type definition was pasted in full).
  */
 export const PlaywrightPollRequestSchema = z
   .object({
+    agentId: z.string().min(1).max(128),
     catalogVersion: z.string().optional(),
     catalog: PlaywrightCatalogSchema.optional(),
     capabilities: z
