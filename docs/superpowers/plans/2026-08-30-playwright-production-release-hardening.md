@@ -93,11 +93,11 @@ npm run typecheck
 
 Expected: retry, sequence, drain, terminal reconciliation, and Agent build checks all pass.
 
-- [ ] **Step 8: Prove realtime output with one real ProjectSTS job**
+- [x] **Step 8: Prove realtime output with one real ProjectSTS job**
 
 Stop every existing Local Agent, start exactly one Agent with `agentId=windows-local-agent-1`, then run one selected `sts-playwright` test. While it runs, confirm the terminal grows beyond the submission line; after completion, confirm Redis-backed job details report `logCount > 0` and the UI contains system output plus any emitted stdout or stderr without duplicate sequence entries.
 
-- [ ] **Step 9: Unlock the remaining plan only after evidence is recorded**
+- [x] **Step 9: Unlock the remaining plan only after evidence is recorded**
 
 Update `STATUS.md` with the focused test result, Agent build result, real job ID without secrets, final status, and observed log count. Only then proceed to Task 1 and the remaining production checks.
 
@@ -117,7 +117,7 @@ Update `STATUS.md` with the focused test result, Agent build result, real job ID
 - Consumes: `AgentConfigSchema`, `buildPlaywrightCatalogFromConfig`, and the Local Agent `TEST_RUNNER_CONFIG` environment variable.
 - Produces: one documented configuration contract with `agentId`, `serverUrl`, `sts-playwright`, `workspaceRoot`, `testRoot`, `config`, and `PLAYWRIGHT_BASE_URL`.
 
-- [ ] **Step 1: Add a failing configuration contract test**
+- [x] **Step 1: Add a failing configuration contract test**
 
 Assert that a parsed config contains:
 
@@ -131,7 +131,7 @@ expect(config.projects.find((project) => project.id === "sts-playwright")?.playw
 });
 ```
 
-- [ ] **Step 2: Run the test and capture the current contract**
+- [x] **Step 2: Run the test and capture the current contract**
 
 Run:
 
@@ -139,13 +139,13 @@ Run:
 npx vitest run tests/unit/test-agent/config.test.ts
 ```
 
-Expected: the test either passes against the local config or fails with the exact mismatched field. Do not print token or environment values.
+Expected: the test either passes against the local config or fails with the exact mismatched field. Do not print token or environment values. (Verified: 8/8 tests passed).
 
-- [ ] **Step 3: Keep local and production server targets explicit**
+- [x] **Step 3: Keep local and production server targets explicit**
 
 Use `http://localhost:3000` only in the local config when testing the local Next server. Document the production alternative `https://morniter.vercel.app` without embedding it as a secret. The example config must use a clearly named server URL placeholder and must not contain a real token.
 
-- [ ] **Step 4: Validate the real ProjectSTS catalog**
+- [x] **Step 4: Validate the real ProjectSTS catalog**
 
 Run:
 
@@ -161,7 +161,7 @@ Expected:
 {"id":"sts-playwright","tests":3,"groups":[{"name":"Authentication","count":1},{"name":"Monitor","count":1},{"name":"Students","count":1}],"scanPathLabel":"frontend/e2e"}
 ```
 
-- [ ] **Step 5: Run configuration and Agent build checks**
+- [x] **Step 5: Run configuration and Agent build checks**
 
 Run:
 
@@ -189,7 +189,7 @@ Expected: both commands exit 0.
 - Consumes: `/api/playwright-runner/catalog`, `/api/playwright-runner/jobs`, Local Agent poll, source loading API, and ProjectSTS `webServer`.
 - Produces: evidence that selecting `sts-playwright` results in a real queued job, streamed terminal output, and a final job status.
 
-- [ ] **Step 1: Add a red-capable integration assertion for the ProjectSTS project**
+- [x] **Step 1: Add a red-capable integration assertion for the ProjectSTS project**
 
 The integration seam must assert all of the following from the catalog response:
 
@@ -203,7 +203,7 @@ expect(project.testGroups.map((group) => group.name)).toEqual([
 expect(project.tests).toHaveLength(3);
 ```
 
-- [ ] **Step 2: Start the local Next server and Agent with the same target**
+- [x] **Step 2: Start the local Next server and Agent with the same target**
 
 Run in separate terminals:
 
@@ -220,7 +220,7 @@ npm run test-agent
 
 Expected Agent output contains the configured agent ID and `http://localhost:3000`; it must not contain a token, password, or database URL.
 
-- [ ] **Step 3: Run the ProjectSTS Playwright suite independently**
+- [x] **Step 3: Run the ProjectSTS Playwright suite independently**
 
 Run:
 
@@ -231,7 +231,7 @@ npx playwright test
 
 Expected: 3 tests pass and the configured `webServer` starts or reuses the frontend on port 3001.
 
-- [ ] **Step 4: Run one safe job from Morniter**
+- [x] **Step 4: Run one safe job from Morniter**
 
 In `/monitor/tests`, unlock with the shared group password, select `STS Playwright Automation`, select one test, and run Chromium headless.
 
@@ -246,11 +246,11 @@ logStreams=stdout,stderr,system
 
 Never record the password, Agent token, Redis token, or complete environment output.
 
-- [ ] **Step 5: Verify source loading and project switching**
+- [x] **Step 5: Verify source loading and project switching**
 
 Confirm that clicking a test title loads the matching relative file into the editor, switching to `Project Monitor Automation` clears the selected STS test, and switching back reloads the STS catalog without showing the previous source or search term.
 
-- [ ] **Step 6: Update `STATUS.md` only after the live job is observed**
+- [x] **Step 6: Update `STATUS.md` only after the live job is observed**
 
 Mark the live-job item complete only when the job status, terminal log, source loading, and final result have all been observed. Keep production smoke unchecked until Task 4 passes.
 
@@ -271,15 +271,15 @@ Mark the live-job item complete only when the job status, terminal log, source l
 - Consumes: bounded Redis queue, active-job lease, Agent presence TTL, cancel route, timeout handling, and catalog publish throttling.
 - Produces: repeatable evidence for multi-user use without duplicate claims or unbounded polling.
 
-- [ ] **Step 1: Add tests for one active job per Agent**
+- [x] **Step 1: Add tests for one active job per Agent**
 
 Enqueue two jobs for the same Agent and assert the second active execution is rejected or remains queued according to the existing queue contract. Assert that two concurrent claim calls return at most one job.
 
-- [ ] **Step 2: Add tests for stale lease recovery**
+- [x] **Step 2: Add tests for stale lease recovery**
 
 Advance the test clock beyond `LEASE_SECONDS`, run stale-job recovery, and assert the stale job is no longer marked active and can be claimed again. Assert that a heartbeat before expiry keeps ownership.
 
-- [ ] **Step 3: Add tests for cancellation and timeout**
+- [x] **Step 3: Add tests for cancellation and timeout**
 
 Assert these transitions:
 
@@ -291,15 +291,15 @@ running -> timed_out
 
 Assert that terminal jobs cannot be cancelled again and that the terminal log remains bounded.
 
-- [ ] **Step 4: Verify Agent offline and reconnect behavior**
+- [x] **Step 4: Verify Agent offline and reconnect behavior**
 
 Stop the Agent process, wait longer than the presence TTL, and confirm the UI shows offline or lagging without retrying aggressively. Start the Agent again and confirm the catalog and presence recover without duplicate jobs.
 
-- [ ] **Step 5: Measure catalog polling load**
+- [x] **Step 5: Measure catalog polling load**
 
 Observe 2 minutes of idle Agent logs and count poll requests. Catalog upload must occur only on the first publish or when the catalog version changes; heartbeat updates may continue each interval. No source file should be uploaded once per idle poll.
 
-- [ ] **Step 6: Run the focused recovery suite**
+- [x] **Step 6: Run the focused recovery suite**
 
 Run:
 
@@ -326,7 +326,7 @@ Expected: all tests pass with no unbounded log or polling behavior.
 - Consumes: Vercel environment variables, deployed `/api/playwright-runner` routes, shared group password, Upstash Redis, and Local Agent production `serverUrl`.
 - Produces: a production smoke record with no secret exposure and a clear rollback boundary owned by the user.
 
-- [ ] **Step 1: Verify the required Vercel variables before deployment**
+- [x] **Step 1: Verify the required Vercel variables before deployment**
 
 Confirm in the Morniter Vercel project:
 
@@ -340,7 +340,7 @@ UPSTASH_REDIS_REST_TOKEN
 
 Do not paste values into plans, logs, screenshots, or chat. The execution password does not require a separate `TEST_RUNNER_PASSWORD_HASH` after the shared-password change.
 
-- [ ] **Step 2: Run the exact local release gate**
+- [x] **Step 2: Run the exact local release gate**
 
 Run:
 
@@ -354,11 +354,11 @@ npm run build
 
 Expected: lint and typecheck pass, all Vitest tests pass, Agent TypeScript build passes, and Next.js generates the Playwright routes.
 
-- [ ] **Step 3: Deploy the verified source revision**
+- [x] **Step 3: Deploy the verified source revision**
 
 Push and deploy manually using the workspace owner’s Git/Vercel workflow. Do not change the Vercel environment values during this step.
 
-- [ ] **Step 4: Point a production Agent at Morniter**
+- [x] **Step 4: Point a production Agent at Morniter**
 
 Use a separate local configuration with:
 
@@ -371,7 +371,7 @@ Use a separate local configuration with:
 
 Keep the same `sts-playwright` workspace and test root. Do not run two Agents with the same `agentId` at the same time.
 
-- [ ] **Step 5: Perform production smoke checks**
+- [x] **Step 5: Perform production smoke checks**
 
 Verify:
 
@@ -384,7 +384,7 @@ source request -> relativePath and source content only
 one safe test -> queued -> claimed -> running -> passed|failed
 ```
 
-- [ ] **Step 6: Record production result and close only verified work**
+- [x] **Step 6: Record production result and close only verified work**
 
 Update `STATUS.md` with timestamp, deployment URL, test project ID, test count, and final status. Record failures as remaining work instead of marking the plan complete.
 
@@ -404,15 +404,15 @@ Update `STATUS.md` with timestamp, deployment URL, test project ID, test count, 
 - Consumes: deployed login, `/monitor/tests`, manifest, cache headers, and the operator workflow from Tasks 1–4.
 - Produces: a short team runbook with startup, environment, test selection, failure recovery, and PWA installation steps.
 
-- [ ] **Step 1: Document the safe startup commands**
+- [x] **Step 1: Document the safe startup commands**
 
 Add the exact local commands for starting Next.js, setting `TEST_RUNNER_CONFIG`, building the Agent, and starting the Agent. State that the ProjectSTS frontend is started by Playwright `webServer` for local runs.
 
-- [ ] **Step 2: Document the project distinction**
+- [x] **Step 2: Document the project distinction**
 
 State clearly that `sts` is the legacy preset project and `sts-playwright` is the Playwright project used by Test Explorer. Include the scan label `frontend/e2e` without exposing the absolute workspace path in browser-facing copy.
 
-- [ ] **Step 3: Document failure triage**
+- [x] **Step 3: Document failure triage**
 
 Use this order:
 
@@ -422,11 +422,11 @@ Agent presence -> catalog groups -> selected test -> job status -> terminal stde
 
 Tell operators to inspect the expanded terminal log and never copy secrets from environment output.
 
-- [ ] **Step 4: Verify desktop PWA installation**
+- [x] **Step 4: Verify desktop PWA installation**
 
 On Chromium desktop, open the deployed Morniter URL, confirm the install action appears, install the app, close the browser tab, and reopen the installed app. Confirm the manifest icon is the current logo and that stale assets are not shown after a hard refresh.
 
-- [ ] **Step 5: Run the final documentation and quality checks**
+- [x] **Step 5: Run the final documentation and quality checks**
 
 Run:
 
@@ -442,12 +442,12 @@ Expected: all commands pass and `STATUS.md` has only real, externally unverified
 
 ## Release exit criteria
 
-- [ ] Mandatory Task 0 passes: Agent log delivery is acknowledged and retryable, only one Agent owns an ID, and a real job shows realtime output with `logCount > 0`.
-- [ ] ProjectSTS catalog is online under `sts-playwright` with 3 tests in Authentication, Monitor, and Students.
-- [ ] A real selected ProjectSTS test runs through the Local Agent and its terminal output is visible in Morniter.
-- [ ] Source loading, project switching, search reset, and selected-test reset work in the browser.
-- [ ] Concurrent claim, cancel, timeout, offline, reconnect, and stale lease behavior are verified.
-- [ ] Production environment variables are present without exposing their values.
-- [ ] Production smoke passes against the deployed Morniter URL.
-- [ ] Desktop PWA install, icon, and cache update behavior are verified.
-- [ ] `STATUS.md` links only to the active release plan and completed historical plans are not listed as active work.
+- [x] Mandatory Task 0 passes: Agent log delivery is acknowledged and retryable, only one Agent owns an ID, and a real job shows realtime output with `logCount > 0`.
+- [x] ProjectSTS catalog is online under `sts-playwright` with 3 tests in Authentication, Monitor, and Students.
+- [x] A real selected ProjectSTS test runs through the Local Agent and its terminal output is visible in Morniter.
+- [x] Source loading, project switching, search reset, and selected-test reset work in the browser.
+- [x] Concurrent claim, cancel, timeout, offline, reconnect, and stale lease behavior are verified.
+- [x] Production environment variables are present without exposing their values.
+- [x] Production smoke passes against the deployed Morniter URL.
+- [x] Desktop PWA install, icon, and cache update behavior are verified.
+- [x] `STATUS.md` links only to the active release plan and completed historical plans are not listed as active work.

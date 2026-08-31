@@ -17,31 +17,36 @@ describe("usePlaywrightTutorial hook", () => {
 
   it("opens once when catalog is ready and seen key is absent", () => {
     const { result, rerender } = renderHook(
-      ({ ready, error }) => usePlaywrightTutorial(ready, error),
-      { initialProps: { ready: false, error: false } },
+      ({ ready, error, active }) => usePlaywrightTutorial(ready, error, active),
+      { initialProps: { ready: false, error: false, active: false } },
     );
 
     expect(result.current.isOpen).toBe(false);
 
-    rerender({ ready: true, error: false });
+    rerender({ ready: true, error: false, active: false });
     expect(result.current.isOpen).toBe(true);
     expect(result.current.currentStepIndex).toBe(0);
   });
 
   it("does not auto-open if catalog failed with an error", () => {
-    const { result } = renderHook(() => usePlaywrightTutorial(true, true));
+    const { result } = renderHook(() => usePlaywrightTutorial(true, true, false));
+    expect(result.current.isOpen).toBe(false);
+  });
+
+  it("does not auto-open if test execution is active", () => {
+    const { result } = renderHook(() => usePlaywrightTutorial(true, false, true));
     expect(result.current.isOpen).toBe(false);
   });
 
   it("does not auto-open when seen key already exists in localStorage", () => {
     localStorage.setItem(TUTORIAL_STORAGE_KEY, "true");
-    const { result } = renderHook(() => usePlaywrightTutorial(true, false));
+    const { result } = renderHook(() => usePlaywrightTutorial(true, false, false));
     expect(result.current.isOpen).toBe(false);
   });
 
   it("manually opens starting at step 0 via openTutorial()", () => {
     localStorage.setItem(TUTORIAL_STORAGE_KEY, "true");
-    const { result } = renderHook(() => usePlaywrightTutorial(true, false));
+    const { result } = renderHook(() => usePlaywrightTutorial(true, false, false));
     expect(result.current.isOpen).toBe(false);
 
     act(() => {
@@ -52,10 +57,22 @@ describe("usePlaywrightTutorial hook", () => {
     expect(result.current.currentStepIndex).toBe(0);
   });
 
-  it.each(["closeTutorial", "skipTutorial", "finishTutorial"] as const)(
-    "%s closes modal and marks seen in localStorage",
+  it("closeTutorial closes learning mode without marking seen in localStorage", () => {
+    const { result } = renderHook(() => usePlaywrightTutorial(true, false, false));
+    expect(result.current.isOpen).toBe(true);
+
+    act(() => {
+      result.current.closeTutorial();
+    });
+
+    expect(result.current.isOpen).toBe(false);
+    expect(localStorage.getItem(TUTORIAL_STORAGE_KEY)).toBeNull();
+  });
+
+  it.each(["skipTutorial", "finishTutorial"] as const)(
+    "%s closes learning mode and marks seen in localStorage",
     (action) => {
-      const { result } = renderHook(() => usePlaywrightTutorial(true, false));
+      const { result } = renderHook(() => usePlaywrightTutorial(true, false, false));
       expect(result.current.isOpen).toBe(true);
 
       act(() => {
@@ -68,7 +85,7 @@ describe("usePlaywrightTutorial hook", () => {
   );
 
   it("navigates forward, backward and directly with index clamping", () => {
-    const { result } = renderHook(() => usePlaywrightTutorial(true, false));
+    const { result } = renderHook(() => usePlaywrightTutorial(true, false, false));
 
     // Step 0 -> previous should stay at 0
     act(() => {
@@ -106,7 +123,7 @@ describe("usePlaywrightTutorial hook", () => {
       throw new Error("Storage disabled");
     });
 
-    const { result } = renderHook(() => usePlaywrightTutorial(true, false));
+    const { result } = renderHook(() => usePlaywrightTutorial(true, false, false));
     expect(result.current.isOpen).toBe(false);
 
     // Manual open still functions

@@ -18,9 +18,17 @@ interface LiveTestTerminalProps {
   lines: TerminalLine[];
   hasOlder?: boolean;
   onLoadOlder?: () => void;
+  height?: number | string;
+  compact?: boolean;
 }
 
-export function LiveTestTerminal({ lines, hasOlder = false, onLoadOlder }: LiveTestTerminalProps) {
+export function LiveTestTerminal({
+  lines,
+  hasOlder = false,
+  onLoadOlder,
+  height,
+  compact = false,
+}: LiveTestTerminalProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState(true);
 
@@ -43,38 +51,49 @@ export function LiveTestTerminal({ lines, hasOlder = false, onLoadOlder }: LiveT
   const hiddenLineCount = Math.max(0, lines.length - MAX_RENDERED_LINES);
   const visibleLines = lines.slice(-MAX_RENDERED_LINES);
 
+  const containerStyle = typeof height === "number"
+    ? { height: `${height}px` }
+    : typeof height === "string"
+      ? { height }
+      : undefined;
+
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between px-1">
-        <h3 className="text-xs uppercase font-mono tracking-wider text-slate-400 font-semibold flex items-center gap-2">
-          Execution Log Output ({lines.length} lines)
-        </h3>
+      {!compact && (
+        <div className="flex items-center justify-between px-1">
+          <h3 className="text-xs uppercase font-mono tracking-wider text-slate-400 font-semibold flex items-center gap-2">
+            Execution Log Output ({lines.length} lines)
+          </h3>
 
-        <div className="flex items-center space-x-3 text-[11px] font-mono text-slate-400">
-          {!autoScroll && (
-            <span className="text-amber-400 font-medium">Auto-scroll paused</span>
-          )}
-          {hiddenLineCount > 0 && (
-            <span data-testid="terminal-hidden-count">{hiddenLineCount} older lines hidden</span>
-          )}
-          {hasOlder && onLoadOlder && (
-            <button
-              type="button"
-              onClick={onLoadOlder}
-              className="text-indigo-400 hover:underline cursor-pointer"
-            >
-              Load older logs
-            </button>
-          )}
+          <div className="flex items-center space-x-3 text-[11px] font-mono text-slate-400">
+            {!autoScroll && (
+              <span className="text-amber-400 font-medium">Auto-scroll paused</span>
+            )}
+            {hiddenLineCount > 0 && (
+              <span data-testid="terminal-hidden-count">{hiddenLineCount} older lines hidden</span>
+            )}
+            {hasOlder && onLoadOlder && (
+              <button
+                type="button"
+                onClick={onLoadOlder}
+                className="text-indigo-400 hover:underline cursor-pointer"
+              >
+                Load older logs
+              </button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       <div
         ref={containerRef}
         onScroll={handleScroll}
         role="log"
         aria-label="Execution log terminal"
-        className="h-96 w-full rounded-2xl bg-[#090d16] border border-slate-800/80 p-4 font-mono text-xs overflow-y-auto space-y-1 shadow-inner selection:bg-indigo-500/30"
+        style={containerStyle}
+        className={`${
+          containerStyle ? "" : "h-96"
+        } w-full rounded-2xl bg-[#090d16] border border-slate-800/80 p-4 font-mono text-xs overflow-y-auto space-y-1 shadow-inner selection:bg-indigo-500/30`}
       >
         {visibleLines.length === 0 ? (
           <div className="h-full flex items-center justify-center text-slate-600 italic">

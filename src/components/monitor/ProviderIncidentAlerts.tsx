@@ -1,10 +1,28 @@
 "use client";
 
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState, useCallback, useSyncExternalStore } from "react";
 import type { ServiceStatus, MonitorEvent } from "@/lib/monitor/types";
 import { deriveActiveIncidents } from "@/lib/monitor/incidents";
 
 const STORAGE_KEY = "project-monitor:notified-incidents:v1";
+
+const emptySubscribe = () => () => {};
+
+function useMounted(): boolean {
+  return useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false,
+  );
+}
+
+function useBrowserNotificationPermission(): NotificationPermission | "unsupported" {
+  return useSyncExternalStore(
+    emptySubscribe,
+    () => (typeof window !== "undefined" && "Notification" in window ? Notification.permission : "unsupported"),
+    () => "unsupported",
+  );
+}
 
 interface ProviderIncidentAlertsProps {
   services: ServiceStatus[];
@@ -25,12 +43,11 @@ export default function ProviderIncidentAlerts({
     ),
   );
 
-  const [permission, setPermission] = useState<NotificationPermission | "unsupported">(() => {
-    if (typeof window !== "undefined" && "Notification" in window) {
-      return Notification.permission;
-    }
-    return "unsupported";
-  });
+  const mounted = useMounted();
+  const browserPermission = useBrowserNotificationPermission();
+  const [requestedPermission, setRequestedPermission] = useState<NotificationPermission | null>(null);
+  const permission = requestedPermission ?? browserPermission;
+
   const [recoveries, setRecoveries] = useState<string[]>([]);
 
   const notifyMissingIncidents = useCallback(() => {
@@ -101,7 +118,7 @@ export default function ProviderIncidentAlerts({
   const enableNotifications = async () => {
     if (typeof window !== "undefined" && "Notification" in window) {
       const nextPermission = await Notification.requestPermission();
-      setPermission(nextPermission);
+      setRequestedPermission(nextPermission);
       if (nextPermission === "granted") notifyMissingIncidents();
     }
   };
@@ -112,7 +129,7 @@ export default function ProviderIncidentAlerts({
         <span className="text-slate-400">
           Services Status Monitor: <span className="text-emerald-400 font-semibold">ALL HEALTHY</span>
         </span>
-        {permission === "default" && (
+        {mounted && permission === "default" && (
           <button
             type="button"
             onClick={enableNotifications}
@@ -121,7 +138,7 @@ export default function ProviderIncidentAlerts({
             Enable browser alerts
           </button>
         )}
-        {(permission === "denied" || permission === "unsupported") && (
+        {mounted && (permission === "denied" || permission === "unsupported") && (
           <span className="text-[10px] text-slate-500 italic">
             Browser notifications are unavailable or blocked
           </span>
@@ -132,7 +149,7 @@ export default function ProviderIncidentAlerts({
 
   return (
     <div className="space-y-2 font-mono text-xs">
-      {permission === "default" && (
+      {mounted && permission === "default" && (
         <div className="flex justify-end">
           <button
             type="button"
@@ -182,7 +199,7 @@ export default function ProviderIncidentAlerts({
           </div>
 
           <div className="flex items-center space-x-2 self-end sm:self-auto">
-            {(permission === "denied" || permission === "unsupported") && (
+            {mounted && (permission === "denied" || permission === "unsupported") && (
               <span className="text-[10px] text-rose-400/80 italic">
                 Browser notifications are unavailable or blocked
               </span>

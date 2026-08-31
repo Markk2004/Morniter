@@ -18,23 +18,24 @@ async function makeValidSessionToken(): Promise<string> {
 test.describe("Test Runner Overload & Security E2E", () => {
   test("never exposes cwd, env, or secrets in catalog payload", async ({ page }) => {
     const token = await makeValidSessionToken();
+    const appUrl = "http://localhost:3100";
     await page.context().addCookies([
       {
         name: "project_monitor_session",
         value: token,
-        domain: "localhost",
-        path: "/",
+        url: appUrl,
       },
     ]);
     await page.addInitScript(() => {
       window.sessionStorage.setItem("project_monitor_tab_session", "e2e-overload");
+      window.localStorage.setItem("morniter:playwright-tutorial:v1:seen", "true");
     });
 
-    const catalogResponsePromise = page.waitForResponse("**/api/test-runner/catalog*");
+    const catalogResponsePromise = page.waitForResponse("**/api/playwright-runner/catalog*");
 
     await page.goto("/monitor/tests");
 
-    await expect(page.getByText(/Production Test Runner/i)).toBeVisible();
+    await expect(page.getByText(/Playwright Automation/i)).toBeVisible();
 
     const catalogResponse = await catalogResponsePromise;
     const catalogPayloadText = await catalogResponse.text();

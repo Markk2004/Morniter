@@ -20,8 +20,6 @@ export interface PlaywrightJobRequest {
   browsers: BrowserName[];
   mode: RunMode;
   agentId?: string;
-  risk?: "read-only" | "mutating";
-  recipeId?: string;
 }
 
 export type PlaywrightJobStatus =
@@ -168,6 +166,8 @@ export interface ProjectCoverageGap {
 export interface ProjectCoverageGroup {
   id: string;
   name: string;
+  functionId?: string;
+  functionName?: string;
   tests: ProjectCoverageTest[];
   gaps: ProjectCoverageGap[];
 }

@@ -130,6 +130,14 @@ export async function getPlaywrightAgentPresence(
   return { ...pres, state };
 }
 
+export async function getPlaywrightJob(
+  jobId: string,
+  redisClient?: Redis,
+): Promise<PlaywrightJob | null> {
+  const redis = redisClient ?? getRunnerRedis();
+  return await redis.get<PlaywrightJob>(playwrightKeys.job(jobId));
+}
+
 export async function enqueuePlaywrightJob(
   request: PlaywrightJobRequest,
   agentId = "windows-local-agent-1",
@@ -154,7 +162,22 @@ export async function enqueuePlaywrightJob(
   if (activeJobId) {
     const activeJob = await getPlaywrightJob(activeJobId, redis);
     if (activeJob && isPlaywrightActiveStatus(activeJob.status)) {
-      throw new PlaywrightActiveJobExistsError(activeJobId);
+      const lastHeartbeat = activeJob.lastHeartbeatAt ? new Date(activeJob.lastHeartbeatAt).getTime() : 0;
+      if (lastHeartbeat > 0 && now.getTime() - lastHeartbeat > LEASE_SECONDS * 2000) {
+        const updated: PlaywrightJob = {
+          ...activeJob,
+          status: "failed",
+          error: "Agent lost or lease expired",
+          completedAt: now.toISOString(),
+          updatedAt: now.toISOString(),
+        };
+        await redis.set(playwrightKeys.job(activeJobId), updated, { ex: JOB_TTL_SECONDS });
+        await redis.del(playwrightKeys.active(agentId));
+      } else {
+        throw new PlaywrightActiveJobExistsError(activeJobId);
+      }
+    } else {
+      await redis.del(playwrightKeys.active(agentId));
     }
   }
 
@@ -443,6 +466,7 @@ export async function completePlaywrightJob(
 export async function requestCancelPlaywrightJob(
   jobId: string,
   redisClient?: Redis,
+  now: Date = new Date(),
 ): Promise<PlaywrightJob> {
   const redis = redisClient ?? getRunnerRedis();
   const jobKey = playwrightKeys.job(jobId);
@@ -452,8 +476,21 @@ export async function requestCancelPlaywrightJob(
     throw new PlaywrightJobNotFoundError(jobId);
   }
 
+  const executionStatus =
+    job.status === "claimed" ||
+    job.status === "preparing" ||
+    job.status === "running" ||
+    job.status === "cancel_requested";
+  const lastHeartbeatMs = job.lastHeartbeatAt
+    ? new Date(job.lastHeartbeatAt).getTime()
+    : 0;
+  const executionHeartbeatExpired =
+    executionStatus &&
+    lastHeartbeatMs > 0 &&
+    now.getTime() - lastHeartbeatMs > LEASE_SECONDS * 2000;
+
   let newStatus: PlaywrightJobStatus = job.status;
-  if (job.status === "queued") {
+  if (job.status === "queued" || executionHeartbeatExpired) {
     newStatus = "cancelled";
   } else if (job.status === "claimed" || job.status === "preparing" || job.status === "running") {
     newStatus = "cancel_requested";
@@ -461,7 +498,7 @@ export async function requestCancelPlaywrightJob(
 
   assertPlaywrightTransition(job.status, newStatus);
 
-  const nowStr = new Date().toISOString();
+  const nowStr = now.toISOString();
   const updated: PlaywrightJob = {
     ...job,
     status: newStatus,
@@ -496,14 +533,6 @@ export async function listPlaywrightJobs(
   }
 
   return jobs;
-}
-
-export async function getPlaywrightJob(
-  jobId: string,
-  redisClient?: Redis,
-): Promise<PlaywrightJob | null> {
-  const redis = redisClient ?? getRunnerRedis();
-  return (await redis.get<PlaywrightJob>(playwrightKeys.job(jobId))) ?? null;
 }
 
 export async function reapStalePlaywrightJobs(

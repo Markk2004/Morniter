@@ -18,21 +18,22 @@ async function makeValidSessionToken(): Promise<string> {
 test.describe("Test Runner Console E2E", () => {
   test("displays Test Runner workspace and unlocks execution session", async ({ page }) => {
     const token = await makeValidSessionToken();
+    const appUrl = "http://localhost:3100";
     await page.context().clearCookies();
     await page.context().addCookies([
       {
         name: "project_monitor_session",
         value: token,
-        domain: "localhost",
-        path: "/",
+        url: appUrl,
       },
     ]);
     await page.addInitScript(() => {
       window.sessionStorage.setItem("project_monitor_tab_session", "e2e-test-runner");
+      window.localStorage.setItem("morniter:playwright-tutorial:v1:seen", "true");
     });
 
     // Mock catalog route
-    await page.route("**/api/test-runner/catalog*", async (route) => {
+    await page.route("**/api/playwright-runner/catalog*", async (route) => {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -43,21 +44,40 @@ test.describe("Test Runner Console E2E", () => {
             lastHeartbeatAt: new Date().toISOString(),
           },
           catalog: {
-            version: "1.0.0",
+            version: "2.0.0",
             updatedAt: new Date().toISOString(),
             projects: [
               {
-                id: "student-tracking",
-                name: "Student Tracking System",
-                presets: [
+                id: "sts-playwright",
+                name: "STS Playwright Automation",
+                scanPathLabel: "frontend/e2e",
+                testGroups: [
                   {
-                    id: "cypress-e2e",
-                    name: "Cypress E2E Suite",
-                    description: "Run Cypress end-to-end suite",
-                    commandPreview: "npx cypress run",
-                    timeoutSeconds: 300,
+                    id: "auth",
+                    name: "Authentication",
+                    functionId: "FN-STS-01",
+                    functionName: "Authentication",
+                    tests: [
+                      {
+                        id: "login-test",
+                        title: "Login Flow",
+                        relativePath: "frontend/e2e/auth/login.spec.ts",
+                        runner: "playwright",
+                        executable: true,
+                        risk: "read-only",
+                        origin: "manual",
+                        confidence: "high",
+                        matchedBy: ["path"],
+                      },
+                    ],
+                    gaps: [],
                   },
                 ],
+                capabilities: {
+                  browsers: { chromium: true, firefox: false, webkit: false },
+                  headed: true,
+                  workspaceExecution: true,
+                },
               },
             ],
           },
@@ -66,47 +86,41 @@ test.describe("Test Runner Console E2E", () => {
     });
 
     // Mock lock route
+    let isUnlocked = false;
     await page.route("**/api/test-runner/lock*", async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({ unlocked: false }),
-      });
-    });
-
-    // Mock jobs route
-    await page.route("**/api/test-runner/jobs*", async (route) => {
-      if (route.request().method() === "GET") {
+      if (route.request().method() === "POST") {
+        isUnlocked = true;
         await route.fulfill({
           status: 200,
           contentType: "application/json",
-          body: JSON.stringify({ jobs: [] }),
+          body: JSON.stringify({ unlocked: true }),
         });
-      } else if (route.request().method() === "POST") {
-        await route.fulfill({
-          status: 201,
-          contentType: "application/json",
-          body: JSON.stringify({
-            id: "job-mock-1",
-            projectId: "student-tracking",
-            presetId: "cypress-e2e",
-            presetName: "Cypress E2E Suite",
-            status: "running",
-            queuedAt: new Date().toISOString(),
-          }),
-        });
+        return;
       }
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ unlocked: isUnlocked }),
+      });
     });
 
     // Mock auth route
     await page.route("**/api/test-runner/auth*", async (route) => {
+      isUnlocked = true;
       await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({ success: true }),
+        status: 204,
         headers: {
           "set-cookie": "project_monitor_execute=mock_exec; Path=/; HttpOnly; SameSite=Strict",
         },
+      });
+    });
+
+    // Mock jobs route
+    await page.route("**/api/playwright-runner/jobs*", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ jobs: [] }),
       });
     });
 
@@ -114,14 +128,16 @@ test.describe("Test Runner Console E2E", () => {
 
     // Verify top navigation links
     await expect(page.getByRole("link", { name: "Tests" })).toHaveAttribute("aria-current", "page");
-    await expect(page.getByText(/Local Agent Online/i)).toBeVisible();
-    await page.getByLabel("Test command").selectOption("cypress-e2e");
-    await expect(page.getByRole("heading", { name: "Cypress E2E Suite" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Playwright Automation" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Authentication/i })).toBeVisible();
 
     // Verify unlock execution card
     await expect(page.getByText(/Execution Lock Active/i)).toBeVisible();
-    await page.getByPlaceholder(/Execution password/i).fill("secret-pass");
-    await page.getByRole("button", { name: "Unlock Execution", exact: true }).click({ noWaitAfter: true });
+    await page.getByPlaceholder(/Group password/i).fill("secret-pass");
+    await page.getByRole("button", { name: "Unlock Execution", exact: true }).click();
+
+    // Verify unlock card disappears
+    await expect(page.getByText(/Execution Lock Active/i)).not.toBeVisible();
 
     // Click navigation to Logs and back to Tests
     await page.getByRole("link", { name: "Logs" }).click();

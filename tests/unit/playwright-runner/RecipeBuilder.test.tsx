@@ -121,4 +121,30 @@ describe("RecipeBuilder Component", () => {
     fireEvent.click(saveBtn);
     expect(onSave).toHaveBeenCalled();
   });
+
+  it("renders step evidence and confidence badge on analyzed actions", () => {
+    const analyzedDraft: RecipeDraft = {
+      ...initialDraft,
+      actions: [
+        {
+          kind: "goto",
+          url: "/dashboard",
+          evidence: "Extracted route '/dashboard' from source",
+          confidence: "high",
+        },
+      ],
+    };
+
+    render(
+      <RecipeBuilder
+        draft={analyzedDraft}
+        flows={flows}
+        onChange={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText(/Extracted route '\/dashboard' from source/i)).toBeInTheDocument();
+    expect(screen.getByText("HIGH")).toBeInTheDocument();
+  });
 });

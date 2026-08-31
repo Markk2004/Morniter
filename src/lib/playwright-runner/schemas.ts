@@ -222,8 +222,10 @@ const ProjectCoverageTestSchema = z
 
 const ProjectCoverageGroupSchema = z
   .object({
-    id: z.string().regex(/^FN-STS-\d{2}$/),
+    id: z.string().min(1),
     name: z.string().min(1),
+    functionId: z.string().min(1).optional(),
+    functionName: z.string().min(1).optional(),
     tests: z.array(ProjectCoverageTestSchema),
     gaps: z.array(
       z

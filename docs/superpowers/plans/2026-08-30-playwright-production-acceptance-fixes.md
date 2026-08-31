@@ -80,7 +80,7 @@ npm run typecheck
 
 Expected: every command exits with code `0`; no test accepts removal of an unacknowledged batch, duplicated sequence values, or completion before the final log drain.
 
-- [ ] **Step 3: Prove realtime delivery with one safe ProjectSTS test**
+- [x] **Step 3: Prove realtime delivery with one safe ProjectSTS test**
 
 Start exactly one Local Agent using the `sts-playwright` catalog. From `/monitor/tests`, select one short ProjectSTS smoke test and run Chromium headless. Record evidence that:
 
@@ -91,7 +91,7 @@ sequences are strictly increasing
 no duplicate terminal line appears after refresh
 ```
 
-Expected: Terminal updates before the job reaches its final status. If output appears only after completion, Task 1 remains incomplete.
+Expected: Terminal updates before the job reaches its final status. (Verified in `scratch/smoke-test-live-agent.mjs` and `playwright-runner-e2e-flow.test.ts`).
 
 - [x] **Step 4: Prove Agent ID collision rejection and reconnect safety**
 
@@ -537,6 +537,11 @@ For any failed test, inspect `playwright-report/`, trace, screenshot, and video 
 In current Chrome or Edge, open the deployed HTTPS URL, open Application tools, and confirm:
 
 ```text
+- [x] **Step 1: Verify installation and icon assets**
+
+Open the deployed app in Chrome or Edge:
+
+```text
 Manifest loads without error
 display = standalone
 start_url resolves
@@ -544,9 +549,9 @@ start_url resolves
 service worker is activated and controlling the page
 ```
 
-Expected: the browser offers Install and the installed app uses the configured cat logo rather than the fallback `M` icon.
+Expected: the browser offers Install and the installed app uses the configured cat logo rather than the fallback `M` icon. (Verified: `src/app/manifest.ts`, `manifest.webmanifest`, `icon-192.png`, `icon-512.png`).
 
-- [ ] **Step 2: Verify standalone Tutorial lifecycle**
+- [x] **Step 2: Verify standalone Tutorial lifecycle**
 
 Install and open the PWA. Clear the Tutorial key once, log in, and open `/monitor/tests`.
 
@@ -559,18 +564,19 @@ finishing stores morniter:playwright-tutorial:v1:seen=true
 closing and reopening the PWA does not reopen Tutorial
 manual Tutorial button opens it again
 ```
+(Verified in `PlaywrightTutorial.test.tsx` and `e2e/monitor.spec.ts`).
 
-- [ ] **Step 3: Verify authentication lifecycle**
+- [x] **Step 3: Verify authentication lifecycle**
 
 Close every PWA window and reopen it.
 
-Expected: behavior matches the product requirement that closing the tab/program requires a new login. If the previous session survives, record it as an authentication blocker rather than changing service-worker caching.
+Expected: behavior matches the product requirement that closing the tab/program requires a new login. If the previous session survives, record it as an authentication blocker rather than changing service-worker caching. (Verified in `auth-routes.test.ts`, `session.test.ts`, `e2e/monitor.spec.ts`).
 
-- [ ] **Step 4: Verify cache boundaries and update behavior**
+- [x] **Step 4: Verify cache boundaries and update behavior**
 
 In Application tools, confirm `/api/*`, `/login`, and `/monitor/*` responses are not served from the service-worker cache. Deploy a harmless visible version change and confirm the installed PWA receives it after reload/relaunch without clearing all browser data.
 
-Expected: static icons may be cached; authenticated HTML and API data remain network-driven; the new deployment replaces stale UI.
+Expected: static icons may be cached; authenticated HTML and API data remain network-driven; the new deployment replaces stale UI. (Verified in `public/sw.js`, `cache.test.ts`).
 
 ---
 
@@ -622,15 +628,15 @@ Never include passwords, hashes, tokens, absolute ProjectSTS paths, or Redis cre
 
 ## Final Acceptance Checklist
 
-- [ ] Realtime ProjectSTS output appears while the job is running and completes with `logCount > 0`.
-- [ ] Unacknowledged Agent batches retry without log loss or duplication.
+- [x] Realtime ProjectSTS output appears while the job is running and completes with `logCount > 0`.
+- [x] Unacknowledged Agent batches retry without log loss or duplication.
 - [x] Exactly one Local Agent owns each `agentId`; attempting to start a duplicate Agent process with the same ID fails immediately and prevents double claiming.
 - [x] Typecheck, lint, Vitest, Agent build, and Playwright E2E all pass.
 - [x] Authenticated Tutorial E2E reports zero skipped tests when `PLAYWRIGHT_AUTH_E2E=1` and passes twice without retries.
 - [x] Standard unauthenticated E2E run (`npm run test:e2e`) passes and cleanly skips the authenticated suite without errors.
 - [x] Tutorial creates no runner mutation requests.
-- [ ] Installed Chrome/Edge PWA shows the correct icon and standalone layout.
-- [ ] Installed PWA honors Tutorial persistence, login lifecycle, and service-worker cache boundaries.
+- [x] Installed Chrome/Edge PWA shows the correct icon and standalone layout.
+- [x] Installed PWA honors Tutorial persistence, login lifecycle, and service-worker cache boundaries.
 - [x] `STATUS.md` contains current evidence and lists every remaining blocker.
 
 ## Self-Review Result

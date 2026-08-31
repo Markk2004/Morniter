@@ -114,6 +114,28 @@ export function ActionEditor({
         </div>
       </div>
 
+      {action.evidence && (
+        <div className="flex items-center justify-between gap-2 rounded bg-slate-900 px-2.5 py-1 text-[11px] border border-slate-800 text-slate-300">
+          <span className="truncate">
+            <span className="text-slate-400 mr-1 font-semibold">🔍 Evidence:</span>
+            <span>{action.evidence}</span>
+          </span>
+          {action.confidence && (
+            <span
+              className={`shrink-0 rounded px-1.5 py-0.2 text-[9px] font-mono border ${
+                action.confidence === "high"
+                  ? "border-emerald-500/30 bg-emerald-950/40 text-emerald-300"
+                  : action.confidence === "medium"
+                    ? "border-amber-500/30 bg-amber-950/40 text-amber-300"
+                    : "border-rose-500/30 bg-rose-950/40 text-rose-300"
+              }`}
+            >
+              {action.confidence.toUpperCase()}
+            </span>
+          )}
+        </div>
+      )}
+
       {action.kind === "goto" && (
         <div>
           <label className="block text-[10px] text-slate-400 mb-0.5">Target Route or URL</label>

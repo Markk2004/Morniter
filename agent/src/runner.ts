@@ -355,7 +355,7 @@ export async function runAgent(config: AgentConfig): Promise<void> {
           console.log(`[Monitor Local Agent] Claimed recipe mutation ${mutation.id} for project ${mutation.projectId}`);
           const result = await executeRecipeMutation(config, mutation);
           await client.completeMutation(mutation.id, mutation.leaseToken || "", result);
-          cachedPlaywrightCatalog = undefined; // invalidate cached catalog
+          cachedPlaywrightCatalog = undefined; // invalidate cached catalog to trigger re-publish on next poll
           continue;
         }
       }

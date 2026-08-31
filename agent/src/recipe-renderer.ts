@@ -5,14 +5,14 @@ export type RecipeLocator =
   | { kind: "test-id"; id: string };
 
 export type RecipeAction =
-  | { kind: "goto"; url: string }
-  | { kind: "fill"; target: RecipeLocator; value: string; isSecretEnv?: boolean }
-  | { kind: "click"; target: RecipeLocator }
-  | { kind: "select"; target: RecipeLocator; value: string }
-  | { kind: "expect-visible"; target: RecipeLocator; timeoutMs?: number }
-  | { kind: "expect-url"; url: string; matchType?: "exact" | "contains" }
-  | { kind: "expect-text"; target: RecipeLocator; text: string }
-  | { kind: "use-flow"; flowId: string };
+  | { kind: "goto"; url: string; evidence?: string; confidence?: "high" | "medium" | "low" }
+  | { kind: "fill"; target: RecipeLocator; value: string; isSecretEnv?: boolean; evidence?: string; confidence?: "high" | "medium" | "low" }
+  | { kind: "click"; target: RecipeLocator; evidence?: string; confidence?: "high" | "medium" | "low" }
+  | { kind: "select"; target: RecipeLocator; value: string; evidence?: string; confidence?: "high" | "medium" | "low" }
+  | { kind: "expect-visible"; target: RecipeLocator; timeoutMs?: number; evidence?: string; confidence?: "high" | "medium" | "low" }
+  | { kind: "expect-url"; url: string; matchType?: "exact" | "contains"; evidence?: string; confidence?: "high" | "medium" | "low" }
+  | { kind: "expect-text"; target: RecipeLocator; text: string; evidence?: string; confidence?: "high" | "medium" | "low" }
+  | { kind: "use-flow"; flowId: string; evidence?: string; confidence?: "high" | "medium" | "low" };
 
 export interface ReusableFlow {
   id: string;

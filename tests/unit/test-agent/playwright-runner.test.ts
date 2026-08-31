@@ -99,10 +99,13 @@ describe("Local Agent Playwright Runner", () => {
     const catalog = await buildPlaywrightCatalogFromConfig(config);
     const project = catalog.projects[0];
     const canonicalId = project.tests?.[0]?.id;
-    const coverageId = project.coverageGroups?.[0]?.tests[0]?.id;
+    const coverageGroup = project.coverageGroups?.[0];
+    const coverageId = coverageGroup?.tests[0]?.id;
 
     expect(canonicalId).toBeDefined();
     expect(coverageId).toBe(canonicalId);
+    expect(coverageGroup?.functionId).toBe("auth");
+    expect(coverageGroup?.functionName).toBe("Authentication");
     await fs.rm(root, { recursive: true, force: true });
   });
 

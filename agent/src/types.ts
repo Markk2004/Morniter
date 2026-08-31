@@ -137,7 +137,7 @@ export interface AutomationMap {
   explicitMappings: Array<{ path: string; functionId: string }>;
   coverageTargets: AutomationCoverageTarget[];
   recipes: AutomationRecipe[];
-  reusableFlows?: unknown[];
+  reusableFlows?: Array<{ id: string; name: string; description?: string; actions?: unknown[] }>;
   productionHostDenylist?: string[];
 }
 
@@ -200,6 +200,8 @@ export interface ProjectCoverageGap {
 export interface ProjectCoverageGroup {
   id: string;
   name: string;
+  functionId?: string;
+  functionName?: string;
   tests: ProjectCoverageTest[];
   gaps: ProjectCoverageGap[];
 }

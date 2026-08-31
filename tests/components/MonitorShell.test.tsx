@@ -58,4 +58,26 @@ describe("MonitorShell", () => {
     expect(testsLink).toHaveAttribute("aria-current", "page");
     expect(logsLink).not.toHaveAttribute("aria-current");
   });
+
+  it("uses max-w-none on /monitor/tests and max-w-7xl on /monitor", () => {
+    vi.mocked(usePathname).mockReturnValue("/monitor/tests");
+    const { rerender } = render(
+      <MonitorShell displayName="Monitor Operator">
+        <div>Content</div>
+      </MonitorShell>,
+    );
+
+    const testsWorkspace = screen.getByTestId("monitor-page-workspace");
+    expect(testsWorkspace).toHaveClass("max-w-none");
+
+    vi.mocked(usePathname).mockReturnValue("/monitor");
+    rerender(
+      <MonitorShell displayName="Monitor Operator">
+        <div>Content</div>
+      </MonitorShell>,
+    );
+
+    const logsWorkspace = screen.getByTestId("monitor-page-workspace");
+    expect(logsWorkspace).toHaveClass("max-w-7xl");
+  });
 });

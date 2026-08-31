@@ -37,4 +37,20 @@ describe("LiveTestTerminal", () => {
     fireEvent.click(loadBtn);
     expect(onLoadOlder).toHaveBeenCalledTimes(1);
   });
+
+  it("applies custom height style when height prop is provided and falls back to default h-96 class", () => {
+    const lines: TestLogLine[] = [
+      { sequence: 0, stream: "stdout", message: "Step 1", timestamp: "2026-07-28T10:00:00.000Z" },
+    ];
+
+    // 1. With height prop
+    const { rerender } = render(<LiveTestTerminal lines={lines} height={240} />);
+    const logBox = screen.getByRole("log");
+    expect(logBox.style.height).toBe("240px");
+
+    // 2. Without height prop
+    rerender(<LiveTestTerminal lines={lines} />);
+    expect(logBox.style.height).toBe("");
+    expect(logBox).toHaveClass("h-96");
+  });
 });

@@ -11,8 +11,9 @@ import type {
   BrowserExecutionResult,
 } from "@/lib/playwright-runner/types";
 import type { TestLogLine, AgentPresence } from "@/lib/test-runner/types";
-import type { RecipeDraft, ReusableFlow } from "@/lib/playwright-runner/recipe-types";
+import type { RecipeDraft, ReusableFlow, RecipeAction } from "@/lib/playwright-runner/recipe-types";
 import { renderRecipeToPlaywrightCode } from "@/lib/playwright-runner/recipe-renderer";
+import { analyzeSourceForPlaywrightDraft } from "@/lib/playwright-runner/source-analyzer";
 
 const DEFAULT_WORKSPACE_CODE = `import { test, expect } from "@playwright/test";
 
@@ -210,6 +211,17 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
           const jobsData = await jobsRes.json();
           if (Array.isArray(jobsData.jobs)) {
             setHistory(jobsData.jobs);
+            const runningJob = jobsData.jobs.find(
+              (j: PlaywrightJob) =>
+                j.status === "queued" ||
+                j.status === "claimed" ||
+                j.status === "preparing" ||
+                j.status === "running" ||
+                j.status === "cancel_requested",
+            );
+            if (runningJob) {
+              setActiveJob(runningJob);
+            }
           }
         }
       } catch {
@@ -362,29 +374,97 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
   );
 
   const openRecipeBuilder = useCallback(
-    (seed?: { testId?: string; relativePath?: string; title?: string; functionId?: string }) => {
+    (seed?: { testId?: string; relativePath?: string; title?: string; functionId?: string; functionName?: string }) => {
       setSaveRecipeError(null);
       setSaveRecipeSuccess(false);
 
       const cleanTitle = seed?.title || "New Automated Test";
-      const cleanSlug = cleanTitle.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "custom-test";
       const fnId = seed?.functionId || (currentProject?.coverageGroups?.[0]?.id ?? "");
-      const fnSlug = fnId ? fnId.toLowerCase().replace(/[^a-z0-9]+/g, "-") : "general";
+      const sourceCode = (seed?.relativePath && currentProject?.sourceByPath?.[seed.relativePath]) || "";
 
-      const outputPath = seed?.relativePath
-        ? `frontend/e2e/generated/${fnSlug}/${cleanSlug}.spec.ts`
-        : `frontend/e2e/generated/${fnSlug}/${cleanSlug}.spec.ts`;
+      const analysis = analyzeSourceForPlaywrightDraft({
+        sourceCode,
+        relativePath: seed?.relativePath,
+        testTitle: cleanTitle,
+        functionId: fnId,
+        functionName: seed?.functionName,
+        reusableFlows,
+      });
 
-      // Start with clean empty actions sequence without guessed steps
+      const actions: RecipeAction[] = analysis.actions.map((act) => {
+        if (act.kind === "goto") {
+          return { kind: "goto", url: act.url || "/", evidence: act.evidence, confidence: act.confidence };
+        }
+        if (act.kind === "use-flow") {
+          return { kind: "use-flow", flowId: act.flowId || "", evidence: act.evidence, confidence: act.confidence };
+        }
+        if (act.kind === "fill") {
+          return {
+            kind: "fill",
+            target: { kind: "label", text: act.target || "" },
+            value: act.value || "",
+            evidence: act.evidence,
+            confidence: act.confidence,
+          };
+        }
+        if (act.kind === "click") {
+          return {
+            kind: "click",
+            target: { kind: "role", role: "button", name: act.target || "" },
+            evidence: act.evidence,
+            confidence: act.confidence,
+          };
+        }
+        if (act.kind === "assert") {
+          if (act.assertionKind === "url-matches") {
+            return {
+              kind: "expect-url",
+              url: act.assertionValue || "/",
+              matchType: "contains",
+              evidence: act.evidence,
+              confidence: act.confidence,
+            };
+          }
+          if (act.assertionKind === "heading-visible") {
+            return {
+              kind: "expect-visible",
+              target: { kind: "role", role: "heading", name: act.assertionName || "" },
+              evidence: act.evidence,
+              confidence: act.confidence,
+            };
+          }
+          return {
+            kind: "expect-visible",
+            target: { kind: "text", text: act.assertionName || "" },
+            evidence: act.evidence,
+            confidence: act.confidence,
+          };
+        }
+        return { kind: "goto", url: "/", evidence: act.evidence, confidence: act.confidence };
+      });
+
+      const cleanupActions: RecipeAction[] | undefined =
+        analysis.risk === "mutating"
+          ? [
+              {
+                kind: "click",
+                target: { kind: "role", role: "button", name: "Delete" },
+                evidence: "Cleanup placeholder for mutating action (Review required)",
+                confidence: "medium",
+              },
+            ]
+          : undefined;
+
       const draft: RecipeDraft = {
         id: `recipe-${Date.now().toString(36)}`,
         title: cleanTitle,
         functionId: fnId,
         sourceTestId: seed?.testId,
         sourceRelativePath: seed?.relativePath,
-        output: outputPath,
-        risk: "read-only",
-        actions: [],
+        output: analysis.suggestedOutput,
+        risk: analysis.risk,
+        actions: actions.length > 0 ? actions : [{ kind: "goto", url: "/" }],
+        cleanupActions,
       };
 
       setRecipeDraft(draft);
@@ -531,10 +611,11 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
   );
 
   useEffect(() => {
-    if (!activeJobId) return;
+    if (!activeJobId || !isJobRunning) return;
 
     let isCancelled = false;
     let terminalReconciled = false;
+    let intervalId: ReturnType<typeof setInterval> | null = null;
 
     const pollJob = async () => {
       if (terminalReconciled) return;
@@ -590,6 +671,7 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
 
         if (isTerminal) {
           terminalReconciled = true;
+          if (intervalId) clearInterval(intervalId);
           void refreshHistory();
         }
       } catch {
@@ -597,14 +679,14 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
       }
     };
 
-    const interval = setInterval(pollJob, 1000);
+    intervalId = setInterval(pollJob, 1000);
     void pollJob();
 
     return () => {
       isCancelled = true;
-      clearInterval(interval);
+      if (intervalId) clearInterval(intervalId);
     };
-  }, [activeJobId, refreshHistory]);
+  }, [activeJobId, isJobRunning, refreshHistory]);
 
   // Run Job
   const canRun = Boolean(
@@ -650,6 +732,29 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
       });
 
       if (!res.ok) {
+        if (res.status === 409) {
+          const errData = await res.json().catch(() => ({}));
+          if (errData.activeJobId) {
+            const jobRes = await fetch(`/api/playwright-runner/jobs/${errData.activeJobId}`);
+            if (jobRes.ok) {
+              const jobData = await jobRes.json();
+              if (jobData.job) {
+                setActiveJob(jobData.job);
+                nextSequenceRef.current = -1;
+                setTerminalLines((prev) => [
+                  ...prev,
+                  {
+                    sequence: 0,
+                    timestamp: new Date().toISOString(),
+                    stream: "system",
+                    message: `[system] Reattached to already active job ${errData.activeJobId} (${jobData.job.status})`,
+                  },
+                ]);
+                return true;
+              }
+            }
+          }
+        }
         return false;
       }
 

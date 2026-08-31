@@ -28,6 +28,7 @@ test.describe("Multi-User Test Runner Synchronization E2E", () => {
     ]);
     await page.addInitScript(() => {
       window.sessionStorage.setItem("project_monitor_tab_session", "e2e-user-a");
+      window.localStorage.setItem("morniter:playwright-tutorial:v1:seen", "true");
     });
 
     // User 2 context, session cookie and tab storage marker
@@ -37,6 +38,7 @@ test.describe("Multi-User Test Runner Synchronization E2E", () => {
     ]);
     await contextB.addInitScript(() => {
       window.sessionStorage.setItem("project_monitor_tab_session", "e2e-user-b");
+      window.localStorage.setItem("morniter:playwright-tutorial:v1:seen", "true");
     });
     const pageB = await contextB.newPage();
 
@@ -46,27 +48,41 @@ test.describe("Multi-User Test Runner Synchronization E2E", () => {
         contentType: "application/json",
         body: JSON.stringify({
           presence: { agentId: "agent-win-1", state: "online", lastHeartbeatAt: fixedTime },
-          activeJob: sharedActiveJob,
           catalog: {
-            version: "1.0.0",
+            version: "2.0.0",
             updatedAt: fixedTime,
             projects: [
               {
-                id: "student-tracking",
-                name: "Student Tracking System",
-                presets: [
+                id: "sts-playwright",
+                name: "STS Playwright Automation",
+                scanPathLabel: "frontend/e2e",
+                testGroups: [
                   {
-                    id: "cypress-e2e",
-                    name: "Cypress E2E Suite",
-                    description: "Runs full Cypress tests",
-                    commandPreview: "npx cypress run",
-                    timeoutSeconds: 300,
-                    category: "automated",
-                    srsIds: [],
-                    risk: "safe",
-                    databaseTarget: "none",
+                    id: "auth",
+                    name: "Authentication",
+                    functionId: "FN-STS-01",
+                    functionName: "Authentication",
+                    tests: [
+                      {
+                        id: "pw-login-1",
+                        title: "Login Flow",
+                        relativePath: "frontend/e2e/auth/login.spec.ts",
+                        runner: "playwright",
+                        executable: true,
+                        risk: "read-only",
+                        origin: "manual",
+                        confidence: "high",
+                        matchedBy: ["path"],
+                      },
+                    ],
+                    gaps: [],
                   },
                 ],
+                capabilities: {
+                  browsers: { chromium: true, firefox: false, webkit: false },
+                  headed: true,
+                  workspaceExecution: true,
+                },
               },
             ],
           },
@@ -96,12 +112,18 @@ test.describe("Multi-User Test Runner Synchronization E2E", () => {
 
         sharedActiveJob = {
           id: "job-shared-1",
-          requesterLabel: "Operator 12345678",
-          projectId: "student-tracking",
-          presetId: "cypress-e2e",
-          presetName: "Cypress E2E Suite",
           status: "running",
-          queuedAt: fixedTime,
+          createdAt: fixedTime,
+          startedAt: fixedTime,
+          target: {
+            projectId: "sts-playwright",
+            browsers: ["chromium"],
+            mode: "headless",
+            source: "project-test",
+            selectedTestIds: ["pw-login-1"],
+          },
+          terminalLines: [],
+          artifacts: [],
         };
 
         await route.fulfill({
@@ -112,11 +134,11 @@ test.describe("Multi-User Test Runner Synchronization E2E", () => {
         return;
       }
 
-      if (url.includes("/jobs/")) {
+      if (url.includes("/jobs/job-shared-1")) {
         await route.fulfill({
           status: 200,
           contentType: "application/json",
-          body: JSON.stringify({ job: sharedActiveJob, lines: [], nextSequence: 0 }),
+          body: JSON.stringify({ job: sharedActiveJob, logs: [], nextSequence: 0 }),
         });
         return;
       }
@@ -129,33 +151,31 @@ test.describe("Multi-User Test Runner Synchronization E2E", () => {
     };
 
     await page.route("**/api/test-runner/lock*", mockLockHandler);
-    await page.route("**/api/test-runner/catalog*", mockCatalogHandler);
-    await page.route("**/api/test-runner/jobs*", mockJobsHandler);
+    await page.route("**/api/playwright-runner/catalog*", mockCatalogHandler);
+    await page.route("**/api/playwright-runner/jobs*", mockJobsHandler);
 
     await pageB.route("**/api/test-runner/lock*", mockLockHandler);
-    await pageB.route("**/api/test-runner/catalog*", mockCatalogHandler);
-    await pageB.route("**/api/test-runner/jobs*", mockJobsHandler);
+    await pageB.route("**/api/playwright-runner/catalog*", mockCatalogHandler);
+    await pageB.route("**/api/playwright-runner/jobs*", mockJobsHandler);
 
     await page.goto(`${appUrl}/monitor/tests`);
-    await expect(page.getByText(/Production Test Runner/i)).toBeVisible();
-    await expect(page.getByText(/Local Agent Online/i)).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Playwright Automation" })).toBeVisible();
 
     await pageB.goto(`${appUrl}/monitor/tests`);
-    await expect(pageB.getByText(/Production Test Runner/i)).toBeVisible();
-    await expect(pageB.getByText(/Local Agent Online/i)).toBeVisible();
+    await expect(pageB.getByRole("heading", { name: "Playwright Automation" })).toBeVisible();
 
     // User A selects test and launches
-    await page.getByLabel("Test command").selectOption("cypress-e2e");
-    await page.getByRole("button", { name: "Run selected test" }).click();
-    await page.getByRole("button", { name: "Confirm Run" }).click();
+    await page.getByText("Authentication").click();
+    const testCheckbox = page.locator('input[type="checkbox"]').first();
+    await testCheckbox.check();
 
-    // User A sees running progress with Operator 12345678
-    await expect(page.getByText(/Operator 12345678/i)).toBeVisible();
+    const runSlot = page.locator('[data-tutorial-id="run"]');
+    const runBtn = runSlot.getByRole("button", { name: /Run/i });
+    await expect(runBtn).toBeEnabled();
+    await runBtn.click();
 
-    // User B receives catalog update and sees active job lock
-    await expect(pageB.getByText(/Job In Progress/i)).toBeVisible();
-    await expect(pageB.getByLabel("Project")).toBeDisabled();
-    await expect(pageB.getByLabel("Test command")).toBeDisabled();
+    // User A sees Cancel button in the action slot
+    await expect(runSlot.getByRole("button", { name: /Cancel/i })).toBeVisible();
 
     await contextB.close();
   });

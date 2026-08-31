@@ -31,13 +31,14 @@ function markSeen(): void {
 export function usePlaywrightTutorial(
   catalogReady: boolean,
   catalogError = false,
+  executionActive = false,
 ): UsePlaywrightTutorialResult {
   const [isOpen, setIsOpen] = useState(false);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const hasCheckedFirstVisitRef = useRef(false);
 
   useEffect(() => {
-    if (!catalogReady || catalogError || hasCheckedFirstVisitRef.current) return;
+    if (!catalogReady || catalogError || executionActive || hasCheckedFirstVisitRef.current) return;
     hasCheckedFirstVisitRef.current = true;
 
     try {
@@ -50,7 +51,7 @@ export function usePlaywrightTutorial(
     } catch {
       // Storage access blocked; default closed
     }
-  }, [catalogReady, catalogError]);
+  }, [catalogReady, catalogError, executionActive]);
 
   const openTutorial = useCallback(() => {
     setCurrentStepIndex(0);
@@ -58,7 +59,7 @@ export function usePlaywrightTutorial(
   }, []);
 
   const closeTutorial = useCallback(() => {
-    markSeen();
+    // Close without marking as seen
     setIsOpen(false);
   }, []);
 

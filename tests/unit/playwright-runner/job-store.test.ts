@@ -382,6 +382,48 @@ describe("Playwright Job Store Persistence", () => {
     ).rejects.toThrow(PlaywrightInvalidTransitionError);
   });
 
+  it("finalizes cancellation when the claimed execution heartbeat has expired", async () => {
+    const staleAt = new Date("2026-08-31T08:00:00.000Z");
+    const cancelAt = new Date("2026-08-31T08:03:00.000Z");
+    const job = await enqueuePlaywrightJob(
+      {
+        projectId: "projectsts",
+        source: "workspace",
+        code: "test('stale run', async () => {});",
+        browsers: ["chromium"],
+        mode: "headless",
+      },
+      "agent-stale-cancel",
+      undefined,
+      staleAt,
+      fakeRedis,
+    );
+
+    await claimNextPlaywrightJob("agent-stale-cancel", staleAt, fakeRedis);
+    await heartbeatPlaywrightJob(job.id, "agent-stale-cancel", undefined, staleAt, fakeRedis);
+
+    const cancelled = await requestCancelPlaywrightJob(job.id, fakeRedis, cancelAt);
+
+    expect(cancelled.status).toBe("cancelled");
+    expect(cancelled.completedAt).toBe(cancelAt.toISOString());
+
+    await expect(
+      enqueuePlaywrightJob(
+        {
+          projectId: "projectsts",
+          source: "workspace",
+          code: "test('next run', async () => {});",
+          browsers: ["chromium"],
+          mode: "headless",
+        },
+        "agent-stale-cancel",
+        undefined,
+        cancelAt,
+        fakeRedis,
+      ),
+    ).resolves.toMatchObject({ status: "queued" });
+  });
+
   it("lists bounded job history and reaps stale jobs", async () => {
     const job = await enqueuePlaywrightJob(
       {

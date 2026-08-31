@@ -1,13 +1,21 @@
 "use client";
 
-import React, { useEffect, useState, useRef, useCallback } from "react";
-import { PLAYWRIGHT_TUTORIAL_STEPS } from "./tutorial-steps";
+import React, { useEffect, useState } from "react";
+import {
+  PLAYWRIGHT_TUTORIAL_STEPS,
+  type TutorialTargetId,
+} from "./tutorial-steps";
+import TutorialIcon from "./TutorialIcon";
+import TutorialVisual from "./TutorialVisual";
+import TutorialStepRail from "./TutorialStepRail";
+import styles from "./PlaywrightTutorial.module.css";
 
 export interface PlaywrightTutorialProps {
   isOpen: boolean;
   currentStepIndex: number;
   returnFocusRef: React.RefObject<HTMLButtonElement | null>;
   workspaceRootId?: string;
+  unavailableTargetIds?: readonly TutorialTargetId[];
   onClose: () => void;
   onSkip: () => void;
   onFinish: () => void;
@@ -16,18 +24,11 @@ export interface PlaywrightTutorialProps {
   onStepChange: (index: number) => void;
 }
 
-interface SpotlightRect {
-  top: number;
-  left: number;
-  width: number;
-  height: number;
-}
-
 export function PlaywrightTutorial({
   isOpen,
   currentStepIndex,
   returnFocusRef,
-  workspaceRootId = "playwright-workspace-root",
+  unavailableTargetIds,
   onClose,
   onSkip,
   onFinish,
@@ -35,33 +36,28 @@ export function PlaywrightTutorial({
   onPrevious,
   onStepChange,
 }: PlaywrightTutorialProps) {
-  const [spotlightRect, setSpotlightRect] = useState<SpotlightRect | null>(null);
-  const dialogRef = useRef<HTMLDivElement>(null);
+  const [transitionDirection, setTransitionDirection] = useState<"idle" | "next" | "prev" | "fade">("idle");
   const step = PLAYWRIGHT_TUTORIAL_STEPS[currentStepIndex] || PLAYWRIGHT_TUTORIAL_STEPS[0];
   const isLastStep = currentStepIndex === PLAYWRIGHT_TUTORIAL_STEPS.length - 1;
 
-  // Manage inert on background workspace
-  useEffect(() => {
-    if (!isOpen) return;
-    const ws = document.getElementById(workspaceRootId);
-    if (ws) {
-      ws.setAttribute("inert", "");
-      ws.setAttribute("aria-hidden", "true");
-    }
-
-    return () => {
-      if (ws) {
-        ws.removeAttribute("inert");
-        ws.removeAttribute("aria-hidden");
-      }
-    };
-  }, [isOpen, workspaceRootId]);
-
-  // Focus management & Escape key
+  // Restore focus only when Learning mode closes or unmounts, not between steps.
   useEffect(() => {
     if (!isOpen) return;
     const previousActive = document.activeElement as HTMLElement | null;
     const returnFocusEl = returnFocusRef.current;
+
+    return () => {
+      if (returnFocusEl) {
+        returnFocusEl.focus();
+      } else if (previousActive) {
+        previousActive.focus();
+      }
+    };
+  }, [isOpen, returnFocusRef]);
+
+  // Keyboard navigation
+  useEffect(() => {
+    if (!isOpen) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -73,6 +69,7 @@ export function PlaywrightTutorial({
       if (e.key === "ArrowRight" || e.key === "ArrowDown") {
         e.preventDefault();
         if (!isLastStep) {
+          setTransitionDirection("next");
           onNext();
         }
         return;
@@ -81,208 +78,132 @@ export function PlaywrightTutorial({
       if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
         e.preventDefault();
         if (currentStepIndex > 0) {
+          setTransitionDirection("prev");
           onPrevious();
         }
         return;
       }
-
-      if (e.key === "Tab" && dialogRef.current) {
-        const focusables = dialogRef.current.querySelectorAll<HTMLElement>(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-        );
-        if (focusables.length === 0) return;
-
-        const first = focusables[0];
-        const last = focusables[focusables.length - 1];
-
-        if (e.shiftKey && document.activeElement === first) {
-          e.preventDefault();
-          last.focus();
-        } else if (!e.shiftKey && document.activeElement === last) {
-          e.preventDefault();
-          first.focus();
-        }
-      }
     };
 
     window.addEventListener("keydown", handleKeyDown);
-    const firstButton = dialogRef.current?.querySelector<HTMLButtonElement>("button");
-    firstButton?.focus();
 
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
-      if (returnFocusEl) {
-        returnFocusEl.focus();
-      } else if (previousActive) {
-        previousActive.focus();
-      }
     };
-  }, [isOpen, onClose, onNext, onPrevious, isLastStep, currentStepIndex, returnFocusRef]);
-
-  // Calculate spotlight coordinates
-  const updateSpotlight = useCallback(() => {
-    if (!isOpen) return;
-    const el = document.querySelector<HTMLElement>(`[data-tutorial-id="${step.targetId}"]`);
-
-    if (!el || el.getAttribute("data-tutorial-state") === "unavailable") {
-      setSpotlightRect(null);
-      return;
-    }
-
-    const rect = el.getBoundingClientRect();
-    if (rect.width === 0 || rect.height === 0) {
-      setSpotlightRect(null);
-      return;
-    }
-
-    const padding = 8;
-    setSpotlightRect({
-      top: Math.max(0, rect.top - padding),
-      left: Math.max(0, rect.left - padding),
-      width: rect.width + padding * 2,
-      height: rect.height + padding * 2,
-    });
-
-    const prefersReducedMotion =
-      typeof window !== "undefined" &&
-      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-
-    if (typeof el.scrollIntoView === "function") {
-      el.scrollIntoView({
-        behavior: prefersReducedMotion ? "auto" : "smooth",
-        block: "center",
-      });
-    }
-  }, [isOpen, step.targetId]);
-
-  useEffect(() => {
-    let frameId: number | null = null;
-    const scheduleUpdate = () => {
-      if (frameId) cancelAnimationFrame(frameId);
-      frameId = requestAnimationFrame(updateSpotlight);
-    };
-
-    scheduleUpdate();
-
-    window.addEventListener("resize", scheduleUpdate);
-    window.addEventListener("scroll", scheduleUpdate, true);
-
-    return () => {
-      if (frameId) cancelAnimationFrame(frameId);
-      window.removeEventListener("resize", scheduleUpdate);
-      window.removeEventListener("scroll", scheduleUpdate, true);
-    };
-  }, [updateSpotlight]);
+  }, [isOpen, onClose, onNext, onPrevious, isLastStep, currentStepIndex]);
 
   if (!isOpen) return null;
 
-  // Determine synchronous target availability
-  const targetElement = typeof document !== "undefined"
+  const handleNext = () => {
+    setTransitionDirection("next");
+    onNext();
+  };
+
+  const handlePrevious = () => {
+    setTransitionDirection("prev");
+    onPrevious();
+  };
+
+  const handleDirectStep = (idx: number) => {
+    setTransitionDirection("fade");
+    onStepChange(idx);
+  };
+
+  const targetElement = unavailableTargetIds === undefined && typeof document !== "undefined"
     ? document.querySelector<HTMLElement>(`[data-tutorial-id="${step.targetId}"]`)
     : null;
-  const isTargetUnavailable =
-    !targetElement ||
-    targetElement.getAttribute("data-tutorial-state") === "unavailable";
+  const isTargetUnavailable = unavailableTargetIds !== undefined
+    ? unavailableTargetIds.includes(step.targetId)
+    : !targetElement || targetElement.getAttribute("data-tutorial-state") === "unavailable";
+
+  const getAnimationClass = () => {
+    if (transitionDirection === "next") return styles.stageNext;
+    if (transitionDirection === "prev") return styles.stagePrev;
+    if (transitionDirection === "fade") return styles.stageFade;
+    return "";
+  };
 
   return (
     <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Playwright Automation Tutorial"
-      aria-describedby="tutorial-step-desc"
-      ref={dialogRef}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
+      role="region"
+      aria-label="Playwright Automation Learning Mode"
+      className="w-full rounded-2xl border border-slate-800 bg-slate-950 flex flex-col md:flex-row overflow-hidden shadow-2xl min-h-[560px]"
     >
-      {/* Backdrop */}
-      <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm" />
+      {/* Step Rail Navigation (Desktop Rail & Mobile Summary / Bottom Sheet) */}
+      <TutorialStepRail
+        steps={PLAYWRIGHT_TUTORIAL_STEPS}
+        currentStepIndex={currentStepIndex}
+        onStepChange={handleDirectStep}
+      />
 
-      {/* Spotlight cutout */}
-      {spotlightRect && !isTargetUnavailable && (
+      {/* Main Learning Stage */}
+      <div className="flex-1 flex flex-col justify-between bg-slate-900/40 p-4 sm:p-6 md:p-8 overflow-y-auto">
         <div
-          aria-hidden="true"
-          className="fixed pointer-events-none rounded-xl border-2 border-indigo-500 shadow-[0_0_0_9999px_rgba(2,6,23,0.75)] transition-all duration-200"
-          style={{
-            top: `${spotlightRect.top}px`,
-            left: `${spotlightRect.left}px`,
-            width: `${spotlightRect.width}px`,
-            height: `${spotlightRect.height}px`,
-          }}
-        />
-      )}
-
-      {/* Dialog Modal Box */}
-      <div className="relative z-10 w-full max-w-2xl rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl text-slate-200 space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-          <div>
+          key={step.id}
+          data-testid="tutorial-learning-stage"
+          data-transition={transitionDirection}
+          className={`space-y-4 ${getAnimationClass()}`}
+        >
+          {/* Header & Close Action */}
+          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
             <div className="flex items-center gap-2">
-              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
-                Tutorial
+              <span className="rounded bg-indigo-950 border border-indigo-700/60 px-2.5 py-0.5 text-[11px] font-sans font-semibold text-indigo-300">
+                {step.chapter}
               </span>
               <span className="text-xs font-mono text-slate-400">
                 ขั้นตอน {currentStepIndex + 1} จาก {PLAYWRIGHT_TUTORIAL_STEPS.length}
               </span>
             </div>
-            <h2 id="tutorial-step-title" className="text-lg font-bold text-white mt-1">
-              {step.title}
-            </h2>
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg border border-slate-700 bg-slate-800 px-2.5 py-1 text-xs font-sans text-slate-300 hover:bg-slate-700 hover:text-white transition cursor-pointer"
+            >
+              ออกจาก Tutorial
+            </button>
           </div>
 
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close tutorial"
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
-          >
-            ✕
-          </button>
-        </div>
+          {/* Title & Icon Header */}
+          <div className="flex items-start sm:items-center gap-3 pt-1">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-600/20 border border-indigo-500/40 text-indigo-400 shadow-sm">
+              <TutorialIcon name={step.icon} className="h-6 w-6" />
+            </div>
+            <div>
+              <h2 className="text-lg sm:text-xl font-bold text-white font-sans">
+                {step.title}
+              </h2>
+            </div>
+          </div>
 
-        {/* Semantic Progressbar */}
-        <div
-          role="progressbar"
-          aria-valuenow={currentStepIndex + 1}
-          aria-valuemin={1}
-          aria-valuemax={PLAYWRIGHT_TUTORIAL_STEPS.length}
-          aria-label={`Tutorial progress: Step ${currentStepIndex + 1} of ${PLAYWRIGHT_TUTORIAL_STEPS.length}`}
-          className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden"
-        >
+          {/* Progress Bar */}
           <div
-            className="bg-indigo-500 h-full transition-all duration-300 rounded-full"
-            style={{
-              width: `${((currentStepIndex + 1) / PLAYWRIGHT_TUTORIAL_STEPS.length) * 100}%`,
-            }}
-          />
-        </div>
+            role="progressbar"
+            aria-valuenow={currentStepIndex + 1}
+            aria-valuemin={1}
+            aria-valuemax={PLAYWRIGHT_TUTORIAL_STEPS.length}
+            aria-label={`Tutorial progress: Step ${currentStepIndex + 1} of ${PLAYWRIGHT_TUTORIAL_STEPS.length}`}
+            className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden"
+          >
+            <div
+              className="bg-indigo-500 h-full transition-all duration-300 rounded-full"
+              style={{
+                width: `${((currentStepIndex + 1) / PLAYWRIGHT_TUTORIAL_STEPS.length) * 100}%`,
+              }}
+            />
+          </div>
 
-        {/* Step Navigation Ribbon */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs font-mono">
-          {PLAYWRIGHT_TUTORIAL_STEPS.map((s, idx) => {
-            const isCurrent = idx === currentStepIndex;
-            return (
-              <button
-                key={s.id}
-                type="button"
-                aria-current={isCurrent ? "step" : undefined}
-                onClick={() => onStepChange(idx)}
-                className={`px-2.5 py-1 rounded-md transition-colors shrink-0 cursor-pointer ${
-                  isCurrent
-                    ? "bg-indigo-600 text-white font-bold"
-                    : "bg-slate-800/80 text-slate-400 hover:text-slate-200"
-                }`}
-              >
-                {idx + 1}. {s.label}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Step Content */}
-        <div className="space-y-3 min-h-[80px]">
-          <p id="tutorial-step-desc" className="text-sm text-slate-300 leading-relaxed">
+          {/* Step Description */}
+          <p id="tutorial-step-desc" className="text-sm text-slate-300 leading-relaxed font-sans">
             {step.description}
           </p>
 
+          {/* Mini UI Diagram */}
+          <div className="pt-2 pb-1">
+            <TutorialVisual kind={step.visual} />
+          </div>
+
+          {/* Unavailable Notice */}
           {isTargetUnavailable && (
             <div className="p-3 rounded-lg border border-amber-500/30 bg-amber-500/10 text-xs font-mono text-amber-300">
               ℹ️ {step.unavailableMessage}
@@ -290,22 +211,22 @@ export function PlaywrightTutorial({
           )}
         </div>
 
-        {/* Footer Actions */}
-        <div className="flex items-center justify-between border-t border-slate-800 pt-4">
+        {/* Action Buttons Footer */}
+        <div className="flex items-center justify-between border-t border-slate-800 pt-4 mt-6">
           <button
             type="button"
             onClick={onSkip}
-            className="text-xs font-mono text-slate-400 hover:text-slate-200 cursor-pointer"
+            className="text-xs font-sans text-slate-400 hover:text-slate-200 cursor-pointer"
           >
-            Skip Tutorial
+            ข้าม Tutorial
           </button>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             <button
               type="button"
               disabled={currentStepIndex === 0}
-              onClick={onPrevious}
-              className="px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+              onClick={handlePrevious}
+              className="px-3.5 py-1.5 text-xs font-sans font-medium rounded-lg border border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed transition"
             >
               Previous
             </button>
@@ -314,15 +235,15 @@ export function PlaywrightTutorial({
               <button
                 type="button"
                 onClick={onFinish}
-                className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-500 shadow-md shadow-indigo-500/20 cursor-pointer"
+                className="px-4 py-1.5 text-xs font-sans font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-500 shadow-md shadow-indigo-500/20 cursor-pointer transition"
               >
-                Finish
+                เริ่มใช้งาน
               </button>
             ) : (
               <button
                 type="button"
-                onClick={onNext}
-                className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-500 shadow-md shadow-indigo-500/20 cursor-pointer"
+                onClick={handleNext}
+                className="px-4 py-1.5 text-xs font-sans font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-500 shadow-md shadow-indigo-500/20 cursor-pointer transition"
               >
                 Next Step →
               </button>

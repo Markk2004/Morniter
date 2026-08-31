@@ -31,9 +31,13 @@ export function MonitorShell({ displayName = "Monitor Operator", children }: Mon
   const isTestsActive = pathname === "/monitor/tests";
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-cyan-500 selection:text-slate-950">
+    <div
+      className={`${
+        isTestsActive ? "h-dvh overflow-hidden" : "min-h-screen"
+      } bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-cyan-500 selection:text-slate-950`}
+    >
       {/* Top Header Navigation */}
-      <header className="sticky top-0 z-40 border-b border-slate-800 bg-slate-950/80 backdrop-blur-md px-4 lg:px-8 py-3 flex items-center justify-between">
+      <header className="shrink-0 sticky top-0 z-40 border-b border-slate-800 bg-slate-950/80 backdrop-blur-md px-4 lg:px-8 py-3 flex items-center justify-between">
         <div className="flex items-center space-x-6">
           <div className="flex items-center space-x-3">
             <BrandLogo size="sm" />
@@ -83,7 +87,12 @@ export function MonitorShell({ displayName = "Monitor Operator", children }: Mon
       </header>
 
       {/* Main Page Workspace */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
+      <main
+        data-testid="monitor-page-workspace"
+        className={`flex-1 w-full mx-auto p-3 sm:p-4 lg:p-5 ${
+          isTestsActive ? "min-h-0 max-w-none overflow-hidden flex flex-col" : "max-w-7xl"
+        }`}
+      >
         {children}
       </main>
     </div>

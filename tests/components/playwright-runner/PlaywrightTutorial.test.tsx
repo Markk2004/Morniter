@@ -4,9 +4,26 @@ import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
 import { PlaywrightTutorial } from "@/components/playwright-runner/tutorial/PlaywrightTutorial";
 
+function StatefulTutorial({ returnFocusRef }: { returnFocusRef: React.RefObject<HTMLButtonElement | null> }) {
+  const [stepIndex, setStepIndex] = React.useState(0);
+
+  return (
+    <PlaywrightTutorial
+      isOpen={true}
+      currentStepIndex={stepIndex}
+      returnFocusRef={returnFocusRef}
+      onClose={vi.fn()}
+      onSkip={vi.fn()}
+      onFinish={vi.fn()}
+      onNext={() => setStepIndex((index) => index + 1)}
+      onPrevious={() => setStepIndex((index) => index - 1)}
+      onStepChange={setStepIndex}
+    />
+  );
+}
+
 describe("PlaywrightTutorial component", () => {
   beforeEach(() => {
-    // Setup container root
     document.body.innerHTML =
       '<div id="playwright-workspace-root">' +
       '<div data-tutorial-id="agent" style="width: 200px; height: 50px;">Agent</div>' +
@@ -19,7 +36,7 @@ describe("PlaywrightTutorial component", () => {
     vi.restoreAllMocks();
   });
 
-  it("renders accessible modal with progressbar and title", () => {
+  it("renders full-screen Learning mode region with step rail and mini diagram", () => {
     const returnFocusRef = { current: document.createElement("button") };
     render(
       <PlaywrightTutorial
@@ -35,53 +52,20 @@ describe("PlaywrightTutorial component", () => {
       />,
     );
 
-    const dialog = screen.getByRole("dialog", { name: /Playwright Automation Tutorial/i });
-    expect(dialog).toBeInTheDocument();
+    const region = screen.getByRole("region", { name: /Playwright Automation Learning Mode/i });
+    expect(region).toBeInTheDocument();
+    expect(screen.getByRole("navigation", { name: "Tutorial steps" })).toBeInTheDocument();
+    expect(screen.getByTestId("tutorial-learning-stage")).toBeInTheDocument();
+    expect(screen.getByTestId("tutorial-visual-agent")).toBeInTheDocument();
     expect(screen.getByText("ขั้นตอน 1 จาก 9")).toBeInTheDocument();
     expect(screen.getByText("ตรวจสอบ Local Agent")).toBeInTheDocument();
+
+    // Assert that old spotlight elements are NOT rendered
+    expect(document.querySelector("[data-tutorial-spotlight]")).toBeNull();
 
     const progressbar = screen.getByRole("progressbar");
     expect(progressbar).toHaveAttribute("aria-valuenow", "1");
     expect(progressbar).toHaveAttribute("aria-valuemax", "9");
-  });
-
-  it("sets background workspace to inert when modal is open and removes when closed", () => {
-    const returnFocusRef = { current: document.createElement("button") };
-    const ws = document.getElementById("playwright-workspace-root");
-    expect(ws?.hasAttribute("inert")).toBe(false);
-
-    const { rerender } = render(
-      <PlaywrightTutorial
-        isOpen={true}
-        currentStepIndex={0}
-        returnFocusRef={returnFocusRef}
-        onClose={vi.fn()}
-        onSkip={vi.fn()}
-        onFinish={vi.fn()}
-        onNext={vi.fn()}
-        onPrevious={vi.fn()}
-        onStepChange={vi.fn()}
-      />,
-    );
-
-    expect(ws?.hasAttribute("inert")).toBe(true);
-    expect(ws?.getAttribute("aria-hidden")).toBe("true");
-
-    rerender(
-      <PlaywrightTutorial
-        isOpen={false}
-        currentStepIndex={0}
-        returnFocusRef={returnFocusRef}
-        onClose={vi.fn()}
-        onSkip={vi.fn()}
-        onFinish={vi.fn()}
-        onNext={vi.fn()}
-        onPrevious={vi.fn()}
-        onStepChange={vi.fn()}
-      />,
-    );
-
-    expect(ws?.hasAttribute("inert")).toBe(false);
   });
 
   it("handles next, previous, direct step change, and finish callbacks", () => {
@@ -110,12 +94,12 @@ describe("PlaywrightTutorial component", () => {
     fireEvent.click(nextBtn);
     expect(onNext).toHaveBeenCalledTimes(1);
 
-    // Direct step jump
-    const step3Btn = screen.getByRole("button", { name: /3\. Project/i });
-    fireEvent.click(step3Btn);
+    // Direct step jump in rail
+    const step3Btns = screen.getAllByRole("button", { name: /Project/i });
+    fireEvent.click(step3Btns[0]);
     expect(onStepChange).toHaveBeenCalledWith(2);
 
-    // Last step renders Finish button
+    // Last step renders Finish / เริ่มใช้งาน button
     rerender(
       <PlaywrightTutorial
         isOpen={true}
@@ -130,9 +114,28 @@ describe("PlaywrightTutorial component", () => {
       />,
     );
 
-    const finishBtn = screen.getByRole("button", { name: /Finish/i });
+    const finishBtn = screen.getByRole("button", { name: /เริ่มใช้งาน/i });
     fireEvent.click(finishBtn);
     expect(onFinish).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps focus in Learning mode and exposes the slide direction after Next", () => {
+    const triggerBtn = document.createElement("button");
+    document.body.appendChild(triggerBtn);
+    const returnFocusRef = { current: triggerBtn };
+
+    render(<StatefulTutorial returnFocusRef={returnFocusRef} />);
+
+    const nextButton = screen.getByRole("button", { name: /Next Step/i });
+    nextButton.focus();
+    fireEvent.click(nextButton);
+
+    expect(screen.getByText("ปลดล็อกการรัน Test")).toBeInTheDocument();
+    expect(screen.getByTestId("tutorial-learning-stage")).toHaveAttribute(
+      "data-transition",
+      "next",
+    );
+    expect(document.activeElement).toBe(nextButton);
   });
 
   it("navigates forward and backward via Arrow keys (ArrowRight, ArrowDown, ArrowLeft, ArrowUp)", () => {
@@ -236,43 +239,5 @@ describe("PlaywrightTutorial component", () => {
 
     unmount();
     expect(triggerBtn.focus).toHaveBeenCalled();
-  });
-
-  it("respects prefers-reduced-motion when scrolling to target", () => {
-    const scrollIntoViewMock = vi.fn();
-    const target = document.querySelector('[data-tutorial-id="agent"]');
-    if (target) target.scrollIntoView = scrollIntoViewMock;
-
-    window.matchMedia = vi.fn().mockImplementation((query) => ({
-      matches: query === "(prefers-reduced-motion: reduce)",
-      media: query,
-      onchange: null,
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      dispatchEvent: vi.fn(),
-    }));
-
-    const returnFocusRef = { current: document.createElement("button") };
-    render(
-      <PlaywrightTutorial
-        isOpen={true}
-        currentStepIndex={0}
-        returnFocusRef={returnFocusRef}
-        onClose={vi.fn()}
-        onSkip={vi.fn()}
-        onFinish={vi.fn()}
-        onNext={vi.fn()}
-        onPrevious={vi.fn()}
-        onStepChange={vi.fn()}
-      />,
-    );
-
-    if (scrollIntoViewMock.mock.calls.length > 0) {
-      expect(scrollIntoViewMock).toHaveBeenCalledWith(
-        expect.objectContaining({ behavior: "auto" }),
-      );
-    }
   });
 });

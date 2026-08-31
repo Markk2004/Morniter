@@ -10,7 +10,8 @@ Replace the current text-heavy spotlight tutorial with a full-screen Learning mo
 
 ## Confirmed decisions
 
-- Use the full-screen Learning mode every time Tutorial opens, including manual reopen.
+- Replace the workspace with full-screen Learning mode while it is open; do not render a modal or spotlight above the workspace.
+- Open automatically only on the first successful catalog load. Manual reopen always starts at step 1.
 - Keep the existing nine-step workflow and storage behavior.
 - Use icons and code-rendered mini UI diagrams as the primary visuals.
 - Do not depend on screenshots or external image URLs.
@@ -24,7 +25,7 @@ Desktop uses two regions:
 1. A narrow left rail listing all nine steps, completed steps, the current step, and upcoming steps.
 2. A main learning stage containing the step icon, mini UI diagram, title, description, unavailable-state message, and navigation actions.
 
-On narrow screens the rail becomes a compact horizontal step summary above the learning stage. The content must fit at 320 CSS pixels without horizontal scrolling.
+On narrow screens the rail becomes a compact summary above the learning stage: `ขั้นตอน N/9 · ชื่อขั้นตอน`. A button opens the complete step list as an accessible bottom sheet. The content must fit at 320 CSS pixels without horizontal scrolling.
 
 ## Step model
 
@@ -66,21 +67,28 @@ The visual name is data only. It selects a fixed local React component; it canno
 - Accent color marks only the current step and primary action.
 - Completed steps use icon plus text, not color alone.
 - Inactive steps remain readable but visually quieter.
-- Transitions last 150–200 milliseconds and become instant under `prefers-reduced-motion`.
+- Next slides the learning stage from right to left in 180–220 milliseconds.
+- Previous slides the learning stage from left to right in 180–220 milliseconds.
+- Direct step selection fades the learning stage without directional movement.
+- All movement becomes instant under `prefers-reduced-motion`.
 
 ## Interaction
 
 - `ArrowRight` and `ArrowDown` advance.
 - `ArrowLeft` and `ArrowUp` go back.
-- `Escape` closes and restores focus to the Tutorial button.
-- `Tab` remains trapped inside Learning mode.
+- `Escape` closes without marking the tutorial as seen and restores focus to the Tutorial button.
+- `Tab` follows normal page order inside Learning mode; only the mobile bottom sheet traps focus while open.
 - Clicking a rail step jumps directly to it.
-- Previous, Next, Finish, Skip tutorial, and Close remain visible text actions.
-- Opening Tutorial manually always starts the same Learning mode UI; it does not fall back to the old spotlight.
+- `ออกจาก Tutorial` closes without writing completion state.
+- `ข้าม Tutorial` writes the seen state and closes.
+- The last-step `เริ่มใช้งาน` action writes the seen state and closes.
+- Opening Tutorial manually always starts at step 1 in the same Learning mode UI; it does not fall back to the old spotlight.
+- Tutorial must not auto-open while a test job is already running.
 
 ## Accessibility
 
-- Use `role="dialog"`, `aria-modal="true"`, a labelled heading, and a described step body.
+- Use a labelled `role="region"` for Learning mode because it replaces workspace content instead of opening a modal.
+- The mobile step-list bottom sheet uses `role="dialog"`, `aria-modal="true"`, focus containment, Escape close, and focus restoration to its trigger.
 - The active rail item uses `aria-current="step"`.
 - Decorative icons and diagrams use `aria-hidden="true"`.
 - Progress exposes current and total step count to assistive technology.
@@ -93,14 +101,18 @@ The visual name is data only. It selects a fixed local React component; it canno
 - `TutorialIcon.tsx`: fixed icon renderer.
 - `TutorialVisual.tsx`: fixed mini diagram renderer.
 - `TutorialStepRail.tsx`: chapter and step navigation.
-- `PlaywrightTutorial.tsx`: dialog behavior, layout, focus, and keyboard handling.
-- Existing tutorial hook remains the source of open/close/progress/storage state.
+- `PlaywrightTutorial.module.css`: directional and reduced-motion transitions only.
+- `PlaywrightTutorial.tsx`: learning-view layout, stage navigation, focus restoration, and keyboard handling.
+- Existing tutorial hook remains the source of open/close/progress/storage state and distinguishes close from skip/finish persistence.
 
 ## Acceptance
 
 - Every step displays a distinct icon and mini UI diagram.
-- Tutorial opens as Learning mode both automatically and from the header button.
+- Tutorial replaces the workspace instead of covering it.
+- Tutorial opens automatically only once after a successful catalog load; manual reopen starts at step 1.
+- Next, Previous, and direct selection use the confirmed directional transitions.
+- Desktop rail and mobile bottom sheet navigate to all nine steps.
+- Close does not persist seen state; Skip and Finish do.
 - No gradient styling or external image request is introduced.
 - Desktop and 320-pixel layouts remain usable without clipping.
 - Keyboard, focus restoration, reduced motion, unavailable states, and storage behavior continue to pass automated tests.
-

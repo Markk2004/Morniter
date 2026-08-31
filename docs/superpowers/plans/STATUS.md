@@ -11,10 +11,16 @@ Historical task checkboxes inside older plans are not retroactively marked compl
 - Deployment blocker from the overwritten legacy schema is fixed in the local workspace.
 - `npm run typecheck`: passed on 2026-08-31 (0 errors).
 - `npm run lint`: passed on 2026-08-31 (0 errors, 0 warnings).
-- `npm test`: passed, 90 files and 380 tests on 2026-08-31.
+- `npm test`: passed, 100 files and 428 tests on 2026-08-31.
+- `npx playwright test`: passed, 17/17 tests across all 8 spec files on 2026-08-31 (100% pass rate with `PLAYWRIGHT_AUTH_E2E=1`).
 - `npm run test-agent:build` / `npm run agent:build`: passed on 2026-08-31.
 - `npm run build`: passed and generated 26/26 static & dynamic routes on 2026-08-31.
-- **Gate A (Native Multi-Runner Automation)**: Implemented locally. Mixed-runner command planning, sequential execution, and single-terminal stream tagging are in place and verified in Vitest. Real ProjectSTS Local Agent smoke test remains required before release.
+- **Playwright Workspace Balanced Layout (Layout B)**: Fully implemented locally and verified (Compact horizontal control bar with single Run/Cancel slot and source switcher, strictly bounded viewport height [`h-dvh`] with internal scroll, resizable Explorer [280–440px], full Code Space main column, resizable & collapsible Terminal with accessible `<button>` toggle and effect-driven unread logs tracking [default 240px, min 160px–60% vh], 3-tab layout on narrow viewports [< 900px, 587px] where hidden panels have zero layout contribution, smooth `requestAnimationFrame` dragging with unmount cleanup, safe versioned localStorage persistence, Reset layout action, and zero horizontal document overflow across 1440px, 1024px, 900px, 899px, and 587px viewports).
+- **Source-Assisted Playwright Draft Import**: Fully implemented locally and verified (Direct import of `@playwright/test` files, 1-click draft seed `Draft 🪄` on non-Playwright tests and gaps, pure source analyzer engine deriving routes, locators, actions, assertions, and reusable flows with evidence and confidence tags, Recipe Builder step review, isolated browser Draft Run verification requirement, atomic save to `frontend/e2e/generated/`, manual test protection, and immediate catalog refresh into Generated Playwright).
+- **Test Explorer Reviewable Matches**: Fully implemented locally and verified (`พร้อมทดสอบ` / `ควรตรวจสอบการจับคู่` confidence partitioning, 10-item incremental limits, `รายละเอียด` inline match details panel, search across full catalog, runner filtering, and legacy backwards compatibility).
+- **Test Explorer Sheet Function Labels**: Fully implemented locally and verified (`functionId · functionName` headings, `ตรงกับ Sheet` badge, and multi-field search filtering).
+- **Playwright Tutorial Learning Mode**: Fully implemented locally and verified across unit, component, responsive 320px, and E2E suites (17/17 tests passing across all 8 spec files).
+- **Gate A (Native Multi-Runner Automation)**: Implemented locally. Mixed-runner command planning, sequential execution, and single-terminal stream tagging are in place and verified in Vitest and Playwright E2E. Real ProjectSTS Local Agent smoke test remains required before release.
 - **Gate B (Recipe Builder & Safe Mutation)**: Local hardening is implemented and automated checks pass:
   - Explicit `risk` & `recipeId` job metadata on workspace draft runs preventing mutating bypasses (P0).
   - Agent-owned `testTarget` contract with safe catalog exposure (without publishing `baseUrl`).
@@ -23,23 +29,27 @@ Historical task checkboxes inside older plans are not retroactively marked compl
   - Durable claimed index failure handling rolling back active lease and restoring queued mutation (P1).
   - Multi-phase filesystem transaction journal (`.morniter-mutation-journal.json`) with `fsync` durable writing, startup crash recovery (`recoverRecipeTransactions`), SHA-256 hash verification before backup removal, and strict corruption error handling (P1, P2 & Standards).
   - Base revision verification via SHA-256 `mapRevision` of `test-automation-map.json`.
-- **Production Ready**: Not passed yet. Real ProjectSTS Local Agent smoke test with realtime terminal streaming, installed Chrome/Edge Desktop PWA manual acceptance, and deployed Vercel smoke test remain the required production release gates.
+- **Production Ready**: Automated gates pass 100%. Real ProjectSTS Local Agent smoke test with realtime terminal streaming, installed Chrome/Edge Desktop PWA manual acceptance, and deployed Vercel smoke test remain the required production release gates.
 
 ## Active work
 
-### Active UI delivery: Playwright Tutorial Learning Mode
+### Completed: Playwright Tutorial Learning Mode
 
-Status: Approved design and implementation plan are complete. Source implementation has not started.
+Status: Fully implemented locally and verified. Typecheck, lint, 100-file/428-test Vitest suite, 8-file/17-test Playwright E2E suite, and the 26-route production build pass.
 
-- Plan: [Playwright Tutorial Learning Mode Implementation Plan](2026-08-31-playwright-tutorial-learning-mode.md)
 - Design: [Playwright Tutorial Learning Mode Design](../specs/2026-08-31-playwright-tutorial-learning-mode-design.md)
 
-Remaining work:
+Completed in local source:
 
-1. Extend the nine-step tutorial catalog with typed chapter, icon, and visual metadata.
-2. Build local SVG icons, code-rendered mini UI diagrams, and chapter navigation without external assets or gradients.
-3. Replace the spotlight layout with full-screen Learning mode while preserving storage, keyboard, focus, unavailable-state, and reduced-motion behavior.
-4. Verify desktop and 320-pixel layouts, authenticated E2E behavior, and all automated release gates.
+1. Extended nine-step tutorial catalog with typed chapters (`เตรียมระบบ`, `เลือกการทดสอบ`, `รันและตรวจผล`), icons, and visual identifiers.
+2. Implemented fixed outline SVG icons (`TutorialIcon.tsx`) and code-rendered mini UI diagrams (`TutorialVisual.tsx`) without external dependencies or gradients.
+3. Replaced spotlight overlay with full-screen Learning mode (`PlaywrightTutorial.tsx`) containing 240px desktop rail and mobile bottom sheet (`TutorialStepRail.tsx`).
+4. Implemented directional CSS transitions (`PlaywrightTutorial.module.css`): Next slides left, Previous slides right, direct selection fades, reduced-motion disables movement.
+5. Separated Close (does not mark seen) from Skip and Finish (marks seen in localStorage) and suppressed first-open during active test runs.
+6. Fixed navigation focus restoration so changing steps no longer returns focus to the Tutorial trigger.
+7. Added runner-owned unavailable-state input so targets hidden while Learning mode is active are not incorrectly reported unavailable.
+8. Migrated all 5 legacy E2E test files to the Playwright workspace contract, achieving 17/17 passing Playwright tests.
+9. Fully verified with `PLAYWRIGHT_AUTH_E2E=1` and mobile 320px viewport without horizontal overflow.
 
 ### Active release: Playwright Production Release Hardening
 
@@ -47,7 +57,6 @@ Status: Local implementation and automated verification are complete. Production
 
 - Plan: [Playwright Production Release Hardening Plan](2026-08-30-playwright-production-release-hardening.md)
 - Supporting acceptance plan: [Playwright Production Acceptance Fixes Plan](2026-08-30-playwright-production-acceptance-fixes.md)
-- Supporting hardening plan: [Recipe Mutation Production Safety Fixes Plan](2026-08-31-recipe-mutation-production-safety-fixes.md)
 
 Completed in local source:
 
@@ -83,12 +92,9 @@ The following plans are complete at the local implementation level and are no lo
 
 ### Multi-Runner Automation and Recipe Builder
 
-- Plan: [Multi-Runner Automation and Recipe Builder Plan](2026-08-30-multi-runner-recipe-builder.md)
 - Design: [Multi-Runner Automation and Recipe Builder design](../specs/2026-08-30-multi-runner-recipe-builder-design.md)
 
 ### Recipe Mutation Production Safety Fixes
-
-- Plan: [Recipe Mutation Production Safety Fixes Plan](2026-08-31-recipe-mutation-production-safety-fixes.md)
 
 ### Playwright Interactive Tutorial
 

@@ -176,6 +176,8 @@ describe("Playwright Runner Zod Schemas", () => {
             {
               id: "FN-STS-01",
               name: "Authentication",
+              functionId: "FN-STS-01",
+              functionName: "Authentication",
               tests: [
                 {
                   id: "test-auth-1",
@@ -192,11 +194,21 @@ describe("Playwright Runner Zod Schemas", () => {
               ],
               gaps: [],
             },
+            {
+              id: "generic-group-2",
+              name: "User Profile",
+              // functionId and functionName omitted for legacy compatibility
+              tests: [],
+              gaps: [],
+            },
           ],
         },
       ],
     });
-    expect(valid.projects[0].coverageGroups).toHaveLength(1);
+    expect(valid.projects[0].coverageGroups).toHaveLength(2);
+    expect(valid.projects[0].coverageGroups?.[0].functionId).toBe("FN-STS-01");
+    expect(valid.projects[0].coverageGroups?.[0].functionName).toBe("Authentication");
+    expect(valid.projects[0].coverageGroups?.[1].functionId).toBeUndefined();
     expect(valid.projects[0].coverageGroups?.[0].tests[0].executionProfileId).toBe("frontend-playwright");
   });
 

@@ -267,10 +267,14 @@ export async function buildPlaywrightCatalogFromConfig(
           }
         }
 
-        coverageGroups = coverage.map((group) => ({
-          id: group.id,
-          name: group.name,
-          tests: group.tests.flatMap((test) => {
+        coverageGroups = coverage.map((group) => {
+          const matchingRule = automationMap.functions.find((f) => f.id === group.id);
+          return {
+            id: group.id,
+            name: group.name,
+            functionId: matchingRule?.id ?? group.id,
+            functionName: matchingRule?.name ?? group.name,
+            tests: group.tests.flatMap((test) => {
             const canonicalTests = test.executable && test.runner === "playwright"
               ? playwrightTestsByPath.get(test.relativePath) || []
               : [];
@@ -306,7 +310,8 @@ export async function buildPlaywrightCatalogFromConfig(
             title: gap.title,
             status: gap.status,
           })),
-        }));
+        };
+      });
       } catch {
         coverageGroups = undefined;
       }

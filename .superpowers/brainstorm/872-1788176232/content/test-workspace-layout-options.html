@@ -1,0 +1,57 @@
+<h2>เลือกโครงหน้าจอ Test Workspace</h2>
+<p class="subtitle">เทียบจากงานจริง: เลือก test ทางซ้าย, ตรวจ code ตรงกลาง และติดตาม process ใน Terminal</p>
+
+<div class="cards" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr));">
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:14px;background:#07101f;min-height:250px;">
+      <div style="height:24px;border:1px solid #26364f;border-radius:7px;margin-bottom:8px;padding:4px 8px;font-size:10px;color:#91a4bf;">Project · Browser · Mode · Run</div>
+      <div style="display:grid;grid-template-columns:28% 44% 28%;gap:7px;height:190px;">
+        <div style="border:1px solid #26364f;border-radius:7px;padding:8px;color:#d6e2f2;font-size:10px;">
+          <b>Test Explorer</b><div style="margin-top:9px;color:#7487a4;line-height:2;">Authentication<br>Students<br>Reports<br>Dashboard</div>
+        </div>
+        <div style="border:1px solid #26364f;border-radius:7px;padding:8px;color:#d6e2f2;font-size:10px;">
+          <b>Code Space</b><div style="margin-top:9px;height:135px;background:#0b1527;border-radius:4px;color:#6082aa;padding:7px;line-height:1.7;">test(...<br>&nbsp;&nbsp;page.goto<br>&nbsp;&nbsp;expect(...</div>
+        </div>
+        <div style="border:1px solid #155e75;border-radius:7px;padding:8px;color:#d6e2f2;font-size:10px;background:#071827;">
+          <b>Live Terminal</b><div style="margin-top:9px;color:#43d5b0;line-height:1.8;">RUNNING<br>› chromium<br>✓ login<br>› students</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A · IDE 3 พื้นที่</h3>
+      <p>เห็น Explorer, Code และ Terminal พร้อมกัน เหมาะกับจอกว้างและการ debug แบบ realtime</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:14px;background:#07101f;min-height:250px;">
+      <div style="height:24px;border:1px solid #26364f;border-radius:7px;margin-bottom:8px;padding:4px 8px;font-size:10px;color:#91a4bf;">Project · Browser · Mode · Run</div>
+      <div style="display:grid;grid-template-columns:32% 68%;gap:7px;height:120px;">
+        <div style="border:1px solid #26364f;border-radius:7px;padding:8px;color:#d6e2f2;font-size:10px;"><b>Test Explorer</b><div style="margin-top:8px;color:#7487a4;line-height:1.9;">Authentication<br>Students<br>Reports</div></div>
+        <div style="border:1px solid #26364f;border-radius:7px;padding:8px;color:#d6e2f2;font-size:10px;"><b>Code Space</b><div style="margin-top:8px;height:70px;background:#0b1527;border-radius:4px;color:#6082aa;padding:7px;">test(... &nbsp; page.goto(...</div></div>
+      </div>
+      <div style="height:63px;border:1px solid #155e75;border-radius:7px;margin-top:7px;padding:8px;color:#43d5b0;font-size:10px;background:#071827;"><b style="color:#d6e2f2;">Terminal</b>&nbsp;&nbsp; RUNNING › chromium &nbsp; ✓ login &nbsp; › students</div>
+    </div>
+    <div class="card-body">
+      <h3>B · Editor หลัก + Terminal ด้านล่าง</h3>
+      <p>Code กว้าง อ่านง่าย Terminal เต็มแนวด้านล่าง แต่ต้องเลื่อนหรือขยายเพื่อดู log จำนวนมาก</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:14px;background:#07101f;min-height:250px;">
+      <div style="height:24px;border:1px solid #26364f;border-radius:7px;margin-bottom:8px;padding:4px 8px;font-size:10px;color:#91a4bf;">Project · Browser · Mode · Run</div>
+      <div style="display:flex;gap:5px;margin-bottom:8px;font-size:10px;color:#8da2bf;"><span style="border:1px solid #0891b2;color:#67e8f9;border-radius:5px;padding:4px 9px;">Explorer</span><span style="border:1px solid #26364f;border-radius:5px;padding:4px 9px;">Code</span><span style="border:1px solid #26364f;border-radius:5px;padding:4px 9px;">Terminal</span></div>
+      <div style="border:1px solid #26364f;border-radius:7px;height:158px;padding:10px;color:#d6e2f2;font-size:10px;"><b>Test Explorer</b><div style="margin-top:10px;color:#7487a4;line-height:2.1;">Authentication &nbsp; 1 test<br>Students &nbsp; 4 tests<br>Reports &nbsp; 3 tests<br>Dashboard &nbsp; 2 tests</div></div>
+    </div>
+    <div class="card-body">
+      <h3>C · Workspace แบบ Tab</h3>
+      <p>เหมาะกับหน้าต่างแคบและ PWA แต่เห็นทีละส่วน ต้องสลับ tab ขณะ debug</p>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:20px;">
+  <div class="label">คำแนะนำ</div>
+  <p>ใช้ A เมื่อหน้าจอกว้าง, เปลี่ยนเป็น B บน laptop และเปลี่ยนเป็น C เมื่อพื้นที่แคบกว่า 900px โดยจำสถานะ panel ล่าสุดของผู้ใช้</p>
+</div>

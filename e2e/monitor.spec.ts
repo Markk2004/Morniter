@@ -16,11 +16,11 @@ test.describe("Public E2E Flow", () => {
   });
 });
 
-test.describe("Authenticated Tutorial E2E Flow", () => {
+test.describe("Authenticated Tutorial Learning Mode E2E Flow", () => {
   const authE2EEnabled = process.env.PLAYWRIGHT_AUTH_E2E === "1";
   test.skip(!authE2EEnabled, "Run with PLAYWRIGHT_AUTH_E2E=1 for authenticated Tutorial E2E");
 
-  test("opens Tutorial once, exercises keyboard/focus, persists in storage, and never mutates runner state", async ({ page }) => {
+  test("opens Learning Mode once, exercises rail and mobile responsive layout, persists in storage, and never mutates runner state", async ({ page }) => {
     const password = process.env.E2E_GROUP_PASSWORD;
     expect(password, "E2E_GROUP_PASSWORD must be set for authenticated E2E").toBeTruthy();
 
@@ -100,30 +100,32 @@ test.describe("Authenticated Tutorial E2E Flow", () => {
     await page.evaluate((key) => localStorage.removeItem(key), "morniter:playwright-tutorial:v1:seen");
     await page.reload();
 
-    const dialog = page.getByRole("dialog", { name: /Playwright Automation Tutorial/i });
-    await expect(dialog).toBeVisible();
+    const learningRegion = page.getByRole("region", { name: /Playwright Automation Learning Mode/i });
+    await expect(learningRegion).toBeVisible();
+    await expect(page.getByTestId("tutorial-learning-stage")).toBeVisible();
 
-    // Focus containment & keyboard navigation
-    await expect
-      .poll(() =>
-        page.evaluate(() => {
-          const dlg = document.querySelector('[role="dialog"]');
-          return Boolean(dlg?.contains(document.activeElement));
-        }),
-      )
-      .toBe(true);
+    // Verify 320px viewport without horizontal overflow
+    await page.setViewportSize({ width: 320, height: 720 });
+    await expect(page.getByTestId("tutorial-learning-stage")).toBeVisible();
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    );
+    expect(overflow).toBe(false);
+
+    // Restore desktop viewport
+    await page.setViewportSize({ width: 1280, height: 800 });
 
     await page.keyboard.press("ArrowRight");
-    await expect(dialog.getByText("ขั้นตอน 2 จาก 9")).toBeVisible();
+    await expect(learningRegion.getByText("ขั้นตอน 2 จาก 9")).toBeVisible();
     await page.keyboard.press("ArrowLeft");
-    await expect(dialog.getByText("ขั้นตอน 1 จาก 9")).toBeVisible();
+    await expect(learningRegion.getByText("ขั้นตอน 1 จาก 9")).toBeVisible();
 
     // Step forward to end
     for (let step = 1; step < 9; step += 1) {
-      await dialog.getByRole("button", { name: /Next Step/i }).click();
+      await learningRegion.getByRole("button", { name: /Next Step/i }).click();
     }
-    await dialog.getByRole("button", { name: /Finish/i }).click();
-    await expect(dialog).toBeHidden();
+    await learningRegion.getByRole("button", { name: /เริ่มใช้งาน/i }).click();
+    await expect(learningRegion).toBeHidden();
 
     // Assert persistence
     await expect
@@ -132,14 +134,14 @@ test.describe("Authenticated Tutorial E2E Flow", () => {
 
     // Reload and assert remains hidden
     await page.reload();
-    await expect(dialog).toBeHidden();
+    await expect(learningRegion).toBeHidden();
 
     // Manual reopen and Escape focus restoration
     const tutorialButton = page.getByRole("button", { name: /เปิด Tutorial/i });
     await tutorialButton.click();
-    await expect(dialog).toBeVisible();
+    await expect(learningRegion).toBeVisible();
     await page.keyboard.press("Escape");
-    await expect(dialog).toBeHidden();
+    await expect(learningRegion).toBeHidden();
     await expect(tutorialButton).toBeFocused();
 
     expect(mutationRequests, "Tutorial must remain read-only").toEqual([]);

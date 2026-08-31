@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -25,10 +25,23 @@ function isStandaloneApp() {
   );
 }
 
+function useIsStandalone(): boolean {
+  return useSyncExternalStore(
+    (onStoreChange) => {
+      window.addEventListener("appinstalled", onStoreChange);
+      return () => window.removeEventListener("appinstalled", onStoreChange);
+    },
+    () => isStandaloneApp(),
+    () => false,
+  );
+}
+
 export default function PwaInstallPrompt() {
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalling, setIsInstalling] = useState(false);
-  const [isInstalled, setIsInstalled] = useState(() => isStandaloneApp());
+  const [installedManually, setInstalledManually] = useState(false);
+  const isStandalone = useIsStandalone();
+  const isInstalled = isStandalone || installedManually;
 
   useEffect(() => {
     const handleBeforeInstallPrompt = (event: BeforeInstallPromptEvent) => {
@@ -37,7 +50,7 @@ export default function PwaInstallPrompt() {
     };
 
     const handleAppInstalled = () => {
-      setIsInstalled(true);
+      setInstalledManually(true);
       setInstallPrompt(null);
     };
 
@@ -58,7 +71,7 @@ export default function PwaInstallPrompt() {
       await installPrompt.prompt();
       const choice = await installPrompt.userChoice;
       if (choice.outcome === "accepted") {
-        setIsInstalled(true);
+        setInstalledManually(true);
       }
       setInstallPrompt(null);
     } finally {
