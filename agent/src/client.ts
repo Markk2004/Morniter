@@ -216,7 +216,9 @@ export class AgentClient {
       headers: this.headers,
       body: JSON.stringify({
         status: result.status,
+        sessionCloseReason: result.sessionCloseReason,
         browserResults: result.browserResults,
+        runnerResults: result.runnerResults,
         artifacts: result.artifacts,
         startedAt: result.startedAt,
         finishedAt: result.finishedAt,

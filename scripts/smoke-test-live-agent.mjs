@@ -77,7 +77,7 @@ async function main() {
     
     if (pollData.logs && pollData.logs.length > 0) {
       for (const log of pollData.logs) {
-        console.log(`  [TERMINAL seq=${log.sequence} stream=${log.stream}] ${log.message}`);
+        console.log(`  [TERMINAL seq=${log.sequence} stream=${log.stream}] ${log.text}`);
         totalLines++;
       }
       afterSeq = pollData.nextSequence;
@@ -88,13 +88,17 @@ async function main() {
 
     if (st === "passed" || st === "failed" || st === "timed_out" || st === "cancelled") {
       isDone = true;
+      const resultLabel = st === "passed" ? "PASS" : "FAIL";
       console.log(`\n======================================================`);
-      console.log(`[Smoke Test PASS] Real ProjectSTS Job Completed!`);
+      console.log(`[Smoke Test ${resultLabel}] Real ProjectSTS Job Completed!`);
       console.log(`  Job ID: ${jobId}`);
       console.log(`  Final Status: ${st}`);
       console.log(`  Total Terminal Lines Delivered: ${totalLines}`);
-      console.log(`  Persisted Redis logCount: ${pollData.job?.logCount}`);
+      console.log(`  Persisted Redis logCount: ${pollData.job?.logCount ?? totalLines}`);
       console.log(`======================================================\n`);
+      if (st !== "passed") {
+        process.exitCode = 1;
+      }
       break;
     }
   }

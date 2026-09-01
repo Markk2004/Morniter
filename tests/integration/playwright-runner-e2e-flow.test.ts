@@ -431,4 +431,85 @@ describe("Playwright Runner Full E2E Flow & Agent Reconnection", () => {
     expect(completeData.job.runnerResults[0].runner).toBe("node-test");
     expect(completeData.job.runnerResults[1].runner).toBe("jest");
   });
+
+  it("handles interactive UI session lifecycle: submit -> claim -> stream UI logs -> session_closed completion", async () => {
+    // 1. Submit interactive job
+    const req = new NextRequest("http://localhost:3000/api/playwright-runner/jobs", {
+      method: "POST",
+      headers: {
+        cookie: `${monitorCookie}; ${executeCookie}`,
+        origin: "http://localhost:3000",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        projectId: "projectsts",
+        source: "project-test",
+        testIds: ["test-auth-1"],
+        browsers: ["chromium"],
+        mode: "interactive",
+        agentId: "agent-1",
+      }),
+    });
+
+    const res = await jobsPost(req);
+    expect(res.status).toBe(201);
+    const job = await res.json();
+    expect(job.mode).toBe("interactive");
+
+    // 2. Agent polls and claims
+    const pollReq = new NextRequest("http://localhost:3000/api/playwright-runner/agent/poll", {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${agentToken}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ agentId: "agent-1" }),
+    });
+
+    const pollRes = await pollPost(pollReq);
+    expect(pollRes.status).toBe(200);
+    const pollData = await pollRes.json();
+    expect(pollData.job.id).toBe(job.id);
+    expect(pollData.job.status).toBe("claimed");
+
+    // 3. Agent streams safe UI logs
+    const logReq = new NextRequest(`http://localhost:3000/api/playwright-runner/agent/jobs/${job.id}/logs`, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${agentToken}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        sequenceStart: 0,
+        entries: [
+          { stream: "system", message: "[UI] Interactive session opened. Running Playwright UI on Local Agent." },
+          { stream: "stdout", message: "[UI] Local Playwright UI ready" },
+        ],
+      }),
+    });
+    const logPostRes = await logsPost(logReq, { params: Promise.resolve({ jobId: job.id }) });
+    expect(logPostRes.status).toBe(200);
+
+    // 4. Agent completes with session_closed
+    const completeReq = new NextRequest(`http://localhost:3000/api/playwright-runner/agent/jobs/${job.id}/complete`, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${agentToken}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        status: "session_closed",
+        sessionCloseReason: "user_closed",
+      }),
+    });
+    const completeRes = await completePost(completeReq, { params: Promise.resolve({ jobId: job.id }) });
+    expect(completeRes.status).toBe(200);
+    const completeData = await completeRes.json();
+    expect(completeData.job.status).toBe("session_closed");
+    expect(completeData.job.sessionCloseReason).toBe("user_closed");
+
+    // 5. Active lease is released
+    const activeJob = fakeStore.get("monitor:playwright:v1:agent:agent-1:active");
+    expect(activeJob).toBeUndefined();
+  });
 });

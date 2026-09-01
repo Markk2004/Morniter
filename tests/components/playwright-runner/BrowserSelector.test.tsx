@@ -29,7 +29,7 @@ describe("Browser & Mode Selectors", () => {
     expect(onToggle).toHaveBeenCalledWith("firefox");
   });
 
-  it("selects run mode and displays headed mode guidance", () => {
+  it("uses plain-language Thai run mode labels while retaining Playwright terms in guidance", () => {
     const onChange = vi.fn();
     render(
       <RunModeSelector
@@ -39,8 +39,26 @@ describe("Browser & Mode Selectors", () => {
       />,
     );
 
-    const headedRadio = screen.getByRole("radio", { name: /headed/i });
+    expect(screen.getByText("ทำงานเบื้องหลัง")).toBeInTheDocument();
+    expect(screen.getByText("Headless · เร็ว เหมาะกับงานอัตโนมัติ")).toBeInTheDocument();
+
+    const headedRadio = screen.getByRole("radio", { name: /แสดง Browser/i });
     fireEvent.click(headedRadio);
     expect(onChange).toHaveBeenCalledWith("headed");
+    expect(screen.getByText("Headed · ดูขั้นตอนบนเครื่อง Agent")).toBeInTheDocument();
+  });
+
+  it("supports Interactive UI mode with desktop guidance", () => {
+    const onChange = vi.fn();
+    render(
+      <RunModeSelector
+        value="interactive"
+        headedAvailable={true}
+        onChange={onChange}
+      />,
+    );
+
+    expect(screen.getByText("Interactive UI")).toBeInTheDocument();
+    expect(screen.getByText(/Playwright UI opens on the Windows computer/i)).toBeInTheDocument();
   });
 });

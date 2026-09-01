@@ -94,17 +94,62 @@ export async function executeClaimedJob(
   }
 }
 
+export function buildSafeRunSummary(
+  job: PlaywrightJob,
+  project?: import("./types.js").AgentProjectConfig,
+  testLabels?: string[],
+): string[] {
+  const projectId = project?.id || job.projectId;
+
+  if (job.mode === "interactive") {
+    const count = job.testIds?.length ?? 1;
+    const browsersLabel = (job.browsers && job.browsers.length > 0 ? job.browsers : ["chromium"]).join(", ");
+    return [
+      "[UI] Interactive session opened on Local Agent desktop",
+      `[UI] Project: ${projectId}`,
+      `[UI] Selected tests: ${count}`,
+      `[UI] Browser: ${browsersLabel}`,
+      "[UI] Maximum duration: 30 minutes",
+    ];
+  }
+
+  const sourceLabel = job.source === "workspace" ? "Workspace draft" : "Project tests";
+
+  let testsLabel = "Workspace spec";
+  if (job.source === "project-test") {
+    const count = job.testIds?.length ?? 0;
+    if (testLabels && testLabels.length > 0) {
+      testsLabel = `${count} selected (${testLabels.join(", ")})`;
+    } else {
+      testsLabel = `${count} selected`;
+    }
+  }
+
+  const browsersLabel = (job.browsers && job.browsers.length > 0 ? job.browsers : ["chromium"]).join(", ");
+  const modeLabel = job.mode || "headless";
+
+  return [
+    `[RUN] Project: ${projectId}`,
+    `[RUN] Source: ${sourceLabel}`,
+    `[RUN] Tests: ${testsLabel}`,
+    `[RUN] Browsers: ${browsersLabel}`,
+    `[RUN] Mode: ${modeLabel}`,
+  ];
+}
+
 export async function executeClaimedPlaywrightJob(
   config: AgentConfig,
   job: PlaywrightJob,
   client: AgentClient,
 ): Promise<void> {
+  const project = config.projects.find((p) => p.id === job.projectId);
   const logBatcher = new LogBatcher(async (seqStart, entries) => {
     await client.appendPlaywrightLogs(job.id, seqStart, entries);
   });
 
-  // Emit immediate system start line so terminal updates immediately
-  logBatcher.push("system", ["[SYSTEM] Starting test execution..."]);
+  // Emit immediate safe run summary so terminal displays structured project, test, browser & mode metadata
+  const summaryLines = buildSafeRunSummary(job, project);
+  logBatcher.push("system", summaryLines);
 
   const abortController = new AbortController();
   let heartbeatTimer: NodeJS.Timeout | null = null;

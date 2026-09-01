@@ -160,6 +160,7 @@ const ALLOWED_TRANSITIONS: Record<string, ReadonlySet<string>> = {
     "failed",
     "timed_out",
     "cancelled",
+    "session_closed",
     "error", // EVIDENCED (as a group): completePlaywrightJob accepts any terminal status from an active job
   ]),
   preparing: new Set([
@@ -169,6 +170,7 @@ const ALLOWED_TRANSITIONS: Record<string, ReadonlySet<string>> = {
     "failed",
     "timed_out",
     "cancelled",
+    "session_closed",
     "error",
   ]),
   running: new Set([
@@ -177,12 +179,14 @@ const ALLOWED_TRANSITIONS: Record<string, ReadonlySet<string>> = {
     "failed",
     "timed_out",
     "cancelled",
+    "session_closed",
     "error",
   ]),
   cancel_requested: new Set([
     "cancelled", // INFERRED: the natural terminal outcome once cancellation is honored
     "failed", // INFERRED: agent may report failure while a cancel was in flight
     "timed_out", // INFERRED
+    "session_closed",
   ]),
 };
 

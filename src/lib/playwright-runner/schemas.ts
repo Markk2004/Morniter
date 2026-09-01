@@ -10,7 +10,14 @@ export const ProjectIdSchema = z
 
 export const BrowserNameSchema = z.enum(["chromium", "firefox", "webkit"]);
 
-export const BrowserModeSchema = z.enum(["headless", "headed"]);
+export const BrowserModeSchema = z.enum(["headless", "headed", "interactive"]);
+
+export const PlaywrightSessionCloseReasonSchema = z.enum([
+  "user_closed",
+  "operator_stopped",
+  "timeout",
+  "process_error",
+]);
 
 export const BrowsersSchema = z
   .array(BrowserNameSchema)
@@ -65,10 +72,36 @@ const WorkspaceJobSchema = z
   })
   .strict();
 
-export const PlaywrightJobRequestSchema = z.discriminatedUnion("source", [
-  ProjectTestJobSchema,
-  WorkspaceJobSchema,
-]);
+export const PlaywrightJobRequestSchema = z
+  .discriminatedUnion("source", [
+    ProjectTestJobSchema,
+    WorkspaceJobSchema,
+  ])
+  .superRefine((data, ctx) => {
+    if (data.mode === "interactive") {
+      if (data.source !== "project-test") {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Interactive UI requires project tests",
+          path: ["source"],
+        });
+      }
+      if (data.browsers.length !== 1) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Interactive UI requires exactly one browser",
+          path: ["browsers"],
+        });
+      }
+      if (!data.testIds || data.testIds.length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Interactive UI requires selected tests",
+          path: ["testIds"],
+        });
+      }
+    }
+  });
 
 export type PlaywrightJobRequestInput = z.infer<
   typeof PlaywrightJobRequestSchema
@@ -88,6 +121,7 @@ export const BrowserExecutionResultSchema = z
       "failed",
       "timed_out",
       "cancelled",
+      "session_closed",
     ]),
     passed: z.number().int().nonnegative(),
     failed: z.number().int().nonnegative(),
@@ -304,7 +338,14 @@ export const NativeGroupResultSchema = z
 export const PlaywrightCompleteJobSchema = z
   .object({
     jobId: z.string().optional(),
-    status: z.enum(["passed", "failed", "cancelled", "timed_out"]),
+    status: z.enum([
+      "passed",
+      "failed",
+      "cancelled",
+      "timed_out",
+      "session_closed",
+    ]),
+    sessionCloseReason: PlaywrightSessionCloseReasonSchema.optional(),
     browserResults: z.array(BrowserExecutionResultSchema).optional(),
     runnerResults: z.array(NativeGroupResultSchema).optional(),
     artifacts: z.array(TestArtifactSchema).optional(),
@@ -312,7 +353,16 @@ export const PlaywrightCompleteJobSchema = z
     finishedAt: z.string().datetime().optional(),
     error: z.string().optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((data, ctx) => {
+    if (data.status === "session_closed" && !data.sessionCloseReason) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "sessionCloseReason is required when status is session_closed",
+        path: ["sessionCloseReason"],
+      });
+    }
+  });
 
 export const AppendPlaywrightLogBatchSchema = z
   .object({

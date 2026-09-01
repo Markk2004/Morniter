@@ -6,9 +6,15 @@ export type BrowserName = "chromium" | "firefox" | "webkit";
 
 export type PlaywrightSource = "project-test" | "workspace";
 
-export type RunMode = "headless" | "headed";
+export type RunMode = "headless" | "headed" | "interactive";
 /** @deprecated use RunMode — kept only for backward compatibility. */
 export type BrowserMode = RunMode;
+
+export type PlaywrightSessionCloseReason =
+  | "user_closed"
+  | "operator_stopped"
+  | "timeout"
+  | "process_error";
 
 export interface PlaywrightJobRequest {
   projectId: string;
@@ -32,6 +38,7 @@ export type PlaywrightJobStatus =
   | "timed_out"
   | "cancel_requested"
   | "cancelled"
+  | "session_closed"
   | "error";
 
 export type BrowserExecutionState =
@@ -40,7 +47,8 @@ export type BrowserExecutionState =
   | "passed"
   | "failed"
   | "timed_out"
-  | "cancelled";
+  | "cancelled"
+  | "session_closed";
 
 export interface BrowserExecutionResult {
   browser: BrowserName;
@@ -63,6 +71,7 @@ export interface PlaywrightJob {
   browsers: BrowserName[];
   mode: RunMode;
   status: PlaywrightJobStatus;
+  sessionCloseReason?: PlaywrightSessionCloseReason;
   browserResults: BrowserExecutionResult[];
   runnerResults?: NativeGroupResult[];
   artifacts?: TestArtifact[];

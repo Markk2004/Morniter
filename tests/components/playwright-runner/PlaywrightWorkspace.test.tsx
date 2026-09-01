@@ -287,4 +287,227 @@ describe("PlaywrightWorkspace Main Integration Component", () => {
     expect(renderPhaseWarnings).toHaveLength(0);
     consoleErrorSpy.mockRestore();
   });
+
+  it("recovers to locked state and renders expiry message when Run returns 403 EXECUTION_REQUIRED", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (url, init) => {
+      const href = String(url);
+      const method = init?.method || "GET";
+      if (href.includes("/api/test-runner/lock")) {
+        return new Response(JSON.stringify({ unlocked: true }), { status: 200 });
+      }
+      if (href.includes("/api/playwright-runner/catalog")) {
+        return new Response(
+          JSON.stringify({
+            presence: { state: "online", agentId: "agent-win-1" },
+            catalog: {
+              version: "2.0.0",
+              updatedAt: new Date().toISOString(),
+              projects: [
+                {
+                  id: "projectsts",
+                  name: "ProjectSTS",
+                  rootLabel: "frontend",
+                  scanPathLabel: "frontend/e2e",
+                  capabilities: {
+                    browsers: { chromium: true, firefox: true, webkit: true },
+                    headed: true,
+                    workspaceExecution: true,
+                  },
+                  testGroups: [
+                    {
+                      name: "Authentication",
+                      tests: [
+                        {
+                          id: "test-login",
+                          title: "User login test",
+                          group: "Authentication",
+                          relativePath: "e2e/auth/login.spec.ts",
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          }),
+          { status: 200 },
+        );
+      }
+      if (method === "POST" && href.includes("/api/playwright-runner/jobs")) {
+        return new Response(
+          JSON.stringify({
+            code: "EXECUTION_REQUIRED",
+            error: "Execution session expired or invalid",
+          }),
+          { status: 403, headers: { "content-type": "application/json" } },
+        );
+      }
+      if (href.includes("/api/playwright-runner/jobs")) {
+        return new Response(JSON.stringify({ jobs: [] }), { status: 200 });
+      }
+      return new Response(null, { status: 404 });
+    });
+
+    render(<PlaywrightWorkspace />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /ข้าม Tutorial/i })).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole("button", { name: /ข้าม Tutorial/i }));
+
+    // Select test
+    fireEvent.click(screen.getByText("Authentication"));
+    const checkbox = screen.getByRole("checkbox");
+    fireEvent.click(checkbox);
+
+    // Initial state is unlocked (Execution Lock is not visible)
+    expect(screen.queryByText(/Execution Lock Active/i)).not.toBeInTheDocument();
+
+    const runBtn = screen.getByRole("button", { name: /Run/i });
+    expect(runBtn).toBeEnabled();
+
+    // Click Run -> gets 403 EXECUTION_REQUIRED
+    fireEvent.click(runBtn);
+
+    // Assert Execution Unlock panel appears and error alert is rendered
+    await waitFor(() => {
+      expect(screen.getByText(/Execution Lock Active/i)).toBeInTheDocument();
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        /Execution permission expired. Unlock execution and run again./i,
+      );
+    });
+
+    expect(screen.getByRole("button", { name: /Run/i })).toBeDisabled();
+  });
+
+  it("continues polling to reconcile all terminal logs when terminal status arrives before final batch", async () => {
+    let pollCount = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (url, init) => {
+      const href = String(url);
+      const method = init?.method || "GET";
+      if (href.includes("/api/test-runner/lock")) {
+        return new Response(JSON.stringify({ unlocked: true }), { status: 200 });
+      }
+      if (href.includes("/api/playwright-runner/catalog")) {
+        return new Response(
+          JSON.stringify({
+            presence: { state: "online", agentId: "agent-win-1" },
+            catalog: {
+              version: "2.0.0",
+              updatedAt: new Date().toISOString(),
+              projects: [
+                {
+                  id: "projectsts",
+                  name: "ProjectSTS",
+                  rootLabel: "frontend",
+                  scanPathLabel: "frontend/e2e",
+                  capabilities: {
+                    browsers: { chromium: true, firefox: true, webkit: true },
+                    headed: true,
+                    workspaceExecution: true,
+                  },
+                  testGroups: [
+                    {
+                      name: "Authentication",
+                      tests: [
+                        {
+                          id: "test-login",
+                          title: "User login test",
+                          group: "Authentication",
+                          relativePath: "e2e/auth/login.spec.ts",
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          }),
+          { status: 200 },
+        );
+      }
+      if (method === "POST" && href.includes("/api/playwright-runner/jobs")) {
+        return new Response(
+          JSON.stringify({
+            id: "job-terminal-test-1",
+            status: "running",
+            createdAt: new Date().toISOString(),
+            target: { projectId: "projectsts", selectedTestIds: ["test-login"] },
+          }),
+          { status: 200 },
+        );
+      }
+      if (href.includes("/api/playwright-runner/jobs/job-terminal-test-1")) {
+        pollCount += 1;
+        if (pollCount === 1) {
+          // Terminal status arrives first, but hasMore: true and only sequence 1
+          return new Response(
+            JSON.stringify({
+              job: {
+                id: "job-terminal-test-1",
+                status: "passed",
+                createdAt: new Date().toISOString(),
+              },
+              logs: [
+                {
+                  sequence: 1,
+                  timestamp: new Date().toISOString(),
+                  stream: "stdout",
+                  message: "Initial test output",
+                },
+              ],
+              nextSequence: 2,
+              hasMore: true,
+            }),
+            { status: 200 },
+          );
+        }
+        // Second poll delivers the remaining final log
+        return new Response(
+          JSON.stringify({
+            job: {
+              id: "job-terminal-test-1",
+              status: "passed",
+              createdAt: new Date().toISOString(),
+            },
+            logs: [
+              {
+                sequence: 2,
+                timestamp: new Date().toISOString(),
+                stream: "stdout",
+                message: "Final summary line",
+              },
+            ],
+            nextSequence: 3,
+            hasMore: false,
+          }),
+          { status: 200 },
+        );
+      }
+      if (href.includes("/api/playwright-runner/jobs")) {
+        return new Response(JSON.stringify({ jobs: [] }), { status: 200 });
+      }
+      return new Response(null, { status: 404 });
+    });
+
+    render(<PlaywrightWorkspace />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /ข้าม Tutorial/i })).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole("button", { name: /ข้าม Tutorial/i }));
+
+    // Select test and trigger Run
+    fireEvent.click(screen.getByText("Authentication"));
+    const checkbox = screen.getByRole("checkbox");
+    fireEvent.click(checkbox);
+
+    const runBtn = screen.getByRole("button", { name: /Run/i });
+    fireEvent.click(runBtn);
+
+    // Wait for the final summary line to be reconciled in the terminal
+    await waitFor(() => {
+      expect(screen.getByText(/Final summary line/i)).toBeInTheDocument();
+    });
+  });
 });

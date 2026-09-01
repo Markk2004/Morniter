@@ -68,6 +68,7 @@ export interface UsePlaywrightRunnerResult {
   isSavingRecipe: boolean;
   saveRecipeError: string | null;
   saveRecipeSuccess: boolean;
+  runError: string | null;
 
   selectProject: (id: string) => void;
   setSource: (source: PlaywrightSource) => void;
@@ -112,6 +113,7 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
   const [isSavingRecipe, setIsSavingRecipe] = useState(false);
   const [saveRecipeError, setSaveRecipeError] = useState<string | null>(null);
   const [saveRecipeSuccess, setSaveRecipeSuccess] = useState(false);
+  const [runError, setRunError] = useState<string | null>(null);
 
   const nextSequenceRef = useRef<number>(-1);
   const sourceRequestRef = useRef(0);
@@ -245,6 +247,9 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
       if (res.ok) {
         const data = await res.json();
         setIsUnlocked(Boolean(data.unlocked));
+        if (data.unlocked) {
+          setRunError(null);
+        }
       }
     } catch {
       // ignore
@@ -334,16 +339,40 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
     setSelectedTestIds([]);
   }, []);
 
+  // Source switching
+  const handleSetSource = useCallback((newSource: PlaywrightSource) => {
+    setSource(newSource);
+    if (newSource === "workspace" && runMode === "interactive") {
+      setRunMode("headless");
+    }
+  }, [runMode]);
+
+  // Mode switching
+  const handleSetRunMode = useCallback((mode: RunMode) => {
+    setRunMode(mode);
+    if (mode === "interactive") {
+      setSource("project-test");
+      setIsRecipeBuilderOpen(false);
+      setSelectedBrowsers((prev) => {
+        if (prev.includes("chromium")) return ["chromium"];
+        return prev.length > 0 ? [prev[0]] : ["chromium"];
+      });
+    }
+  }, []);
+
   // Browser toggling
   const toggleBrowser = useCallback((browser: BrowserName) => {
     setSelectedBrowsers((prev) => {
+      if (runMode === "interactive") {
+        return [browser];
+      }
       if (prev.includes(browser)) {
         if (prev.length === 1) return prev;
         return prev.filter((b) => b !== browser);
       }
       return [...prev, browser];
     });
-  }, []);
+  }, [runMode]);
 
   // Code editor updates
   const setEditorCode = useCallback((code: string) => {
@@ -615,21 +644,33 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
 
     let isCancelled = false;
     let terminalReconciled = false;
-    let intervalId: ReturnType<typeof setInterval> | null = null;
+    let emptyReconcileAttempts = 0;
+    let timerId: ReturnType<typeof setTimeout> | null = null;
+
+    const scheduleNext = (delayMs: number) => {
+      if (isCancelled || terminalReconciled) return;
+      timerId = setTimeout(pollJob, delayMs);
+    };
 
     const pollJob = async () => {
-      if (terminalReconciled) return;
+      if (isCancelled || terminalReconciled) return;
 
       try {
+        const cursor = nextSequenceRef.current;
         const res = await fetch(
-          `/api/playwright-runner/jobs/${activeJobId}?afterSequence=${nextSequenceRef.current}&limit=100`,
+          `/api/playwright-runner/jobs/${activeJobId}?cursor=${cursor}&limit=100`,
         );
-        if (isCancelled || !res.ok) return;
+        if (isCancelled || !res.ok) {
+          scheduleNext(1000);
+          return;
+        }
 
         const data = await res.json();
         setActiveJob(data.job);
 
+        let receivedLogsCount = 0;
         if (Array.isArray(data.logs) && data.logs.length > 0) {
+          receivedLogsCount = data.logs.length;
           setTerminalLines((prev) => {
             const existingKeys = new Set(
               prev.map((p) => `${p.sequence}-${p.timestamp}`),
@@ -659,6 +700,7 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
           });
         }
 
+        const prevSeq = nextSequenceRef.current;
         if (typeof data.nextSequence === "number") {
           nextSequenceRef.current = data.nextSequence;
         }
@@ -670,21 +712,39 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
           data.job.status === "timed_out";
 
         if (isTerminal) {
+          if (data.hasMore) {
+            scheduleNext(0);
+            return;
+          }
+
+          if (receivedLogsCount > 0 || nextSequenceRef.current > prevSeq) {
+            emptyReconcileAttempts = 0;
+            scheduleNext(250);
+            return;
+          }
+
+          emptyReconcileAttempts += 1;
+          if (emptyReconcileAttempts < 3) {
+            scheduleNext(250);
+            return;
+          }
+
           terminalReconciled = true;
-          if (intervalId) clearInterval(intervalId);
           void refreshHistory();
+          return;
         }
+
+        scheduleNext(1000);
       } catch {
-        // ignore
+        scheduleNext(1000);
       }
     };
 
-    intervalId = setInterval(pollJob, 1000);
     void pollJob();
 
     return () => {
       isCancelled = true;
-      if (intervalId) clearInterval(intervalId);
+      if (timerId) clearTimeout(timerId);
     };
   }, [activeJobId, isJobRunning, refreshHistory]);
 
@@ -694,9 +754,11 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
       presence?.state === "online" &&
       selectedProjectId &&
       selectedBrowsers.length > 0 &&
-      (source === "project-test"
-        ? selectedTestIds.length > 0
-        : workspaceAvailable && editorCode.trim().length > 0),
+      (runMode === "interactive"
+        ? source === "project-test" && selectedTestIds.length > 0 && selectedBrowsers.length === 1
+        : source === "project-test"
+          ? selectedTestIds.length > 0
+          : workspaceAvailable && editorCode.trim().length > 0),
   );
 
   const run = useCallback(async (): Promise<boolean> => {
@@ -740,7 +802,7 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
               const jobData = await jobRes.json();
               if (jobData.job) {
                 setActiveJob(jobData.job);
-                nextSequenceRef.current = -1;
+                nextSequenceRef.current = 0;
                 setTerminalLines((prev) => [
                   ...prev,
                   {
@@ -755,11 +817,18 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
             }
           }
         }
+        const errorData = await res.json().catch(() => ({}));
+        if (res.status === 403 && errorData.code === "EXECUTION_REQUIRED") {
+          setIsUnlocked(false);
+          setRunError("Execution permission expired. Unlock execution and run again.");
+          return false;
+        }
+        setRunError("Unable to start the test run.");
         return false;
       }
 
       const job = await res.json();
-      nextSequenceRef.current = -1;
+      nextSequenceRef.current = 0;
       setTerminalLines([
         {
           sequence: 0,
@@ -771,6 +840,7 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
       setActiveJob(job);
       return true;
     } catch {
+      setRunError("Unable to start the test run.");
       return false;
     } finally {
       setIsSubmitting(false);
@@ -838,14 +908,15 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
     isSavingRecipe,
     saveRecipeError,
     saveRecipeSuccess,
+    runError,
 
     selectProject,
-    setSource,
+    setSource: handleSetSource,
     toggleTest,
     selectAllTests,
     deselectAllTests,
     toggleBrowser,
-    setRunMode,
+    setRunMode: handleSetRunMode,
     setEditorCode,
     resetEditorCode,
     loadTestSource,

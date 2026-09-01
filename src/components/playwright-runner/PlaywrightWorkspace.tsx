@@ -146,6 +146,43 @@ export function PlaywrightWorkspace() {
             className="shrink-0"
           >
             {!runner.isUnlocked && <ExecutionUnlock onUnlocked={runner.refreshUnlock} />}
+            {runner.runError && (
+              <div
+                role="alert"
+                className="mt-2 p-2.5 rounded-lg border border-rose-500/40 bg-rose-950/40 text-rose-300 text-xs font-mono"
+              >
+                {runner.runError}
+              </div>
+            )}
+
+            {/* Interactive Mode Guidance & Status Banner */}
+            {(runner.runMode === "interactive" || runner.activeJob?.mode === "interactive") && (
+              <div
+                role="status"
+                className="mt-2 p-2.5 rounded-lg border border-indigo-500/30 bg-indigo-950/30 text-indigo-200 text-xs font-mono flex flex-wrap items-center justify-between gap-2"
+              >
+                <div className="flex items-center gap-2">
+                  <span>🖥️</span>
+                  <span>Playwright UI opens on the Windows computer running Local Agent. Replay results stay in that window.</span>
+                </div>
+                {runner.activeJob?.mode === "interactive" && runner.isJobRunning && (
+                  <span className="px-2 py-0.5 rounded bg-indigo-600/40 border border-indigo-400/40 text-[11px] text-white font-semibold animate-pulse">
+                    Interactive session active (30 min limit)
+                  </span>
+                )}
+                {runner.activeJob?.status === "session_closed" && (
+                  <span className="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-[11px] text-slate-300">
+                    {runner.activeJob.sessionCloseReason === "operator_stopped"
+                      ? "Interactive session stopped by operator."
+                      : runner.activeJob.sessionCloseReason === "timeout"
+                        ? "Interactive session closed due to 30-minute timeout."
+                        : runner.activeJob.sessionCloseReason === "process_error"
+                          ? "Interactive session closed due to process error."
+                          : "Interactive session closed by user."}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Main Balanced Workspace Layout (Layout B) */}

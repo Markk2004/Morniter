@@ -54,6 +54,7 @@ export interface PreparedPlaywrightRun {
   cwd: string;
   env: Record<string, string>;
   timeoutSeconds: number;
+  interactive: boolean;
   cleanup: () => Promise<void>;
 }
 
@@ -68,6 +69,15 @@ export async function preparePlaywrightExecution(
 
   const pw = project.playwright;
   const workspaceRoot = path.resolve(pw.workspaceRoot);
+
+  if (job.mode === "interactive") {
+    if (job.source !== "project-test") {
+      throw new Error("Interactive UI requires project tests.");
+    }
+    if (job.browsers.length !== 1) {
+      throw new Error("Interactive UI requires exactly one browser.");
+    }
+  }
 
   // Validate browsers
   const allowedBrowsers = pw.allowedBrowsers || ["chromium"];
@@ -106,7 +116,9 @@ export async function preparePlaywrightExecution(
       resolvedFiles.add(fullPath);
     }
 
-    specPaths = Array.from(resolvedFiles);
+    specPaths = Array.from(resolvedFiles).map((fullPath) =>
+      path.relative(executionCwd, fullPath).replace(/\\/g, "/"),
+    );
   } else if (job.source === "workspace") {
     if (pw.allowWorkspaceExecution === false) {
       throw new Error(`Workspace code execution is disabled for project '${job.projectId}'.`);
@@ -121,7 +133,7 @@ export async function preparePlaywrightExecution(
     const specFile = path.join(workspaceDir, `${job.id}.spec.ts`);
     await fs.writeFile(specFile, job.code, "utf-8");
 
-    specPaths = [specFile];
+    specPaths = [path.relative(executionCwd, specFile).replace(/\\/g, "/")];
 
     cleanup = async () => {
       try {
@@ -143,12 +155,14 @@ export async function preparePlaywrightExecution(
     args.push(`--project=${b}`);
   }
 
-  if (job.mode === "headed") {
+  if (job.mode === "interactive") {
+    args.push("--ui", "--ui-host=127.0.0.1", "--ui-port=0");
+  } else if (job.mode === "headed") {
     args.push("--headed");
   }
 
   const safeEnv = buildSafeTestEnv(pw.envAllowlist);
-  const timeoutSeconds = pw.maxTimeoutSeconds || 600;
+  const timeoutSeconds = job.mode === "interactive" ? 1800 : (pw.maxTimeoutSeconds || 600);
 
   return {
     command: executable,
@@ -156,6 +170,7 @@ export async function preparePlaywrightExecution(
     cwd: executionCwd,
     env: safeEnv,
     timeoutSeconds,
+    interactive: job.mode === "interactive",
     cleanup,
   };
 }
@@ -226,6 +241,25 @@ export async function runPlaywrightExecution(
     const finishedAt = new Date().toISOString();
     const errMsg = err instanceof Error ? err.message : "Failed to spawn Playwright process";
     callbacks.onLines("stderr", [errMsg]);
+    if (prepared.interactive) {
+      callbacks.onLines("system", ["[UI] Session closed: process_error"]);
+      return {
+        status: "session_closed",
+        sessionCloseReason: "process_error",
+        browserResults: job.browsers.map((b) => ({
+          browser: b,
+          status: "session_closed",
+          passed: 0,
+          failed: 0,
+          skipped: 0,
+        })),
+        startedAt,
+        finishedAt,
+        durationMs: 0,
+        truncated: false,
+        error: errMsg,
+      };
+    }
     return {
       status: "failed",
       browserResults: job.browsers.map((b) => ({
@@ -250,12 +284,14 @@ export async function runPlaywrightExecution(
   let isFinished = false;
   let timeoutTimer: NodeJS.Timeout | undefined;
   let abortListener: (() => void) | undefined;
+  let uiReadyReported = false;
 
   return new Promise<PlaywrightExecutionResult>((resolve) => {
     async function finish(
       finalStatus: PlaywrightExecutionResult["status"],
       errMessage?: string,
       shouldKill = false,
+      explicitCloseReason?: import("./types.js").PlaywrightSessionCloseReason,
     ) {
       if (isFinished) return;
       isFinished = true;
@@ -281,6 +317,37 @@ export async function runPlaywrightExecution(
       const finishedAt = finishedAtDate.toISOString();
       const durationMs = finishedAtDate.getTime() - startedAtDate.getTime();
 
+      if (prepared.interactive) {
+        const effectiveReason: import("./types.js").PlaywrightSessionCloseReason =
+          explicitCloseReason ??
+          (finalStatus === "cancelled"
+            ? "operator_stopped"
+            : finalStatus === "timed_out"
+              ? "timeout"
+              : finalStatus === "failed"
+                ? "process_error"
+                : "user_closed");
+
+        browserResults.forEach((br) => {
+          br.status = "session_closed";
+          br.durationMs = durationMs;
+        });
+
+        callbacks.onLines("system", [`[UI] Session closed: ${effectiveReason}`]);
+
+        resolve({
+          status: "session_closed",
+          sessionCloseReason: effectiveReason,
+          browserResults,
+          startedAt,
+          finishedAt,
+          durationMs,
+          truncated: false,
+          error: errMessage,
+        });
+        return;
+      }
+
       browserResults.forEach((br) => {
         br.status = finalStatus === "passed" ? "passed" : "failed";
         br.durationMs = durationMs;
@@ -302,16 +369,16 @@ export async function runPlaywrightExecution(
 
     if (signal) {
       if (signal.aborted) {
-        finish("cancelled", "Execution cancelled by caller", true);
+        finish(prepared.interactive ? "session_closed" : "cancelled", "Execution cancelled by caller", true, "operator_stopped");
         return;
       }
-      abortListener = () => finish("cancelled", "Execution cancelled by caller", true);
+      abortListener = () => finish(prepared.interactive ? "session_closed" : "cancelled", "Execution cancelled by caller", true, "operator_stopped");
       signal.addEventListener("abort", abortListener);
     }
 
     if (prepared.timeoutSeconds > 0) {
       timeoutTimer = setTimeout(() => {
-        finish("timed_out", `Execution timed out after ${prepared.timeoutSeconds} seconds`, true);
+        finish(prepared.interactive ? "session_closed" : "timed_out", `Execution timed out after ${prepared.timeoutSeconds} seconds`, true, "timeout");
       }, prepared.timeoutSeconds * 1000);
     }
 
@@ -320,6 +387,18 @@ export async function runPlaywrightExecution(
       const text = data.toString("utf-8");
       const lines = text.split(/\r?\n/).filter((l) => l.length > 0);
       const redacted = lines.map((l) => redactText(l));
+
+      if (prepared.interactive) {
+        for (const line of redacted) {
+          if (/https?:\/\/(?:127\.0\.0\.1|localhost):\d+/i.test(line) || /listening on/i.test(line)) {
+            if (!uiReadyReported) {
+              uiReadyReported = true;
+              callbacks.onLines("system", ["[UI] Local Playwright UI ready"]);
+            }
+          }
+        }
+        return;
+      }
 
       for (const clean of redacted) {
         if (clean.includes("passed") || clean.includes("✓")) {
@@ -346,13 +425,19 @@ export async function runPlaywrightExecution(
     }
 
     child.on("error", (err: Error) => {
-      processStream("stderr", Buffer.from(err.message));
-      finish("failed", err.message, false);
+      if (!prepared.interactive) {
+        processStream("stderr", Buffer.from(err.message));
+      }
+      finish(prepared.interactive ? "session_closed" : "failed", err.message, false, "process_error");
     });
 
     child.on("close", (code: number | null) => {
-      const finalStatus = code === 0 ? "passed" : "failed";
-      finish(finalStatus, undefined, false);
+      if (prepared.interactive) {
+        finish("session_closed", undefined, false, "user_closed");
+      } else {
+        const finalStatus = code === 0 ? "passed" : "failed";
+        finish(finalStatus, undefined, false);
+      }
     });
   });
 }

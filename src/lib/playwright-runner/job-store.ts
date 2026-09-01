@@ -388,7 +388,7 @@ export async function appendPlaywrightLogBatch(
 
 export async function readPlaywrightLogPage(
   jobId: string,
-  afterSequence = -1,
+  cursor = 0,
   limit = 200,
   redisClient?: Redis,
 ): Promise<PlaywrightLogPage> {
@@ -401,7 +401,7 @@ export async function readPlaywrightLogPage(
     throw new PlaywrightJobNotFoundError(jobId);
   }
 
-  const minScore = afterSequence + 1;
+  const minScore = Math.max(0, cursor);
   const rawMembers = await redis.zrange<string[]>(logsKey, minScore, "+inf", {
     byScore: true,
   });
@@ -412,7 +412,9 @@ export async function readPlaywrightLogPage(
 
   const sliced = allLines.slice(0, limit);
   const hasMore = allLines.length > limit;
-  const nextSeq = sliced.length > 0 ? sliced[sliced.length - 1].sequence + 1 : afterSequence + 1;
+  const nextSeq = sliced.length > 0
+    ? sliced[sliced.length - 1].sequence + 1
+    : minScore;
 
   return {
     jobId,
@@ -426,6 +428,7 @@ export async function completePlaywrightJob(
   jobId: string,
   result: {
     status: PlaywrightJobStatus;
+    sessionCloseReason?: import("./types").PlaywrightSessionCloseReason;
     browserResults?: BrowserExecutionResult[];
     runnerResults?: import("./types").NativeGroupResult[];
     artifacts?: TestArtifact[];
@@ -434,6 +437,7 @@ export async function completePlaywrightJob(
     error?: string;
   },
   redisClient?: Redis,
+  agentId?: string,
 ): Promise<PlaywrightJob> {
   const redis = redisClient ?? getRunnerRedis();
   const jobKey = playwrightKeys.job(jobId);
@@ -443,12 +447,22 @@ export async function completePlaywrightJob(
     throw new PlaywrightJobNotFoundError(jobId);
   }
 
+  // Idempotency: duplicate completion with matching terminal status returns terminal job
+  if (job.status === result.status) {
+    return job;
+  }
+
+  if (agentId && job.agentId !== agentId) {
+    throw new PlaywrightAgentOwnershipError();
+  }
+
   assertPlaywrightTransition(job.status, result.status);
 
   const nowStr = new Date().toISOString();
   const updated: PlaywrightJob = {
     ...job,
     status: result.status,
+    sessionCloseReason: result.sessionCloseReason ?? job.sessionCloseReason,
     browserResults: result.browserResults || job.browserResults,
     runnerResults: result.runnerResults || job.runnerResults,
     artifacts: result.artifacts || job.artifacts,
@@ -459,7 +473,10 @@ export async function completePlaywrightJob(
   };
 
   await redis.set(jobKey, updated, { ex: JOB_TTL_SECONDS });
-  await redis.del(playwrightKeys.active(job.agentId));
+  const currentActive = await redis.get<string>(playwrightKeys.active(job.agentId));
+  if (currentActive === jobId) {
+    await redis.del(playwrightKeys.active(job.agentId));
+  }
   return updated;
 }
 
@@ -509,7 +526,10 @@ export async function requestCancelPlaywrightJob(
 
   await redis.set(jobKey, updated, { ex: JOB_TTL_SECONDS });
   if (newStatus === "cancelled") {
-    await redis.del(playwrightKeys.active(job.agentId));
+    const currentActive = await redis.get<string>(playwrightKeys.active(job.agentId));
+    if (currentActive === jobId) {
+      await redis.del(playwrightKeys.active(job.agentId));
+    }
   }
   return updated;
 }
@@ -551,15 +571,20 @@ export async function reapStalePlaywrightJobs(
 
     const lastHeartbeat = job.lastHeartbeatAt ? new Date(job.lastHeartbeatAt).getTime() : 0;
     if (lastHeartbeat > 0 && now.getTime() - lastHeartbeat > LEASE_SECONDS * 2000) {
+      const isInteractive = job.mode === "interactive";
       const updated: PlaywrightJob = {
         ...job,
-        status: "failed",
+        status: isInteractive ? "session_closed" : "failed",
+        sessionCloseReason: isInteractive ? "timeout" : undefined,
         error: "Agent lost or lease expired",
         completedAt: now.toISOString(),
         updatedAt: now.toISOString(),
       };
       await redis.set(playwrightKeys.job(id), updated, { ex: JOB_TTL_SECONDS });
-      await redis.del(playwrightKeys.active(job.agentId));
+      const currentActive = await redis.get<string>(playwrightKeys.active(job.agentId));
+      if (currentActive === id) {
+        await redis.del(playwrightKeys.active(job.agentId));
+      }
       reaped.push(id);
     }
   }

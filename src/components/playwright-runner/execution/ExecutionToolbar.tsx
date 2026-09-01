@@ -91,7 +91,7 @@ export function ExecutionToolbar({
               className="px-5 py-2.5 bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/40 rounded-xl text-xs font-mono font-bold transition-all shadow-sm flex items-center gap-2"
             >
               <span>⏹</span>
-              <span>Cancel Run</span>
+              <span>{mode === "interactive" ? "Stop UI" : "Cancel Run"}</span>
             </button>
           ) : (
             <button
@@ -108,6 +108,8 @@ export function ExecutionToolbar({
               <span>
                 {isSubmitting
                   ? "Submitting..."
+                  : mode === "interactive"
+                  ? "Open Interactive UI"
                   : source === "project-test"
                   ? `Run ${selectedTestCount} Test${selectedTestCount === 1 ? "" : "s"}`
                   : "Run Workspace Code"}

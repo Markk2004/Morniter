@@ -44,11 +44,16 @@ export interface AgentProjectConfig {
 }
 
 export type BrowserName = "chromium" | "firefox" | "webkit";
-export type RunMode = "headless" | "headed";
+export type RunMode = "headless" | "headed" | "interactive";
+export type PlaywrightSessionCloseReason =
+  | "user_closed"
+  | "operator_stopped"
+  | "timeout"
+  | "process_error";
 
 export interface BrowserExecutionResult {
   browser: BrowserName;
-  status: "waiting" | "running" | "passed" | "failed" | "cancelled";
+  status: "waiting" | "running" | "passed" | "failed" | "cancelled" | "session_closed";
   passed: number;
   failed: number;
   skipped: number;
@@ -262,7 +267,8 @@ export interface PlaywrightJob {
   recipeId?: string;
   browsers: BrowserName[];
   mode: RunMode;
-  status: "queued" | "claimed" | "preparing" | "running" | "passed" | "failed" | "cancel_requested" | "cancelled" | "timed_out";
+  status: "queued" | "claimed" | "preparing" | "running" | "passed" | "failed" | "cancel_requested" | "cancelled" | "timed_out" | "session_closed";
+  sessionCloseReason?: PlaywrightSessionCloseReason;
   browserResults: BrowserExecutionResult[];
   runnerResults?: NativeGroupResult[];
   lastHeartbeatAt?: string;
@@ -286,7 +292,8 @@ export interface PlaywrightJob {
 }
 
 export interface PlaywrightExecutionResult {
-  status: "passed" | "failed" | "cancelled" | "timed_out";
+  status: "passed" | "failed" | "cancelled" | "timed_out" | "session_closed";
+  sessionCloseReason?: PlaywrightSessionCloseReason;
   browserResults: BrowserExecutionResult[];
   runnerResults?: NativeGroupResult[];
   artifacts?: Array<{

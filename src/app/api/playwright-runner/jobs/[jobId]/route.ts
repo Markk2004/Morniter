@@ -15,10 +15,10 @@ export async function GET(
   }
 
   const { jobId } = await context.params;
-  const afterSeqParam = req.nextUrl.searchParams.get("afterSequence");
+  const cursorParam = req.nextUrl.searchParams.get("cursor") ?? req.nextUrl.searchParams.get("afterSequence");
   const limitParam = req.nextUrl.searchParams.get("limit");
 
-  const afterSequence = afterSeqParam !== null ? parseInt(afterSeqParam, 10) : -1;
+  const cursor = cursorParam !== null ? parseInt(cursorParam, 10) : 0;
   const limit = limitParam !== null ? parseInt(limitParam, 10) : 200;
 
   try {
@@ -27,7 +27,7 @@ export async function GET(
       return NextResponse.json({ error: "Job not found", code: "JOB_NOT_FOUND" }, { status: 404 });
     }
 
-    const logPage = await readPlaywrightLogPage(jobId, afterSequence, limit);
+    const logPage = await readPlaywrightLogPage(jobId, cursor, limit);
 
     return NextResponse.json(
       {

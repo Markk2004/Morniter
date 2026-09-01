@@ -19,10 +19,10 @@ export function RunModeSelector({
   return (
     <section className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 backdrop-blur-sm">
       <h3 className="text-xs font-mono font-semibold uppercase tracking-wider text-slate-400">
-        Execution Mode
+        โหมดการทดสอบ
       </h3>
 
-      <div className="mt-3 grid grid-cols-2 gap-2">
+      <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
         <label
           className={`flex items-center gap-2 p-2.5 rounded-lg border text-xs font-medium cursor-pointer transition-colors ${
             value === "headless"
@@ -39,8 +39,10 @@ export function RunModeSelector({
             onChange={() => onChange("headless")}
           />
           <div className="flex flex-col">
-            <span className="font-semibold">Headless</span>
-            <span className="text-[10px] text-slate-400 font-mono">Fast / CI</span>
+            <span className="font-semibold">ทำงานเบื้องหลัง</span>
+            <span className="text-[10px] text-slate-400 font-mono">
+              Headless · เร็ว เหมาะกับงานอัตโนมัติ
+            </span>
           </div>
         </label>
 
@@ -60,18 +62,45 @@ export function RunModeSelector({
             onChange={() => onChange("headed")}
           />
           <div className="flex flex-col">
-            <span className="font-semibold">Headed</span>
+            <span className="font-semibold">แสดง Browser</span>
             <span className="text-[10px] text-slate-400 font-mono">
-              {headedAvailable ? "Visual Host" : "Unavailable"}
+              {headedAvailable
+                ? "Headed · ดูขั้นตอนบนเครื่อง Agent"
+                : "Headed · ใช้งานไม่ได้"}
+            </span>
+          </div>
+        </label>
+
+        <label
+          className={`flex items-center gap-2 p-2.5 rounded-lg border text-xs font-medium cursor-pointer transition-colors ${
+            value === "interactive"
+              ? "bg-indigo-950/40 border-indigo-500/40 text-white"
+              : "bg-slate-950/40 border-slate-800 text-slate-300 hover:bg-slate-800/40"
+          } ${disabled || !headedAvailable ? "opacity-50 cursor-not-allowed" : ""}`}
+        >
+          <input
+            type="radio"
+            name="playwright-run-mode"
+            className="text-indigo-600 focus:ring-0 bg-slate-800 border-slate-700"
+            checked={value === "interactive"}
+            disabled={disabled || !headedAvailable}
+            onChange={() => onChange("interactive")}
+          />
+          <div className="flex flex-col">
+            <span className="font-semibold">Interactive UI</span>
+            <span className="text-[10px] text-slate-400 font-mono">
+              Playwright UI · Replay ซ้ำ
             </span>
           </div>
         </label>
       </div>
 
       <p className="mt-2.5 text-[11px] font-mono text-slate-400 leading-relaxed">
-        {value === "headed"
-          ? "Headed mode opens real browser windows on the connected Local Agent host desktop."
-          : "Headless mode runs tests in the background with maximum speed and isolation."}
+        {value === "interactive"
+          ? "Playwright UI opens on the Windows computer running Local Agent. Replay results stay in that window."
+          : value === "headed"
+            ? "เปิดหน้าต่าง Browser บนเครื่องที่รัน Local Agent และปิดเมื่อการทดสอบจบ"
+            : "รันการทดสอบอยู่เบื้องหลัง ไม่เปิดหน้าต่าง Browser"}
       </p>
     </section>
   );

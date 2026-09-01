@@ -345,4 +345,167 @@ test.describe("Playwright Workspace Balanced Layout (Layout B)", () => {
     // Verify terminal expands back to default
     await expect(page.getByRole("button", { name: /Collapse Terminal/i })).toBeVisible();
   });
+
+  test("recovers from expired execution session, unlocks, and streams realtime summary and logs", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+
+    let runSubmissionCount = 0;
+
+    await page.route(/\/api\/playwright-runner\/jobs/, async (route) => {
+      const req = route.request();
+      if (req.url().includes("/jobs/plw-job-recovery-e2e")) {
+        const url = new URL(req.url());
+        const cursor = parseInt(url.searchParams.get("cursor") || "0", 10);
+
+        if (cursor === 0) {
+          // Batch 1: summary and first stdout line
+          return route.fulfill({
+            status: 200,
+            contentType: "application/json",
+            body: JSON.stringify({
+              job: {
+                id: "plw-job-recovery-e2e",
+                status: "running",
+                browsers: ["chromium"],
+                mode: "headless",
+                createdAt: new Date().toISOString(),
+              },
+              logs: [
+                { sequence: 0, timestamp: new Date().toISOString(), stream: "system", message: "[RUN] Project: sts-playwright" },
+                { sequence: 1, timestamp: new Date().toISOString(), stream: "system", message: "[RUN] Source: Project tests" },
+                { sequence: 2, timestamp: new Date().toISOString(), stream: "system", message: "[RUN] Tests: 1 selected" },
+                { sequence: 3, timestamp: new Date().toISOString(), stream: "system", message: "[RUN] Browsers: chromium" },
+                { sequence: 4, timestamp: new Date().toISOString(), stream: "system", message: "[RUN] Mode: headless" },
+                { sequence: 5, timestamp: new Date().toISOString(), stream: "stdout", message: "Step 1 passed" },
+              ],
+              nextSequence: 6,
+              hasMore: true,
+            }),
+          });
+        }
+
+        // Batch 2: final stdout line and completion
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            job: {
+              id: "plw-job-recovery-e2e",
+              status: "passed",
+              browsers: ["chromium"],
+              mode: "headless",
+              createdAt: new Date().toISOString(),
+            },
+            logs: [
+              { sequence: 6, timestamp: new Date().toISOString(), stream: "stdout", message: "Step 2 passed" },
+              { sequence: 7, timestamp: new Date().toISOString(), stream: "stdout", message: "1 passed" },
+            ],
+            nextSequence: 8,
+            hasMore: false,
+          }),
+        });
+      }
+
+      if (req.method() === "POST") {
+        runSubmissionCount += 1;
+        if (runSubmissionCount === 1) {
+          // First submission fails with 403 EXECUTION_REQUIRED
+          return route.fulfill({
+            status: 403,
+            contentType: "application/json",
+            body: JSON.stringify({
+              code: "EXECUTION_REQUIRED",
+              error: "Execution session expired or invalid",
+            }),
+          });
+        }
+        // Second submission succeeds
+        return route.fulfill({
+          status: 201,
+          contentType: "application/json",
+          body: JSON.stringify({
+            id: "plw-job-recovery-e2e",
+            projectId: "sts-playwright",
+            source: "project-test",
+            status: "running",
+            browsers: ["chromium"],
+            mode: "headless",
+            createdAt: new Date().toISOString(),
+          }),
+        });
+      }
+
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ jobs: [] }),
+      });
+    });
+
+    await page.route(/\/api\/test-runner\/auth/, async (route) => {
+      return route.fulfill({
+        status: 204,
+        headers: { "Set-Cookie": "project_monitor_execute=unlocked; Path=/; HttpOnly" },
+      });
+    });
+
+    await page.goto("/monitor/tests");
+
+    // 1. Expand group and select test
+    await page.getByText("Authentication").click();
+    const testCheckbox = page.locator('input[type="checkbox"]').first();
+    await testCheckbox.check();
+
+    const runSlot = page.locator('[data-tutorial-id="run"]');
+    const runBtn = runSlot.getByRole("button", { name: /Run/i });
+    await expect(runBtn).toBeEnabled({ timeout: 5000 });
+
+    // 2. Click Run -> 403 EXECUTION_REQUIRED triggers recovery
+    const firstPost = page.waitForResponse(
+      (res) => res.url().includes("/api/playwright-runner/jobs") && res.request().method() === "POST",
+    );
+    await runBtn.click();
+    await firstPost;
+
+    // 3. Execution Lock card appears with expiry alert
+    await expect(page.getByText(/Execution Lock Active/i)).toBeVisible({ timeout: 5000 });
+    await expect(page.getByRole("alert").filter({ hasText: /Execution permission expired/i })).toBeVisible();
+    await expect(runBtn).toBeDisabled();
+
+    // 4. Unlock execution
+    await page.route("**/api/test-runner/lock*", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ unlocked: true }),
+      });
+    });
+
+    const unlockInput = page.getByPlaceholder(/Group password/i);
+    await unlockInput.fill("valid-pass");
+    await page.getByRole("button", { name: /Unlock Execution/i }).click();
+
+    // 5. Unlocked -> Run button re-enabled
+    await expect(page.getByText(/Execution Lock Active/i)).not.toBeVisible({ timeout: 5000 });
+    await expect(runBtn).toBeEnabled();
+
+    // 6. Submit Run again -> succeeds (201)
+    const secondPost = page.waitForResponse(
+      (res) => res.url().includes("/api/playwright-runner/jobs") && res.request().method() === "POST",
+    );
+    await runBtn.click();
+    await secondPost;
+
+    // 7. Terminal displays safe run summary lines without gaps
+    await expect(page.getByText("[RUN] Project: sts-playwright")).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText("[RUN] Source: Project tests")).toBeVisible();
+    await expect(page.getByText("[RUN] Tests: 1 selected")).toBeVisible();
+    await expect(page.getByText("[RUN] Browsers: chromium")).toBeVisible();
+    await expect(page.getByText("[RUN] Mode: headless")).toBeVisible();
+
+    // 8. Both batches stream completely
+    await expect(page.getByText("Step 1 passed")).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText("Step 2 passed")).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText("1 passed", { exact: true })).toBeVisible({ timeout: 5000 });
+  });
 });

@@ -58,7 +58,8 @@ describe("WorkspaceControlBar component", () => {
     expect(onToggleBrowser).toHaveBeenCalledWith("firefox");
 
     // Mode toggle
-    const headedBtn = screen.getByRole("button", { name: /^Headed$/i });
+    expect(screen.getByRole("button", { name: "ทำงานเบื้องหลัง (Headless)" })).toBeInTheDocument();
+    const headedBtn = screen.getByRole("button", { name: "แสดง Browser (Headed)" });
     fireEvent.click(headedBtn);
     expect(onRunModeChange).toHaveBeenCalledWith("headed");
 
@@ -101,6 +102,71 @@ describe("WorkspaceControlBar component", () => {
 
     const cancelBtn = screen.getByRole("button", { name: /Cancel/i });
     fireEvent.click(cancelBtn);
+    expect(onCancel).toHaveBeenCalled();
+  });
+
+  it("handles Interactive UI mode, Open Interactive UI label, and Stop UI action", () => {
+    const onRunModeChange = vi.fn();
+    const onRun = vi.fn();
+    const onCancel = vi.fn();
+
+    const { rerender } = render(
+      <WorkspaceControlBar
+        projects={projects}
+        selectedProjectId="project-sts"
+        onSelectProject={vi.fn()}
+        selectedBrowsers={["chromium"]}
+        onToggleBrowser={vi.fn()}
+        runMode="interactive"
+        headedAvailable={true}
+        onRunModeChange={onRunModeChange}
+        presence={{ state: "online", agentId: "agent-win-1", lastHeartbeatAt: new Date().toISOString() }}
+        source="project-test"
+        selectedTestCount={2}
+        isUnlocked={true}
+        canRun={true}
+        isSubmitting={false}
+        isJobRunning={false}
+        onRun={onRun}
+        onCancel={onCancel}
+      />,
+    );
+
+    // Interactive mode button selected
+    expect(screen.getByRole("button", { name: /^Interactive UI$/i })).toHaveAttribute("aria-pressed", "true");
+
+    // Open Interactive UI button
+    const openBtn = screen.getByRole("button", { name: /Open Interactive UI/i });
+    expect(openBtn).toBeInTheDocument();
+    fireEvent.click(openBtn);
+    expect(onRun).toHaveBeenCalled();
+
+    // When running in interactive mode -> Stop UI button appears
+    rerender(
+      <WorkspaceControlBar
+        projects={projects}
+        selectedProjectId="project-sts"
+        onSelectProject={vi.fn()}
+        selectedBrowsers={["chromium"]}
+        onToggleBrowser={vi.fn()}
+        runMode="interactive"
+        headedAvailable={true}
+        onRunModeChange={onRunModeChange}
+        presence={{ state: "online", agentId: "agent-win-1", lastHeartbeatAt: new Date().toISOString() }}
+        source="project-test"
+        selectedTestCount={2}
+        isUnlocked={true}
+        canRun={true}
+        isSubmitting={false}
+        isJobRunning={true}
+        onRun={onRun}
+        onCancel={onCancel}
+      />,
+    );
+
+    const stopBtn = screen.getByRole("button", { name: /Stop UI/i });
+    expect(stopBtn).toBeInTheDocument();
+    fireEvent.click(stopBtn);
     expect(onCancel).toHaveBeenCalled();
   });
 });

@@ -231,4 +231,63 @@ describe("Playwright Runner Zod Schemas", () => {
     expect(valid.projects[0].testTarget?.id).toBe("projectsts-uat");
     expect(valid.projects[0].testTarget?.allowMutating).toBe(true);
   });
+
+  describe("Interactive UI & Session Closed Schemas", () => {
+    it("parses valid interactive job request with single browser and selected tests", () => {
+      const valid = PlaywrightJobRequestSchema.parse({
+        projectId: "sts-playwright",
+        source: "project-test",
+        testIds: ["auth-login"],
+        browsers: ["chromium"],
+        mode: "interactive",
+      });
+
+      expect(valid.mode).toBe("interactive");
+      expect(valid.source).toBe("project-test");
+      expect(valid.browsers).toEqual(["chromium"]);
+    });
+
+    it("rejects interactive job request with workspace source", () => {
+      const result = PlaywrightJobRequestSchema.safeParse({
+        projectId: "sts-playwright",
+        source: "workspace",
+        code: "import { test } from '@playwright/test';",
+        browsers: ["chromium"],
+        mode: "interactive",
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it("rejects interactive job request with multiple browsers", () => {
+      const result = PlaywrightJobRequestSchema.safeParse({
+        projectId: "sts-playwright",
+        source: "project-test",
+        testIds: ["auth-login"],
+        browsers: ["chromium", "firefox"],
+        mode: "interactive",
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it("rejects interactive job request with empty testIds", () => {
+      const result = PlaywrightJobRequestSchema.safeParse({
+        projectId: "sts-playwright",
+        source: "project-test",
+        testIds: [],
+        browsers: ["chromium"],
+        mode: "interactive",
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it("validates PlaywrightCompleteJobSchema with session_closed and close reason", () => {
+      const valid = PlaywrightCompleteJobSchema.parse({
+        status: "session_closed",
+        sessionCloseReason: "user_closed",
+        artifacts: [],
+      });
+      expect(valid.status).toBe("session_closed");
+      expect(valid.sessionCloseReason).toBe("user_closed");
+    });
+  });
 });

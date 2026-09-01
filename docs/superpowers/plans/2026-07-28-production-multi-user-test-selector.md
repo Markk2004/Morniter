@@ -22,7 +22,7 @@
 - Current verification is 64 test files/274 tests, with typecheck, Agent build, and Next build passing.
 - The repository-wide lint gate now fails because of later Playwright work; this plan must not be treated as production-approved until that gate is green again.
 - Production concurrency, shared-job behavior across real browsers, and lease recovery after stopping the Agent remain unchecked.
-- The dropdown behavior from this plan is now being extended by the Playwright selector work. Follow `2026-08-29-playwright-runner-deploy-readiness.md` for the active release sequence.
+- The dropdown behavior from this plan is now extended by the Playwright selector work. Follow `2026-09-01-production-release-closeout.md` for the active release sequence.
 
 ## Global Constraints
 

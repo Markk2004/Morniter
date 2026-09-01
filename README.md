@@ -72,7 +72,7 @@ The Test Runner evolves from a preset-driven command launcher into an interactiv
 - **Target Route**: `/monitor/tests`
 - **Documentation Package**: [`morniter-playwright-docs/`](file:///e:/project-monitor/morniter-playwright-docs/README.md)
 - **Architecture Spec**: [`ARCHITECTURE.md`](file:///e:/project-monitor/ARCHITECTURE.md) | [`ARCHITECTURE_PLAYWRIGHT_AUTOMATION.md`](file:///e:/project-monitor/morniter-playwright-docs/ARCHITECTURE_PLAYWRIGHT_AUTOMATION.md)
-- **Implementation Plan**: [`docs/superpowers/plans/2026-08-26-playwright-automation-workspace.md`](file:///e:/project-monitor/docs/superpowers/plans/2026-08-26-playwright-automation-workspace.md)
+- **Implementation Plan**: [`docs/superpowers/plans/2026-09-01-production-release-closeout.md`](file:///e:/project-monitor/docs/superpowers/plans/2026-09-01-production-release-closeout.md)
 - **Concrete Examples**: [`morniter-playwright-docs/example.md`](file:///e:/project-monitor/morniter-playwright-docs/example.md)
 
 ### Key Capabilities

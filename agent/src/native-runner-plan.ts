@@ -7,6 +7,7 @@ import type {
   DiscoveredProjectTest,
   NativeRunner,
   RunnerProfile,
+  RunMode,
 } from "./types.js";
 
 export interface NativeExecutionGroup {
@@ -27,7 +28,7 @@ export interface BuildNativeExecutionPlanOptions {
   selectedTestIds: string[];
   discoveredTests: DiscoveredProjectTest[];
   browsers?: ("chromium" | "firefox" | "webkit")[];
-  mode?: "headless" | "headed";
+  mode?: RunMode;
   envAllowlist?: string[];
   timeoutSeconds?: number;
 }

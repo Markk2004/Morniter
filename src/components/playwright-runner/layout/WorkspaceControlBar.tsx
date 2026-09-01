@@ -173,7 +173,8 @@ export function WorkspaceControlBar({
           <div className="flex items-center gap-1 p-0.5 rounded-lg border border-slate-800 bg-slate-950/60">
             <button
               type="button"
-              title="Headless (Fast / Background)"
+              title="ทำงานเบื้องหลังโดยไม่เปิด Browser (Headless)"
+              aria-label="ทำงานเบื้องหลัง (Headless)"
               aria-pressed={runMode === "headless"}
               disabled={isJobRunning}
               onClick={() => onRunModeChange("headless")}
@@ -183,11 +184,14 @@ export function WorkspaceControlBar({
                   : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
               }`}
             >
-              Headless
+              เบื้องหลัง
             </button>
             <button
               type="button"
-              title={headedAvailable ? "Headed (Visual real browser window on agent desktop)" : "Headed mode unavailable"}
+              title={headedAvailable
+                ? "แสดง Browser บนเครื่อง Local Agent ขณะทดสอบ (Headed)"
+                : "โหมดแสดง Browser ใช้งานไม่ได้"}
+              aria-label="แสดง Browser (Headed)"
               aria-pressed={runMode === "headed"}
               disabled={isJobRunning || !headedAvailable}
               onClick={() => onRunModeChange("headed")}
@@ -197,7 +201,24 @@ export function WorkspaceControlBar({
                   : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
               }`}
             >
-              Headed
+              แสดง Browser
+            </button>
+            <button
+              type="button"
+              title={headedAvailable
+                ? "เปิด Playwright UI บนเครื่อง Local Agent สำหรับทดสอบแบบ Interactive (Interactive UI)"
+                : "Interactive UI ใช้งานไม่ได้"}
+              aria-label="Interactive UI"
+              aria-pressed={runMode === "interactive"}
+              disabled={isJobRunning || !headedAvailable}
+              onClick={() => onRunModeChange("interactive")}
+              className={`px-2 py-1 rounded text-[11px] font-semibold transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                runMode === "interactive"
+                  ? "bg-indigo-600 text-white shadow-sm"
+                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+              }`}
+            >
+              Interactive UI
             </button>
           </div>
         </div>
@@ -231,7 +252,7 @@ export function WorkspaceControlBar({
               className="px-4 py-1.5 bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/40 rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
             >
               <span>⏹</span>
-              <span>Cancel</span>
+              <span>{runMode === "interactive" ? "Stop UI" : "Cancel"}</span>
             </button>
           ) : (
             <button
@@ -249,9 +270,11 @@ export function WorkspaceControlBar({
               <span>
                 {isSubmitting
                   ? "Submitting..."
-                  : source === "project-test"
-                    ? `Run ${selectedTestCount || ""}`
-                    : "Run Code"}
+                  : runMode === "interactive"
+                    ? "Open Interactive UI"
+                    : source === "project-test"
+                      ? `Run ${selectedTestCount || ""}`
+                      : "Run Code"}
               </span>
             </button>
           )}

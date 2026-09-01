@@ -642,5 +642,5 @@ Morniter/
 └── docs/
     └── superpowers/
         └── plans/
-            └── 2026-08-26-playwright-automation-workspace.md
+            └── 2026-09-01-production-release-closeout.md
 ```

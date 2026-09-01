@@ -452,4 +452,163 @@ describe("Playwright Job Store Persistence", () => {
     expect(staleJob?.status).toBe("failed");
     expect(staleJob?.error).toContain("expired");
   });
+
+  it("paginates log batches using cursor without skipping lines", async () => {
+    const job = await enqueuePlaywrightJob(
+      {
+        projectId: "projectsts",
+        source: "project-test",
+        testIds: ["test-1"],
+        browsers: ["chromium"],
+        mode: "headless",
+      },
+      "agent-1",
+      undefined,
+      new Date(),
+      fakeRedis,
+    );
+
+    await claimNextPlaywrightJob("agent-1", new Date(), fakeRedis);
+
+    // Append batch 1: sequences 0..1
+    await appendPlaywrightLogBatch(
+      job.id,
+      0,
+      [
+        { stream: "stdout", message: "line-0" },
+        { stream: "stdout", message: "line-1" },
+      ],
+      undefined,
+      new Date(),
+      fakeRedis,
+    );
+
+    // Read page 1 with cursor 0
+    const firstPage = await readPlaywrightLogPage(job.id, 0, 200, fakeRedis);
+    expect(firstPage.lines.map((line) => line.text)).toEqual(["line-0", "line-1"]);
+    expect(firstPage.nextSequence).toBe(2);
+
+    // Append batch 2: sequences 2..3
+    await appendPlaywrightLogBatch(
+      job.id,
+      2,
+      [
+        { stream: "stdout", message: "line-2" },
+        { stream: "stdout", message: "line-3" },
+      ],
+      undefined,
+      new Date(),
+      fakeRedis,
+    );
+
+    // Read page 2 using firstPage.nextSequence
+    const secondPage = await readPlaywrightLogPage(job.id, firstPage.nextSequence, 200, fakeRedis);
+    expect(secondPage.lines.map((line) => line.text)).toEqual(["line-2", "line-3"]);
+    expect(secondPage.nextSequence).toBe(4);
+  });
+
+  describe("Interactive UI Session Persistence & Lease Management", () => {
+    it("manages interactive session lease, session_closed transition, and lease release", async () => {
+      const job = await enqueuePlaywrightJob(
+        {
+          projectId: "projectsts",
+          source: "project-test",
+          testIds: ["test-1"],
+          browsers: ["chromium"],
+          mode: "interactive",
+        },
+        "agent-int-1",
+        undefined,
+        new Date(),
+        fakeRedis,
+      );
+
+      expect(job.mode).toBe("interactive");
+
+      const claimed = await claimNextPlaywrightJob("agent-int-1", new Date(), fakeRedis);
+      expect(claimed?.id).toBe(job.id);
+
+      // Active lease exists for agent-int-1
+      const activeJobId = await fakeRedis.get<string>("monitor:playwright:v1:agent:agent-int-1:active");
+      expect(activeJobId).toBe(job.id);
+
+      // Enqueueing another job for same agent throws ActiveJobExistsError
+      await expect(
+        enqueuePlaywrightJob(
+          {
+            projectId: "projectsts",
+            source: "project-test",
+            testIds: ["test-2"],
+            browsers: ["chromium"],
+            mode: "interactive",
+          },
+          "agent-int-1",
+          undefined,
+          new Date(),
+          fakeRedis,
+        ),
+      ).rejects.toThrow(PlaywrightActiveJobExistsError);
+
+      // Complete session with session_closed and user_closed
+      const completed = await completePlaywrightJob(
+        job.id,
+        {
+          status: "session_closed",
+          sessionCloseReason: "user_closed",
+        },
+        fakeRedis,
+        "agent-int-1",
+      );
+
+      expect(completed.status).toBe("session_closed");
+      expect(completed.sessionCloseReason).toBe("user_closed");
+
+      // Active lease is now deleted
+      const activeAfterClose = await fakeRedis.get<string>("monitor:playwright:v1:agent:agent-int-1:active");
+      expect(activeAfterClose).toBeNull();
+
+      // Duplicate completion is idempotent and returns terminal job
+      const dup = await completePlaywrightJob(
+        job.id,
+        {
+          status: "session_closed",
+          sessionCloseReason: "user_closed",
+        },
+        fakeRedis,
+        "agent-int-1",
+      );
+      expect(dup.status).toBe("session_closed");
+    });
+
+    it("reaps stale interactive job as session_closed with timeout reason", async () => {
+      const job = await enqueuePlaywrightJob(
+        {
+          projectId: "projectsts",
+          source: "project-test",
+          testIds: ["test-1"],
+          browsers: ["chromium"],
+          mode: "interactive",
+        },
+        "agent-int-stale",
+        undefined,
+        new Date(Date.now() - 300_000),
+        fakeRedis,
+      );
+
+      await claimNextPlaywrightJob("agent-int-stale", new Date(Date.now() - 300_000), fakeRedis);
+
+      // Fake heartbeat 200 seconds ago (exceeds LEASE_SECONDS * 2)
+      await heartbeatPlaywrightJob(job.id, "agent-int-stale", undefined, new Date(Date.now() - 200_000), fakeRedis);
+
+      const reaped = await reapStalePlaywrightJobs(new Date(), fakeRedis);
+      expect(reaped).toContain(job.id);
+
+      const reapedJob = await getPlaywrightJob(job.id, fakeRedis);
+      expect(reapedJob?.status).toBe("session_closed");
+      expect(reapedJob?.sessionCloseReason).toBe("timeout");
+
+      const activeAfterReap = await fakeRedis.get<string>("monitor:playwright:v1:agent:agent-int-stale:active");
+      expect(activeAfterReap).toBeNull();
+    });
+  });
 });
