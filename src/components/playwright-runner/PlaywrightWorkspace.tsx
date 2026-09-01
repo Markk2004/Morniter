@@ -80,7 +80,7 @@ export function PlaywrightWorkspace() {
   return (
     <div
       id="playwright-workspace-root"
-      className="flex h-full min-h-0 flex-col gap-4 overflow-hidden flex-1"
+      className="flex h-full min-h-0 flex-col gap-4 overflow-hidden flex-1 max-[899px]:h-auto max-[899px]:flex-none max-[899px]:overflow-visible"
     >
       {/* Workspace Header with Permanent Tutorial Trigger */}
       <div className="shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-3">
@@ -186,7 +186,7 @@ export function PlaywrightWorkspace() {
           </div>
 
           {/* Main Balanced Workspace Layout (Layout B) */}
-          <div className="min-h-0 flex-1 overflow-hidden flex flex-col">
+          <div className="min-h-0 flex-1 overflow-hidden flex flex-col max-[899px]:min-h-[520px] max-[899px]:flex-none max-[899px]:overflow-visible">
             <BalancedWorkspaceLayout
               layout={layout}
               isJobRunning={runner.isJobRunning}

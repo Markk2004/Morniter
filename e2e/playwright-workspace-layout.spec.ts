@@ -292,6 +292,30 @@ test.describe("Playwright Workspace Balanced Layout (Layout B)", () => {
     expect(hasHorizontalOverflow).toBe(false);
   });
 
+  test("allows vertical scrolling and preserves a usable tab panel at 534x752", async ({ page }) => {
+    await page.setViewportSize({ width: 534, height: 752 });
+    await page.goto("/monitor/tests");
+
+    const explorerPanel = page.locator("#tabpanel-explorer");
+    await expect(explorerPanel).toBeVisible();
+
+    const metrics = await explorerPanel.evaluate((element) => ({
+      clientHeight: element.clientHeight,
+      scrollHeight: element.scrollHeight,
+      overflowY: getComputedStyle(element).overflowY,
+      documentClientHeight: document.documentElement.clientHeight,
+      documentScrollHeight: document.documentElement.scrollHeight,
+      hasHorizontalOverflow:
+        document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    }));
+
+    expect(metrics.clientHeight).toBeGreaterThanOrEqual(320);
+    expect(metrics.scrollHeight).toBeGreaterThanOrEqual(metrics.clientHeight);
+    expect(metrics.overflowY).toBe("auto");
+    expect(metrics.documentScrollHeight).toBeGreaterThan(metrics.documentClientHeight);
+    expect(metrics.hasHorizontalOverflow).toBe(false);
+  });
+
   test("exercises single Run to Cancel action slot lifecycle", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("/monitor/tests");

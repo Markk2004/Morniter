@@ -38,7 +38,7 @@ export function BalancedWorkspaceLayout({
 
   if (isNarrow) {
     return (
-      <div data-testid="balanced-workspace" className="flex flex-col gap-3 min-h-0 h-full overflow-hidden flex-1">
+      <div data-testid="balanced-workspace" className="flex h-auto min-h-[520px] flex-none flex-col gap-3 overflow-visible">
         <div className="shrink-0">{toolbar}</div>
         <WorkspaceTabs
           activeTab={activeTab}

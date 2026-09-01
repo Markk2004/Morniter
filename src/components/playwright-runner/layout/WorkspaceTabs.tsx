@@ -52,7 +52,7 @@ export function WorkspaceTabs({
   };
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 h-full overflow-hidden space-y-3">
+    <div className="flex min-h-[400px] flex-1 flex-col space-y-3 overflow-hidden">
       {/* 44px min touch target Tablist */}
       <div
         role="tablist"
