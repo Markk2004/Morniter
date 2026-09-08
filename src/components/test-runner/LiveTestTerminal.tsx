@@ -56,6 +56,7 @@ export function LiveTestTerminal({
     : typeof height === "string"
       ? { height }
       : undefined;
+  const isAutoHeight = height === "auto";
 
   return (
     <div className="space-y-2">
@@ -92,8 +93,8 @@ export function LiveTestTerminal({
         aria-label="Execution log terminal"
         style={containerStyle}
         className={`${
-          containerStyle ? "" : "h-96"
-        } w-full rounded-2xl bg-[#090d16] border border-slate-800/80 p-4 font-mono text-xs overflow-y-auto space-y-1 shadow-inner selection:bg-indigo-500/30`}
+          containerStyle ? (isAutoHeight ? "min-h-[260px]" : "") : "h-96"
+        } w-full rounded-xl bg-[#090d16] border border-slate-800/80 p-3 font-mono text-xs overflow-y-auto space-y-1 shadow-inner selection:bg-indigo-500/30`}
       >
         {visibleLines.length === 0 ? (
           <div className="h-full flex items-center justify-center text-slate-600 italic">
@@ -118,7 +119,7 @@ export function LiveTestTerminal({
               <div
                 key={`${line.sequence}-${idx}`}
                 data-testid="terminal-line"
-                className="flex items-start space-x-3 hover:bg-slate-900/40 px-1.5 py-0.5 rounded"
+                className="flex items-start gap-2 hover:bg-slate-900/40 px-1.5 py-0.5 rounded"
               >
                 <span className="text-[10px] text-slate-600 select-none w-8 text-right font-mono">
                   {line.sequence}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, useSyncExternalStore } from "react";
+import { useState, useEffect, useCallback, useRef, useSyncExternalStore, type RefCallback } from "react";
 import {
   type WorkspaceTab,
   type WorkspaceLayoutPreferences,
@@ -14,6 +14,10 @@ import {
 
 export interface UseWorkspaceLayoutResult {
   isNarrow: boolean;
+  workspaceRef?: RefCallback<HTMLDivElement>;
+  workspaceWidth?: number;
+  workspaceHeight?: number;
+  terminalMaxHeight?: number;
   explorerWidth: number;
   terminalHeight: number;
   terminalCollapsed: boolean;
@@ -49,35 +53,51 @@ function getServerSnapshot(): boolean {
 }
 
 export function useWorkspaceLayout(): UseWorkspaceLayoutResult {
-  const isNarrow = useSyncExternalStore(subscribeNarrow, getNarrowSnapshot, getServerSnapshot);
+  const mediaNarrow = useSyncExternalStore(subscribeNarrow, getNarrowSnapshot, getServerSnapshot);
+  const [workspaceSize, setWorkspaceSize] = useState({ width: 0, height: 0 });
+  const observerRef = useRef<ResizeObserver | null>(null);
+
+  const workspaceRef = useCallback<RefCallback<HTMLDivElement>>((node) => {
+    observerRef.current?.disconnect();
+    observerRef.current = null;
+
+    if (!node) return;
+
+    const updateSize = () => {
+      const rect = node.getBoundingClientRect();
+      setWorkspaceSize((previous) => {
+        const next = { width: Math.round(rect.width), height: Math.round(rect.height) };
+        return previous.width === next.width && previous.height === next.height ? previous : next;
+      });
+    };
+
+    updateSize();
+    if (typeof ResizeObserver !== "undefined") {
+      const observer = new ResizeObserver(updateSize);
+      observer.observe(node);
+      observerRef.current = observer;
+    }
+  }, []);
+
+  useEffect(() => () => observerRef.current?.disconnect(), []);
+
+  const usableHeight = workspaceSize.height > 0 ? Math.max(0, workspaceSize.height - 320) : 800;
+  const terminalMaxHeight = clampTerminalHeight(Number.POSITIVE_INFINITY, usableHeight);
+  const isNarrow = workspaceSize.width > 0
+    ? workspaceSize.width < 860 || (workspaceSize.height > 0 && workspaceSize.height < 500)
+    : mediaNarrow;
 
   const [preferences, setPreferences] = useState<WorkspaceLayoutPreferences>(() => {
     if (typeof window === "undefined") return { ...DEFAULT_WORKSPACE_LAYOUT };
     try {
       const raw = window.localStorage.getItem(WORKSPACE_LAYOUT_STORAGE_KEY);
-      return parseWorkspaceLayoutPreferences(raw, window.innerHeight || 800);
+      return parseWorkspaceLayoutPreferences(raw, 800);
     } catch {
       return { ...DEFAULT_WORKSPACE_LAYOUT };
     }
   });
 
   const persistTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Handle viewport resize to reclamp terminal height
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const handleResize = () => {
-      setPreferences((prev) => {
-        const clamped = clampTerminalHeight(prev.terminalHeight, window.innerHeight || 800);
-        if (clamped === prev.terminalHeight) return prev;
-        return { ...prev, terminalHeight: clamped };
-      });
-    };
-
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
 
   // Debounced persistence to localStorage (150ms after settle)
   useEffect(() => {
@@ -111,12 +131,11 @@ export function useWorkspaceLayout(): UseWorkspaceLayoutResult {
   }, []);
 
   const setTerminalHeight = useCallback((value: number) => {
-    const vh = typeof window !== "undefined" ? window.innerHeight || 800 : 800;
     setPreferences((prev) => ({
       ...prev,
-      terminalHeight: clampTerminalHeight(value, vh),
+      terminalHeight: clampTerminalHeight(value, usableHeight),
     }));
-  }, []);
+  }, [usableHeight]);
 
   const setTerminalCollapsed = useCallback((value: boolean) => {
     setPreferences((prev) => ({
@@ -145,8 +164,12 @@ export function useWorkspaceLayout(): UseWorkspaceLayoutResult {
 
   return {
     isNarrow,
+    workspaceRef,
+    workspaceWidth: workspaceSize.width,
+    workspaceHeight: workspaceSize.height,
+    terminalMaxHeight,
     explorerWidth: preferences.explorerWidth,
-    terminalHeight: preferences.terminalHeight,
+    terminalHeight: clampTerminalHeight(preferences.terminalHeight, usableHeight),
     terminalCollapsed: preferences.terminalCollapsed,
     activeTab: preferences.activeTab,
     setExplorerWidth,

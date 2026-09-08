@@ -47,7 +47,7 @@ describe("useWorkspaceLayout hook", () => {
     expect(result.current.isNarrow).toBe(false);
     expect(result.current.explorerWidth).toBe(DEFAULT_WORKSPACE_LAYOUT.explorerWidth);
     expect(result.current.terminalHeight).toBe(DEFAULT_WORKSPACE_LAYOUT.terminalHeight);
-    expect(result.current.terminalCollapsed).toBe(false);
+    expect(result.current.terminalCollapsed).toBe(true);
     expect(result.current.activeTab).toBe("explorer");
   });
 
@@ -73,7 +73,7 @@ describe("useWorkspaceLayout hook", () => {
     });
 
     expect(result.current.explorerWidth).toBe(400);
-    expect(result.current.terminalHeight).toBe(300);
+    expect(result.current.terminalHeight).toBe(224);
     expect(result.current.terminalCollapsed).toBe(true);
 
     await waitFor(() => {
@@ -88,7 +88,7 @@ describe("useWorkspaceLayout hook", () => {
 
     expect(result.current.explorerWidth).toBe(DEFAULT_WORKSPACE_LAYOUT.explorerWidth);
     expect(result.current.terminalHeight).toBe(DEFAULT_WORKSPACE_LAYOUT.terminalHeight);
-    expect(result.current.terminalCollapsed).toBe(false);
+    expect(result.current.terminalCollapsed).toBe(true);
     expect(result.current.activeTab).toBe("explorer");
   });
 

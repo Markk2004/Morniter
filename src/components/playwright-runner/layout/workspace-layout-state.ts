@@ -9,12 +9,15 @@ export interface WorkspaceLayoutPreferences {
 }
 
 export const WORKSPACE_LAYOUT_STORAGE_KEY = "morniter:playwright-layout:v1";
+export const MIN_TERMINAL_HEIGHT = 160;
+export const MAX_TERMINAL_HEIGHT = 280;
+export const TERMINAL_WORKSPACE_RATIO = 0.28;
 
 export const DEFAULT_WORKSPACE_LAYOUT: WorkspaceLayoutPreferences = {
   version: 1,
   explorerWidth: 320,
-  terminalHeight: 240,
-  terminalCollapsed: false,
+  terminalHeight: 200,
+  terminalCollapsed: true,
   activeTab: "explorer",
 };
 
@@ -23,13 +26,15 @@ export function clampExplorerWidth(value: number): number {
   return Math.min(440, Math.max(280, Math.round(value)));
 }
 
-export function clampTerminalHeight(value: number, viewportHeight: number): number {
+export function clampTerminalHeight(value: number, availableHeight: number): number {
   if (typeof value !== "number" || Number.isNaN(value)) return DEFAULT_WORKSPACE_LAYOUT.terminalHeight;
-  const vh = typeof viewportHeight === "number" && !Number.isNaN(viewportHeight) && viewportHeight > 0
-    ? viewportHeight
-    : 800;
-  const maximum = Math.max(160, Math.floor(vh * 0.6));
-  return Math.min(maximum, Math.max(160, Math.round(value)));
+  const available = typeof availableHeight === "number" && !Number.isNaN(availableHeight) && availableHeight > 0
+    ? availableHeight
+    : 0;
+  const maximum = available > 0
+    ? Math.max(MIN_TERMINAL_HEIGHT, Math.min(MAX_TERMINAL_HEIGHT, Math.floor(available * TERMINAL_WORKSPACE_RATIO)))
+    : MIN_TERMINAL_HEIGHT;
+  return Math.min(maximum, Math.max(MIN_TERMINAL_HEIGHT, Math.round(value)));
 }
 
 export function parseWorkspaceLayoutPreferences(
@@ -48,7 +53,7 @@ export function parseWorkspaceLayoutPreferences(
 
     const explorerWidth = clampExplorerWidth(parsed.explorerWidth);
     const terminalHeight = clampTerminalHeight(parsed.terminalHeight, viewportHeight);
-    const terminalCollapsed = typeof parsed.terminalCollapsed === "boolean" ? parsed.terminalCollapsed : false;
+    const terminalCollapsed = typeof parsed.terminalCollapsed === "boolean" ? parsed.terminalCollapsed : true;
     const activeTab: WorkspaceTab =
       parsed.activeTab === "code" || parsed.activeTab === "terminal" || parsed.activeTab === "explorer"
         ? parsed.activeTab
@@ -72,8 +77,8 @@ export function serializeWorkspaceLayoutPreferences(
   const safe: WorkspaceLayoutPreferences = {
     version: 1,
     explorerWidth: clampExplorerWidth(prefs.explorerWidth),
-    terminalHeight: Math.max(160, Math.round(prefs.terminalHeight || DEFAULT_WORKSPACE_LAYOUT.terminalHeight)),
-    terminalCollapsed: typeof prefs.terminalCollapsed === "boolean" ? prefs.terminalCollapsed : false,
+    terminalHeight: Math.max(MIN_TERMINAL_HEIGHT, Math.round(prefs.terminalHeight || DEFAULT_WORKSPACE_LAYOUT.terminalHeight)),
+    terminalCollapsed: typeof prefs.terminalCollapsed === "boolean" ? prefs.terminalCollapsed : true,
     activeTab:
       prefs.activeTab === "code" || prefs.activeTab === "terminal" || prefs.activeTab === "explorer"
         ? prefs.activeTab

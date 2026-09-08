@@ -31,7 +31,7 @@ describe("workspace layout preferences", () => {
     expect(parseWorkspaceLayoutPreferences(raw, 800)).toEqual({
       version: 1,
       explorerWidth: 440,
-      terminalHeight: 480,
+      terminalHeight: 224,
       terminalCollapsed: true,
       activeTab: "explorer",
     });
@@ -54,7 +54,7 @@ describe("workspace layout preferences", () => {
     });
   });
 
-  it("safely treats non-boolean string 'false' or numbers in terminalCollapsed as false", () => {
+  it("safely defaults malformed terminalCollapsed values to collapsed", () => {
     const raw = JSON.stringify({
       version: 1,
       explorerWidth: 320,
@@ -62,7 +62,7 @@ describe("workspace layout preferences", () => {
       terminalCollapsed: "false",
       activeTab: "explorer",
     });
-    expect(parseWorkspaceLayoutPreferences(raw, 800).terminalCollapsed).toBe(false);
+    expect(parseWorkspaceLayoutPreferences(raw, 800).terminalCollapsed).toBe(true);
   });
 
   it("serializes only layout-safe fields", () => {
@@ -90,7 +90,7 @@ describe("workspace layout preferences", () => {
     expect(clampExplorerWidth(500)).toBe(440);
 
     expect(clampTerminalHeight(100, 1000)).toBe(160);
-    expect(clampTerminalHeight(300, 1000)).toBe(300);
-    expect(clampTerminalHeight(800, 1000)).toBe(600); // 60% of 1000
+    expect(clampTerminalHeight(300, 1000)).toBe(280);
+    expect(clampTerminalHeight(800, 1000)).toBe(280); // capped at 280px
   });
 });

@@ -80,7 +80,7 @@ export function WorkspaceControlBar({
   return (
     <div
       data-testid="workspace-control-bar"
-      className="flex flex-wrap items-center justify-between gap-2.5 p-2 sm:p-2.5 rounded-xl border border-slate-800 bg-slate-900/90 font-mono text-xs shadow-sm"
+      className="flex flex-col gap-2.5 p-2.5 rounded-xl border border-slate-800 bg-slate-900/90 font-mono text-xs shadow-sm"
     >
       {/* Left: Controls (Project, Source, Browsers, Mode, Agent) */}
       <div className="flex flex-wrap items-center gap-2 sm:gap-3 min-w-0">
@@ -231,7 +231,7 @@ export function WorkspaceControlBar({
       </div>
 
       {/* Right: Actions (Reset Layout, Run / Cancel) */}
-      <div className="flex items-center gap-2 shrink-0 ml-auto">
+      <div className="flex flex-wrap items-center justify-between gap-2 shrink-0 border-t border-slate-800/80 pt-2">
         {onResetLayout && (
           <button
             type="button"

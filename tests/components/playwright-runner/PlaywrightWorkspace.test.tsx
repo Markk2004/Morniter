@@ -251,10 +251,12 @@ describe("PlaywrightWorkspace Main Integration Component", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /ข้าม Tutorial/i }));
 
-    // 1. Terminal is expanded initially - no unread badge
+    // 1. Terminal starts collapsed with no unread badge
     expect(screen.queryByText(/new/i)).not.toBeInTheDocument();
 
-    // 2. Collapse terminal
+    // 2. Expand terminal before the run, then collapse it
+    const initialExpandBtn = screen.getByRole("button", { name: /Expand Terminal/i });
+    fireEvent.click(initialExpandBtn);
     const collapseBtn = screen.getByRole("button", { name: /Collapse Terminal/i });
     fireEvent.click(collapseBtn);
     expect(screen.getByRole("button", { name: /Expand Terminal/i })).toBeInTheDocument();
@@ -496,6 +498,8 @@ describe("PlaywrightWorkspace Main Integration Component", () => {
       expect(screen.getByRole("button", { name: /ข้าม Tutorial/i })).toBeInTheDocument();
     });
     fireEvent.click(screen.getByRole("button", { name: /ข้าม Tutorial/i }));
+
+    fireEvent.click(screen.getByRole("button", { name: /Expand Terminal/i }));
 
     // Select test and trigger Run
     fireEvent.click(screen.getByText("Authentication"));

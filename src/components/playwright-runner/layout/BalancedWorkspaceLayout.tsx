@@ -26,8 +26,10 @@ export function BalancedWorkspaceLayout({
 }: BalancedWorkspaceLayoutProps) {
   const {
     isNarrow,
+    workspaceRef,
     explorerWidth,
     terminalHeight,
+    terminalMaxHeight,
     terminalCollapsed,
     activeTab,
     setExplorerWidth,
@@ -35,10 +37,11 @@ export function BalancedWorkspaceLayout({
     setTerminalCollapsed,
     setActiveTab,
   } = layout;
+  const maxTerminalHeight = terminalMaxHeight ?? 224;
 
   if (isNarrow) {
     return (
-      <div data-testid="balanced-workspace" className="flex h-auto min-h-[520px] flex-none flex-col gap-3 overflow-visible">
+      <div ref={workspaceRef} data-testid="balanced-workspace" className="flex h-auto min-h-[360px] flex-none flex-col gap-3 overflow-visible">
         <div className="shrink-0">{toolbar}</div>
         <WorkspaceTabs
           activeTab={activeTab}
@@ -53,19 +56,15 @@ export function BalancedWorkspaceLayout({
     );
   }
 
-  const maxTerminalHeight = typeof window !== "undefined"
-    ? Math.max(160, Math.floor(window.innerHeight * 0.6))
-    : 600;
-
   return (
-    <div data-testid="balanced-workspace" className="flex flex-col gap-3 min-h-0 h-full overflow-hidden flex-1">
+    <div ref={workspaceRef} data-testid="balanced-workspace" className="flex flex-col gap-3 min-h-0 h-full overflow-hidden flex-1">
       {/* Top Toolbar */}
       <div className="shrink-0">{toolbar}</div>
 
       {/* Main Row: Explorer (Left) | Vertical Separator | Code (Right) */}
       <div
         data-testid="workspace-main-row"
-        className="grid min-h-0 flex-1 overflow-hidden"
+        className="grid min-h-0 min-h-[320px] min-w-0 flex-1 overflow-hidden"
         style={{
           gridTemplateColumns: `${explorerWidth}px 12px minmax(0, 1fr)`,
         }}

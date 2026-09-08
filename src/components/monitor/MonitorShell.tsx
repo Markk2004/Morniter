@@ -35,7 +35,7 @@ export function MonitorShell({ displayName = "Monitor Operator", children }: Mon
     <div
       className={`${
         isTestsActive
-          ? "h-dvh overflow-hidden max-[899px]:h-auto max-[899px]:min-h-dvh max-[899px]:overflow-y-auto"
+          ? "h-dvh overflow-hidden"
           : "min-h-screen"
       } bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-cyan-500 selection:text-slate-950`}
     >
@@ -105,7 +105,7 @@ export function MonitorShell({ displayName = "Monitor Operator", children }: Mon
         data-testid="monitor-page-workspace"
         className={`flex-1 w-full mx-auto p-3 sm:p-4 lg:p-5 ${
           isTestsActive
-            ? "min-h-0 max-w-none overflow-hidden flex flex-col max-[899px]:flex-none max-[899px]:overflow-visible"
+            ? "min-h-0 max-w-none overflow-y-auto overflow-x-hidden flex flex-col overscroll-contain"
             : "max-w-7xl"
         }`}
       >

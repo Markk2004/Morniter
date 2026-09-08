@@ -52,7 +52,7 @@ export function WorkspaceTabs({
   };
 
   return (
-    <div className="flex min-h-[400px] flex-1 flex-col space-y-3 overflow-hidden">
+    <div className="flex min-h-[360px] flex-1 flex-col space-y-3 overflow-visible">
       {/* 44px min touch target Tablist */}
       <div
         role="tablist"
@@ -105,7 +105,7 @@ export function WorkspaceTabs({
         id="tabpanel-explorer"
         aria-labelledby="tab-explorer"
         hidden={activeTab !== "explorer"}
-        className="flex-1 min-h-0 overflow-y-auto"
+        className="flex-1 min-h-[300px] overflow-y-auto"
       >
         {explorerPanel}
       </div>
@@ -115,7 +115,7 @@ export function WorkspaceTabs({
         id="tabpanel-code"
         aria-labelledby="tab-code"
         hidden={activeTab !== "code"}
-        className="flex-1 min-h-0 overflow-y-auto space-y-4"
+        className="flex-1 min-h-[300px] overflow-y-auto space-y-4"
       >
         {codePanel}
       </div>
@@ -125,7 +125,7 @@ export function WorkspaceTabs({
         id="tabpanel-terminal"
         aria-labelledby="tab-terminal"
         hidden={activeTab !== "terminal"}
-        className="flex-1 min-h-0 overflow-y-auto"
+        className="flex-1 min-h-[300px] overflow-y-auto"
       >
         {terminalPanel}
       </div>
