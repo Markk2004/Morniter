@@ -18,10 +18,10 @@ vi.mock("@/lib/test-runner/redis", () => ({
       }
       const value = values.get(keys[0]);
       if (script.includes("ARGV[1]") && value && JSON.parse(JSON.stringify(value)).agentId !== args[0]) {
-        return JSON.stringify(value);
+        return value;
       }
       values.delete(keys[0]);
-      return value ? JSON.stringify(value) : "";
+      return value ?? "";
     }),
   }),
 }));

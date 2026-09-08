@@ -73,7 +73,9 @@ return value`,
   )) as unknown;
   const raw = typeof rawResult === "string"
     ? rawResult
-    : Array.isArray(rawResult) && typeof rawResult[0] === "string" ? rawResult[0] : "";
+    : Array.isArray(rawResult) && typeof rawResult[0] === "string" ? rawResult[0]
+      : rawResult && typeof rawResult === "object" ? JSON.stringify(rawResult)
+        : "";
 
   if (!raw) throw new Error("PAIRING_CODE_INVALID");
   const record = JSON.parse(raw) as PairingCodeRecord;
