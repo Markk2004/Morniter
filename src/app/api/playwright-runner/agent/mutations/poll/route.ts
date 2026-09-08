@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { verifyAgentAuth } from "@/lib/test-runner/agent-auth";
+import { agentIdentityMatches, verifyAgentAuth } from "@/lib/test-runner/agent-auth";
 import { claimNextMutation } from "@/lib/playwright-runner/mutation-store";
 import { z } from "zod";
 
@@ -8,7 +8,8 @@ const PollMutationSchema = z.object({
 }).strict();
 
 export async function POST(req: NextRequest) {
-  if (!verifyAgentAuth(req)) {
+  const auth = await verifyAgentAuth(req);
+  if (!auth) {
     return NextResponse.json({ error: "Unauthorized agent", code: "UNAUTHORIZED_AGENT" }, { status: 401 });
   }
 
@@ -25,6 +26,10 @@ export async function POST(req: NextRequest) {
       { error: "Invalid poll payload", code: "INVALID_PAYLOAD" },
       { status: 400 },
     );
+  }
+
+  if (!agentIdentityMatches(auth, parseResult.data.agentId)) {
+    return NextResponse.json({ error: "Agent identity mismatch", code: "AGENT_ID_MISMATCH" }, { status: 403 });
   }
 
   try {

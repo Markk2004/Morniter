@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Morniter Agent Setup — Production UI</title>
+  <style>
+    :root{color-scheme:dark;--canvas:#090c10;--chrome:#0d1117;--surface:#121820;--surface-2:#171f29;--line:#2a3440;--line-strong:#3a4857;--ink:#f4f7fa;--body:#c1cad4;--muted:#8794a3;--quiet:#667382;--brand:#69dda0;--brand-deep:#173d29;--warning:#efc66f;--danger:#ff8b8b;--focus:#89b4ff}
+    *{box-sizing:border-box}body{margin:0;background:var(--canvas);color:var(--ink);font-family:Inter,"Segoe UI",system-ui,sans-serif;min-height:100vh}button,input{font:inherit}button{cursor:pointer}
+    .app{width:min(1220px,calc(100vw - 40px));min-height:760px;margin:20px auto;background:var(--chrome);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+    .topbar{height:66px;display:flex;align-items:center;justify-content:space-between;padding:0 22px;border-bottom:1px solid var(--line)}
+    .brand{display:flex;align-items:center;gap:12px}.brand img{width:38px;height:38px;border-radius:9px}.brand-name{font-size:14px;font-weight:750}.brand-sub{font-size:11px;color:var(--muted);margin-top:2px}.security{display:flex;align-items:center;gap:8px;color:#9eabb8;font-size:11px}.shield{width:22px;height:22px;display:grid;place-items:center;border:1px solid #355343;border-radius:6px;color:var(--brand);font-weight:800}
+    .body{display:grid;grid-template-columns:232px minmax(0,1fr)}
+    .rail{border-right:1px solid var(--line);padding:24px 14px;background:#0b1016;min-height:628px}.rail-title{font-size:12px;font-weight:700;color:#aab5c0;padding:0 10px 12px}.rail-sub{font-size:11px;color:var(--quiet);padding:0 10px 20px;line-height:1.55}.step{position:relative;display:flex;gap:11px;padding:11px 10px;border-radius:8px;color:#7f8c9b;margin-bottom:4px}.step.active{background:#15221a;color:var(--ink)}.step.done{color:#aeb9c4}.marker{width:24px;height:24px;display:grid;place-items:center;border-radius:6px;border:1px solid #36414d;color:#91a0af;font-size:11px;font-weight:800;flex:0 0 auto}.active .marker{background:var(--brand);border-color:var(--brand);color:#07130c}.done .marker{background:#182f22;border-color:#2f6c49;color:var(--brand)}.step b{font-size:12px;display:block;margin-top:2px}.step span{display:block;font-size:10px;color:#687687;margin-top:3px}
+    .workspace{display:grid;grid-template-rows:minmax(0,1fr) auto;min-width:0}.stage{padding:38px 42px 28px;display:grid;grid-template-columns:minmax(0,680px) minmax(230px,1fr);gap:42px}.content{min-width:0}.screen{display:none}.screen.active{display:block}.kicker{font-size:12px;color:var(--brand);font-weight:700;margin-bottom:11px}.screen h1{font-size:28px;line-height:1.2;letter-spacing:-.025em;text-wrap:balance;margin:0 0 12px}.intro{font-size:14px;line-height:1.65;color:var(--body);max-width:65ch;margin:0 0 28px;text-wrap:pretty}
+    .section{border-top:1px solid var(--line);padding:17px 0}.section:last-child{border-bottom:1px solid var(--line)}.row{display:flex;align-items:center;justify-content:space-between;gap:16px}.row-main{display:flex;align-items:center;gap:12px;min-width:0}.status-icon{width:28px;height:28px;border-radius:7px;display:grid;place-items:center;background:#183225;color:var(--brand);font-size:13px;font-weight:850;flex:0 0 auto}.row h3{font-size:13px;margin:0}.row p{font-size:11px;color:var(--muted);margin:4px 0 0;line-height:1.45}.pill{font-size:10px;color:#a8eac5;background:#14291d;border:1px solid #2d6646;border-radius:99px;padding:5px 8px;white-space:nowrap}.pill.neutral{color:#aeb9c4;background:#171e26;border-color:#35404c}.pill.warn{color:#f0d696;background:#2a2417;border-color:#68552a}
+    .notice{display:flex;gap:11px;margin-top:18px;padding:13px 14px;border:1px solid #51472d;border-radius:9px;background:#201d15;color:#d9d0ba;font-size:11px;line-height:1.6}.notice-icon{color:var(--warning);font-weight:800;flex:0 0 auto}.field{margin-bottom:17px}.field label{display:block;font-size:12px;font-weight:700;margin-bottom:7px}.field .hint{display:block;color:var(--muted);font-size:10px;font-weight:400;margin-top:4px}.control{display:flex;gap:8px}.field input{width:100%;height:42px;background:#0a0f14;color:var(--ink);border:1px solid var(--line-strong);border-radius:8px;padding:0 12px;outline:none}.field input:focus{border-color:var(--focus);box-shadow:0 0 0 3px rgba(137,180,255,.16)}.field input::placeholder{color:#8b97a4}.secondary{height:42px;border:1px solid var(--line-strong);border-radius:8px;background:#1a232d;color:#dfe6ed;padding:0 13px;font-size:11px;font-weight:650;white-space:nowrap}.code{font-family:"Cascadia Code",Consolas,monospace;letter-spacing:.12em;text-align:center;font-size:17px}.pairing-guide{display:flex;gap:10px;align-items:flex-start;margin-top:12px;color:var(--muted);font-size:11px;line-height:1.55}.guide-num{width:20px;height:20px;display:grid;place-items:center;border-radius:50%;background:#202a34;color:#c4ced8;font-size:10px;flex:0 0 auto}
+    .context{align-self:start;border:1px solid var(--line);border-radius:11px;background:var(--surface);overflow:hidden}.context-head{padding:14px 16px;border-bottom:1px solid var(--line);font-size:12px;font-weight:750}.context-body{padding:15px 16px}.context-item{padding:0 0 14px;margin:0 0 14px;border-bottom:1px solid #232c35}.context-item:last-child{padding:0;margin:0;border:0}.context-item b{font-size:11px;display:block;margin-bottom:6px}.context-item p,.context-item li{font-size:10.5px;color:#9ba7b4;line-height:1.6;margin:0}.context-item ol,.context-item ul{margin:6px 0 0;padding-left:17px}.inline-code{font-family:Consolas,monospace;color:#9fe9bf;background:#17271d;padding:2px 5px;border-radius:4px}
+    .terminal{background:#080c10;border:1px solid #29333e;border-radius:9px;padding:14px 15px;font:11px/1.75 "Cascadia Code",Consolas,monospace;color:#9aa6b3}.terminal .ok{color:#83e5ab}.terminal .wait{color:var(--warning)}.terminal .dim{color:#637181}
+    .complete{display:flex;align-items:flex-start;gap:15px;padding:18px;border:1px solid #34714d;border-radius:10px;background:#13241a}.complete-mark{width:36px;height:36px;display:grid;place-items:center;border-radius:9px;background:var(--brand);color:#07130c;font-weight:900;font-size:18px}.complete h3{font-size:15px;margin:1px 0 6px}.complete p{font-size:11px;color:#a9bbb0;line-height:1.55;margin:0}
+    .footer{height:72px;padding:0 42px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--line);background:#0b1016}.progress{display:flex;align-items:center;gap:11px;color:#8c99a7;font-size:11px}.bar{width:116px;height:3px;background:#27313a;border-radius:99px;overflow:hidden}.bar span{display:block;height:100%;width:16.66%;background:var(--brand);transition:width .18s cubic-bezier(.16,1,.3,1)}.actions{display:flex;gap:9px}.btn{height:40px;border-radius:8px;padding:0 16px;border:1px solid var(--line-strong);background:#171f28;color:#dce4eb;font-size:12px;font-weight:700}.btn.primary{background:var(--brand);border-color:var(--brand);color:#07130c}.btn:disabled{opacity:.35;cursor:not-allowed}.btn:focus-visible,.secondary:focus-visible{outline:3px solid rgba(137,180,255,.3);outline-offset:2px}
+    @media(max-width:900px){.stage{grid-template-columns:1fr}.context{display:none}.app{width:calc(100vw - 20px);margin:10px auto}.stage{padding:30px}.footer{padding:0 30px}}@media(max-width:680px){.body{display:block}.rail{display:flex;min-height:auto;overflow:auto;border-right:0;border-bottom:1px solid var(--line);padding:10px}.rail-title,.rail-sub,.step span{display:none}.step{min-width:142px;margin:0}.stage{padding:24px 18px}.footer{padding:0 18px}.security{display:none}.screen h1{font-size:23px}}@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+  </style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar"><div class="brand"><img src="https://monitorsoftdeath.vercel.app/icons/icon-192.png" alt="Morniter"><div><div class="brand-name">Morniter Agent</div><div class="brand-sub">Setup for Windows</div></div></div><div class="security"><span class="shield">✓</span><span>Device credentials protected by Windows</span></div></header>
+  <div class="body">
+    <nav class="rail" aria-label="ขั้นตอนติดตั้ง"><div class="rail-title">ตั้งค่าเครื่องทดสอบ</div><div class="rail-sub">ใช้เวลาประมาณ 3 นาที ระบบจะไม่แก้ไฟล์โปรเจกต์ของคุณ</div>
+      <div class="step active" data-step="0"><span class="marker">1</span><div><b>เริ่มต้น</b><span>รู้จัก Agent</span></div></div>
+      <div class="step" data-step="1"><span class="marker">2</span><div><b>ตรวจเครื่อง</b><span>Runtime ที่จำเป็น</span></div></div>
+      <div class="step" data-step="2"><span class="marker">3</span><div><b>จับคู่เครื่อง</b><span>Pairing Code</span></div></div>
+      <div class="step" data-step="3"><span class="marker">4</span><div><b>เพิ่มโปรเจกต์</b><span>Workspace และ tests</span></div></div>
+      <div class="step" data-step="4"><span class="marker">5</span><div><b>ตรวจการทำงาน</b><span>Connect และ scan</span></div></div>
+      <div class="step" data-step="5"><span class="marker">6</span><div><b>พร้อมใช้งาน</b><span>เปิดพร้อม Windows</span></div></div>
+    </nav>
+    <div class="workspace">
+      <div class="stage">
+        <main class="content">
+          <section class="screen active"><div class="kicker">Welcome</div><h1>เชื่อมเครื่องนี้กับ Morniter</h1><p class="intro">Agent ทำหน้าที่รัน Playwright จากไฟล์จริงในเครื่อง ส่งผลและ log ที่กรองข้อมูลสำคัญแล้วกลับไปยังหน้า Morniter</p>
+            <div class="section row"><div class="row-main"><span class="status-icon">A</span><div><h3>Local Agent และ System Tray</h3><p>Start, Stop, Restart และดูสถานะโดยไม่เปิด Terminal</p></div></div><span class="pill">Included</span></div>
+            <div class="section row"><div class="row-main"><span class="status-icon">S</span><div><h3>Secure device pairing</h3><p>ใช้ code ชั่วคราวแทนการคัดลอก Agent Token จาก Vercel</p></div></div><span class="pill">Recommended</span></div>
+            <div class="section row"><div class="row-main"><span class="status-icon">P</span><div><h3>Project validation</h3><p>ตรวจ workspace, test root และ Playwright ก่อนรับงาน</p></div></div><span class="pill neutral">No file changes</span></div>
+            <div class="notice"><span class="notice-icon">i</span><span>Morniter PWA เป็นหน้าควบคุม ส่วน Agent ต้องติดตั้งบนเครื่องที่เก็บ ProjectSTS และเป็นเครื่องที่เปิด browser เมื่อใช้โหมดมองเห็นหน้าจอ</span></div>
+          </section>
+
+          <section class="screen"><div class="kicker">System check</div><h1>ตรวจสิ่งที่ต้องใช้บนเครื่อง</h1><p class="intro">ตัวติดตั้งมี Agent runtime ให้แล้ว ส่วน Playwright browser จะตรวจจาก project ที่เลือกเพื่อให้ version ตรงกัน</p>
+            <div class="section row"><div class="row-main"><span class="status-icon">✓</span><div><h3>Windows 10/11 64-bit</h3><p>รองรับ Tray และเปิดอัตโนมัติหลัง sign in</p></div></div><span class="pill">Ready</span></div>
+            <div class="section row"><div class="row-main"><span class="status-icon">✓</span><div><h3>Morniter Agent runtime</h3><p>รวมอยู่ในตัวติดตั้ง ไม่ต้องใช้ npm run test-agent</p></div></div><span class="pill">Ready</span></div>
+            <div class="section row"><div class="row-main"><span class="status-icon">…</span><div><h3>Project Playwright browsers</h3><p>ตรวจหลังเลือก workspace และขออนุญาตก่อนติดตั้ง Chromium</p></div></div><span class="pill warn">Pending</span></div>
+          </section>
+
+          <section class="screen"><div class="kicker">Secure pairing</div><h1>จับคู่ Agent โดยไม่เปิดเผย Token</h1><p class="intro">สร้าง code แบบใช้ครั้งเดียวจากหน้า Morniter แล้วกรอกที่นี่ Code จะหมดอายุใน 10 นาที</p>
+            <div class="field"><label>Server URL <span class="hint">URL production ของ Morniter</span></label><input value="https://monitorsoftdeath.vercel.app" aria-label="Server URL"></div>
+            <div class="field"><label>ชื่อเครื่อง <span class="hint">ใช้ชื่อที่ทีมจำได้และไม่ซ้ำกัน</span></label><input value="mark-windows-01" aria-label="ชื่อเครื่อง"></div>
+            <div class="field"><label>Pairing Code <span class="hint">6 ตัวอักษร ใช้ได้ครั้งเดียว</span></label><div class="control"><input class="code" placeholder="ABC-123" maxlength="7" aria-label="Pairing Code"><button class="secondary">ตรวจสอบ Code</button></div></div>
+            <div class="pairing-guide"><span class="guide-num">1</span><span>เปิด Morniter → Settings → Agents → Pair new agent</span></div><div class="pairing-guide"><span class="guide-num">2</span><span>คัดลอก Pairing Code มากรอกภายใน 10 นาที</span></div><div class="pairing-guide"><span class="guide-num">3</span><span>หลังจับคู่ Server จะออก credential เฉพาะเครื่องและ Windows จะเข้ารหัสไว้</span></div>
+          </section>
+
+          <section class="screen"><div class="kicker">Project setup</div><h1>เลือกโปรเจกต์ที่ Agent อ่านได้</h1><p class="intro">เลือก workspace ที่มี package.json จากนั้นระบบจะหา test root และตรวจ path containment ให้อัตโนมัติ</p>
+            <div class="field"><label>ชื่อที่แสดง <span class="hint">แสดงใน Project selector</span></label><input value="ProjectSTS" aria-label="ชื่อโปรเจกต์"></div>
+            <div class="field"><label>Workspace root <span class="hint">เลือกโฟลเดอร์ frontend ของ ProjectSTS</span></label><div class="control"><input value="E:\ProjectSTS\frontend" aria-label="Workspace root"><button class="secondary">เลือกโฟลเดอร์</button></div></div>
+            <div class="field"><label>Test root <span class="hint">relative path ภายใน workspace</span></label><div class="control"><input value="e2e" aria-label="Test root"><button class="secondary">ค้นหาอัตโนมัติ</button></div></div>
+            <div class="notice"><span class="notice-icon">✓</span><span>Frontend จะได้รับเฉพาะ test ID, ชื่อฟังก์ชัน และ relative path ไม่ส่ง absolute path ของเครื่องไปยัง browser</span></div>
+          </section>
+
+          <section class="screen"><div class="kicker">Verification</div><h1>ตรวจครบก่อนเปิดรับงาน</h1><p class="intro">ขั้นตอนนี้ยังไม่รัน test และไม่แก้ source code ระบบตรวจ connection, permission และ catalog เท่านั้น</p>
+            <div class="terminal"><span class="dim">10:42:08</span> <span class="ok">CONNECTED</span> Server accepted device credential<br><span class="dim">10:42:09</span> <span class="ok">VALID</span> Workspace is contained and readable<br><span class="dim">10:42:10</span> <span class="ok">FOUND</span> 9 spec files · 23 Playwright tests<br><span class="dim">10:42:10</span> <span class="wait">CHECK</span> Chromium will be verified before first run</div>
+            <div class="section row"><div class="row-main"><span class="status-icon">✓</span><div><h3>Agent online</h3><p>ProjectSTS พร้อมแสดงใน Test Explorer</p></div></div><span class="pill">Ready</span></div>
+          </section>
+
+          <section class="screen"><div class="kicker">Completed</div><h1>เครื่องนี้พร้อมรัน test แล้ว</h1><p class="intro">Agent จะทำงานใน System Tray และเชื่อมใหม่อัตโนมัติหลังเข้า Windows</p>
+            <div class="complete"><span class="complete-mark">✓</span><div><h3>mark-windows-01 is online</h3><p>ProjectSTS catalog พร้อมใช้งาน เปิด Morniter PWA แล้วไปที่ Tests เพื่อเริ่มรัน</p></div></div>
+            <div class="section row"><div class="row-main"><span class="status-icon">✓</span><div><h3>Start with Windows</h3><p>เปิด Agent หลัง sign in โดยอัตโนมัติ</p></div></div><span class="pill">Enabled</span></div>
+            <div class="section row"><div class="row-main"><span class="status-icon">M</span><div><h3>Open Morniter</h3><p>เปิด production URL ใน PWA หรือ browser ปกติ</p></div></div><button class="secondary">เปิด Morniter</button></div>
+            <div class="notice"><span class="notice-icon">i</span><span>`npm run test-agent` ใช้เฉพาะ developer debugging และห้ามเปิดซ้ำด้วย Agent ID เดียวกับ Tray Agent</span></div>
+          </section>
+        </main>
+
+        <aside class="context"><div class="context-head" id="help-title">ก่อนเริ่มติดตั้ง</div><div class="context-body" id="help-body"></div></aside>
+      </div>
+      <footer class="footer"><div class="progress"><span id="counter">1 จาก 6</span><div class="bar"><span id="bar"></span></div></div><div class="actions"><button class="btn" id="back" disabled>ย้อนกลับ</button><button class="btn primary" id="next">ดำเนินการต่อ</button></div></footer>
+    </div>
+  </div>
+</div>
+<script>
+const help=[
+['ก่อนเริ่มติดตั้ง','<div class="context-item"><b>ต้องติดตั้งที่เครื่องไหน</b><p>เครื่องที่มี ProjectSTS และจะใช้เปิด Playwright browser</p></div><div class="context-item"><b>PWA ทำหน้าที่อะไร</b><p>เป็นหน้าควบคุมและดูผล ไม่สามารถอ่านไฟล์หรือเปิด process บน Windows เองได้</p></div>'],
+['สิ่งที่ Setup ตรวจ','<div class="context-item"><b>ไม่ต้องติดตั้ง Node สำหรับ Agent</b><p>ตัว Agent runtime รวมใน installer แล้ว</p></div><div class="context-item"><b>Project dependencies</b><p>ยังเป็นของแต่ละ project ระบบตรวจและบอกสิ่งที่ขาดโดยไม่แก้ source เอง</p></div>'],
+['วิธีเอา Pairing Code','<div class="context-item"><b>บนหน้า Morniter</b><ol><li>เข้าสู่ระบบด้วยสิทธิ์ผู้ดูแล</li><li>เปิด Settings → Agents</li><li>กด Pair new agent</li></ol></div><div class="context-item"><b>ความปลอดภัย</b><p>Code ใช้ครั้งเดียวและหมดอายุ 10 นาที ไม่ต้องเปิด Vercel หรือคัดลอก <span class="inline-code">TEST_RUNNER_AGENT_TOKEN</span></p></div>'],
+['เลือก path ให้ถูก','<div class="context-item"><b>Workspace root</b><p>โฟลเดอร์ที่มี package.json และ playwright.config ของ project</p></div><div class="context-item"><b>Test root</b><p>เช่น <span class="inline-code">e2e</span> หรือ <span class="inline-code">tests/e2e</span> ต้องอยู่ภายใน workspace</p></div>'],
+['อ่านผลตรวจ','<div class="context-item"><b>Ready</b><p>Agent เชื่อม server และเผยแพร่ catalog ได้แล้ว</p></div><div class="context-item"><b>Chromium Pending</b><p>เมื่อรันครั้งแรก ระบบจะตรวจ browser version และเสนอปุ่มติดตั้งเมื่อจำเป็น</p></div>'],
+['เริ่มใช้งาน','<div class="context-item"><b>รันจาก Morniter</b><ol><li>เปิด Tests</li><li>เลือก ProjectSTS</li><li>เลือก test และโหมด</li><li>กด Run</li></ol></div><div class="context-item"><b>ถอนการติดตั้ง</b><p>Windows Settings → Apps → Morniter Agent → Uninstall แล้วเลือกเก็บหรือลบ config</p></div>']
+];
+let current=0;const screens=[...document.querySelectorAll('.screen')],steps=[...document.querySelectorAll('.step')],back=document.getElementById('back'),next=document.getElementById('next');
+function draw(){screens.forEach((el,i)=>el.classList.toggle('active',i===current));steps.forEach((el,i)=>{el.classList.toggle('active',i===current);el.classList.toggle('done',i<current);el.querySelector('.marker').textContent=i<current?'✓':i+1});document.getElementById('counter').textContent=`${current+1} จาก ${screens.length}`;document.getElementById('bar').style.width=`${((current+1)/screens.length)*100}%`;document.getElementById('help-title').textContent=help[current][0];document.getElementById('help-body').innerHTML=help[current][1];back.disabled=current===0;next.textContent=current===screens.length-1?'เสร็จสิ้น':'ดำเนินการต่อ'}
+back.onclick=()=>{if(current>0){current--;draw()}};next.onclick=()=>{if(current<screens.length-1){current++;draw()}else{next.disabled=true;next.textContent='ตั้งค่าเรียบร้อย'}};steps.forEach((el,i)=>el.onclick=()=>{current=i;draw()});draw();
+</script>
+</body>
+</html>

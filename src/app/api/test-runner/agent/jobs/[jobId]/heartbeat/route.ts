@@ -9,7 +9,7 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ jobId: string }> },
 ) {
-  if (!verifyAgentAuth(req)) {
+  if (!(await verifyAgentAuth(req))) {
     return NextResponse.json({ error: "Unauthorized", code: "UNAUTHORIZED" }, { status: 401 });
   }
 

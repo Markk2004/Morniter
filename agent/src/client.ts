@@ -20,14 +20,17 @@ export class AgentClient {
     private serverUrl: string,
     private agentToken: string,
     private agentId: string,
+    private deviceId?: string,
   ) {}
 
   private get headers(): Record<string, string> {
-    return {
+    const headers: Record<string, string> = {
       Authorization: `Bearer ${this.agentToken}`,
       "Content-Type": "application/json",
       "x-agent-id": this.agentId,
     };
+    if (this.deviceId) headers["x-device-id"] = this.deviceId;
+    return headers;
   }
 
   // Legacy preset runner methods

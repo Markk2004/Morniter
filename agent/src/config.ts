@@ -107,6 +107,7 @@ export const AgentConfigSchema = z.object({
   agentId: z.string().min(1).max(128),
   serverUrl: z.string().url(),
   agentToken: z.string().min(16),
+  deviceId: z.string().uuid().optional(),
   pollIntervalSeconds: z.number().int().min(1).max(60).default(30),
   projects: z.array(AgentProjectSchema).min(1),
 });

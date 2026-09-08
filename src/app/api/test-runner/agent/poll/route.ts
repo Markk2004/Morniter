@@ -1,11 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { verifyAgentAuth } from "@/lib/test-runner/agent-auth";
+import { agentIdentityMatches, verifyAgentAuth } from "@/lib/test-runner/agent-auth";
 import { PollRequestSchema } from "@/lib/test-runner/schemas";
 import { publishCatalog, claimNextJob } from "@/lib/test-runner/store";
 import type { TestProjectCatalog } from "@/lib/test-runner/types";
 
 export async function POST(req: NextRequest) {
-  if (!verifyAgentAuth(req)) {
+  const auth = await verifyAgentAuth(req);
+  if (!auth) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -22,6 +23,9 @@ export async function POST(req: NextRequest) {
   }
 
   const { agentId, catalog } = parseResult.data;
+  if (!agentIdentityMatches(auth, agentId)) {
+    return NextResponse.json({ error: "Agent identity mismatch", code: "AGENT_ID_MISMATCH" }, { status: 403 });
+  }
 
   try {
     if (catalog) {

@@ -339,7 +339,7 @@ export async function runAgent(config: AgentConfig): Promise<void> {
   const guard = new SingleInstanceGuard(config.agentId);
   guard.acquire();
 
-  const client = new AgentClient(config.serverUrl, config.agentToken, config.agentId);
+  const client = new AgentClient(config.serverUrl, config.agentToken, config.agentId, config.deviceId);
   const catalog = buildCatalogFromConfig(config);
   const pollIntervalMs = (config.pollIntervalSeconds ?? 5) * 1000;
   const catalogRefreshMs = Math.max(30_000, pollIntervalMs * 6);

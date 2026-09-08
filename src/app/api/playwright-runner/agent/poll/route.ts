@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { verifyAgentAuth } from "@/lib/test-runner/agent-auth";
+import { agentIdentityMatches, verifyAgentAuth } from "@/lib/test-runner/agent-auth";
 import { PlaywrightPollRequestSchema } from "@/lib/playwright-runner/schemas";
 import {
   claimNextPlaywrightJob,
@@ -8,7 +8,8 @@ import {
 } from "@/lib/playwright-runner/job-store";
 
 export async function POST(req: NextRequest) {
-  if (!verifyAgentAuth(req)) {
+  const auth = await verifyAgentAuth(req);
+  if (!auth) {
     return NextResponse.json({ error: "Unauthorized agent", code: "UNAUTHORIZED_AGENT" }, { status: 401 });
   }
 
@@ -28,6 +29,9 @@ export async function POST(req: NextRequest) {
   }
 
   const { agentId, catalog, capabilities } = parseResult.data;
+  if (!agentIdentityMatches(auth, agentId)) {
+    return NextResponse.json({ error: "Agent identity mismatch", code: "AGENT_ID_MISMATCH" }, { status: 403 });
+  }
 
   try {
     if (catalog) {

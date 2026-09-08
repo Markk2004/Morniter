@@ -29,6 +29,7 @@ export function MonitorShell({ displayName = "Monitor Operator", children }: Mon
 
   const isLogsActive = pathname === "/monitor";
   const isTestsActive = pathname === "/monitor/tests";
+  const isSettingsActive = pathname.startsWith("/monitor/settings");
 
   return (
     <div
@@ -70,6 +71,17 @@ export function MonitorShell({ displayName = "Monitor Operator", children }: Mon
               }`}
             >
               Tests
+            </Link>
+            <Link
+              href="/monitor/settings/agents"
+              aria-current={isSettingsActive ? "page" : undefined}
+              className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                isSettingsActive
+                  ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 shadow-sm"
+                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 border border-transparent"
+              }`}
+            >
+              Agents
             </Link>
           </nav>
         </div>

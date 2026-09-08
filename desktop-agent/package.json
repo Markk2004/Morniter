@@ -1,0 +1,74 @@
+{
+  "name": "@morniter/desktop-agent",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Secure Windows Local Agent for Morniter Playwright tests",
+  "author": "SoftDeath",
+  "main": "out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "test": "vitest run",
+    "build": "electron-vite build",
+    "build-agent-runtime": "node scripts/build-agent-runtime.mjs",
+    "package": "node scripts/generate-windows-icons.mjs && npm run build-agent-runtime && npm run build && electron-builder --win nsis --x64"
+  },
+  "dependencies": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^5.0.4",
+    "electron": "^38.0.0",
+    "electron-builder": "^26.0.0",
+    "electron-vite": "^4.0.0",
+    "esbuild": "^0.27.7",
+    "jsdom": "^30.0.0",
+    "typescript": "^5.0.0",
+    "vite": "^7.3.6",
+    "vitest": "^4.1.0"
+  },
+  "build": {
+    "appId": "com.softdeath.morniter.agent",
+    "productName": "Morniter Local Agent",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "out/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "build/agent",
+        "to": "agent"
+      },
+      {
+        "from": "build/morniter-agent-tray.png",
+        "to": "morniter-agent-tray.png"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/morniter-agent.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Morniter Local Agent",
+      "include": "build/installer.nsh"
+    }
+  }
+}

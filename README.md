@@ -91,6 +91,22 @@ The Test Runner evolves from a preset-driven command launcher into an interactiv
 
 The Test Runner Console replaces arbitrary shell commands with a secure, preset-driven local execution system:
 
+### Before running tests
+
+The deployed Morniter page/PWA is only the control panel. To run ProjectSTS tests,
+install Node.js, ProjectSTS dependencies, the required Playwright browsers, and the
+Windows Local Agent on the machine that owns the project files. Start the agent with
+the ignored local runner config and a `TEST_RUNNER_AGENT_TOKEN` matching the Morniter
+deployment. The browser sends a project/test selection; the Local Agent resolves the
+local workspace, command, and environment.
+
+For a desktop shortcut, open `https://monitorsoftdeath.vercel.app` in Chrome or Edge
+and choose **Install Morniter** / **Install this site as an app** from the browser
+menu. Installing the PWA does not install the Local Agent or ProjectSTS dependencies.
+
+ทีมที่ต้องการติดตั้งแบบสำเร็จรูปให้ใช้คู่มือ [Windows Local Agent](docs/morniter-agent-installation.md)
+และ installer จาก release ของทีม ตัว installer เป็น per-user และมี uninstaller มาตรฐานของ Windows.
+
 - **Zero Shell Exposure**: Browser payloads send only `projectId` and `presetId` (or validated `testIds`/`code`). Raw commands, parameters, working directories, or environment variables are never accepted over HTTP.
 - **Local Agent Preset Resolver**: The Windows Local Agent resolves preset execution contracts strictly from local config (`test-runner.config.local.json`).
 - **Safe Process Execution**: Executes commands via Node `spawn(executable, args, { shell: false })` with process-tree termination on timeout or cancellation.

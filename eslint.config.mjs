@@ -13,6 +13,10 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
     "agent/dist/**",
+    "desktop-agent/build/**",
+    "desktop-agent/out/**",
+    "desktop-agent/dist/**",
+    "desktop-agent/node_modules/**",
   ]),
 ]);
 

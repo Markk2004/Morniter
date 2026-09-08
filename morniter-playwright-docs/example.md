@@ -4,6 +4,33 @@ This document contains complete, concrete implementation examples for building a
 
 ---
 
+## 0. Prerequisites before using the deployed workspace
+
+The Morniter web app can be opened in a normal browser, but Playwright execution
+requires the Windows Local Agent to be installed and running on the machine that
+will launch the tests. The browser cannot access ProjectSTS files, local test
+dependencies, or headed browser windows by itself.
+
+Install and configure these on the Local Agent machine:
+
+1. Node.js and the ProjectSTS dependencies.
+2. Playwright browsers required by the selected project.
+3. The Morniter Local Agent with `TEST_RUNNER_AGENT_TOKEN` matching the deployed
+   Morniter environment.
+4. The ignored local runner config with the ProjectSTS `workspaceRoot`, `testRoot`,
+   allowlisted projects, and preset commands.
+
+For the desktop app, open `https://monitorsoftdeath.vercel.app` in Chrome or Edge,
+choose the browser menu, then select **Install Morniter** or **Install this site as
+an app**. The installed PWA is only the Morniter interface; it does not install
+Node.js, ProjectSTS, Playwright, or the Local Agent. Those remain installed and
+running on the test machine.
+
+After installation, sign in again in the installed app, open `/monitor/tests`,
+wait until the Local Agent shows **Online**, and then select a project and test.
+
+---
+
 ## 1. Example UI Page
 
 `src/app/monitor/tests/page.tsx`

@@ -14,7 +14,11 @@
     "hash-password": "node scripts/hash-password.mjs",
     "test-agent": "node --enable-source-maps agent/dist/index.js",
     "test-agent:build": "tsc -p agent/tsconfig.json",
-    "agent:build": "tsc -p agent/tsconfig.json"
+    "agent:build": "tsc -p agent/tsconfig.json",
+    "desktop-agent:dev": "npm --prefix desktop-agent run dev",
+    "desktop-agent:test": "npm --prefix desktop-agent test",
+    "desktop-agent:build": "npm --prefix desktop-agent run build",
+    "desktop-agent:package": "npm run agent:build && npm --prefix desktop-agent run package"
   },
   "dependencies": {
     "@types/cross-spawn": "^6.0.6",

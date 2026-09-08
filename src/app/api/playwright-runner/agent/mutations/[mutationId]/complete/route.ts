@@ -15,7 +15,7 @@ export async function POST(
   req: NextRequest,
   context: { params: Promise<{ mutationId: string }> },
 ) {
-  if (!verifyAgentAuth(req)) {
+  if (!(await verifyAgentAuth(req))) {
     return NextResponse.json({ error: "Unauthorized agent", code: "UNAUTHORIZED_AGENT" }, { status: 401 });
   }
 

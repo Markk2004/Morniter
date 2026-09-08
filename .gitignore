@@ -43,6 +43,12 @@ next-env.d.ts
 # test runner agent
 test-runner.config.local.json
 /agent/dist/
+/desktop-agent/node_modules/
+/desktop-agent/out/
+/desktop-agent/dist/
+/desktop-agent/build/agent/
+/desktop-agent/build/*.ico
+/desktop-agent/build/*-tray.png
 cypress/videos/
 cypress/screenshots/
 cypress/downloads/

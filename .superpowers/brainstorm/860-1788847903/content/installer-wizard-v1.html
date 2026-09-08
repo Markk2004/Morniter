@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Morniter Agent Setup Mockup</title>
+  <style>
+    :root{--bg:#0b0e12;--panel:#11161d;--panel2:#161c24;--line:#29313d;--text:#f1f5f9;--muted:#94a3b8;--accent:#57d38c;--accent2:#2a6f4b;--warn:#f2c96d;--danger:#f07d7d}
+    *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,"Segoe UI",Tahoma,sans-serif;min-height:100vh}
+    button,input{font:inherit} button{cursor:pointer}
+    .shell{width:min(1180px,calc(100% - 32px));margin:28px auto;border:1px solid var(--line);background:var(--panel);border-radius:18px;overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,.34)}
+    .titlebar{height:64px;padding:0 22px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);background:#0f141a}
+    .brand{display:flex;align-items:center;gap:12px}.brand img{width:38px;height:38px;border-radius:10px}.brand strong{display:block;font-size:15px}.brand span{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+    .window-actions{display:flex;gap:7px}.dot{width:10px;height:10px;border-radius:50%;background:#334155}.dot:first-child{background:var(--accent)}
+    .layout{display:grid;grid-template-columns:245px minmax(0,1fr) 280px;min-height:650px}
+    .steps{padding:24px 16px;border-right:1px solid var(--line);background:#0f141a}.eyebrow{font-size:11px;letter-spacing:.13em;color:#718096;text-transform:uppercase;margin:0 10px 18px}
+    .step{display:flex;gap:11px;align-items:flex-start;padding:11px 10px;border:1px solid transparent;border-radius:10px;color:#8290a2;margin-bottom:5px}.step.active{background:#17231d;border-color:#285239;color:#fff}.step.done .num{background:var(--accent);color:#07130c}.num{width:25px;height:25px;display:grid;place-items:center;border-radius:7px;background:#202833;color:#aab5c3;font-size:12px;font-weight:700;flex:0 0 auto}.step b{font-size:13px;display:block}.step small{font-size:11px;display:block;margin-top:3px;color:#6f7d8e}
+    .main{padding:34px 36px;min-width:0}.main h1{font-size:27px;line-height:1.25;margin:0 0 10px}.lead{color:var(--muted);line-height:1.65;font-size:14px;margin:0 0 26px;max-width:650px}
+    .panel{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:20px}.panel+.panel{margin-top:14px}.panel h3{font-size:14px;margin:0 0 13px}.check{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid #242c36}.check:last-child{border:0}.check-info{display:flex;align-items:center;gap:10px}.check-icon{width:25px;height:25px;border-radius:50%;display:grid;place-items:center;background:#183624;color:var(--accent);font-weight:800}.check b{font-size:13px}.check p{margin:3px 0 0;color:var(--muted);font-size:11px}.status{font-size:11px;padding:5px 8px;border-radius:99px;background:#1b3024;color:#7fe5aa;border:1px solid #2b5d3e}
+    .field{margin-bottom:16px}.field:last-child{margin-bottom:0}.field label{font-size:12px;font-weight:700;display:flex;justify-content:space-between;margin-bottom:7px}.field label span{font-weight:400;color:#7c8999}.input-row{display:flex;gap:8px}.field input{width:100%;background:#0d1218;color:#dce4ec;border:1px solid #34404d;border-radius:9px;padding:11px 12px;outline:none}.field input:focus{border-color:var(--accent)}.browse{background:#222b36;color:#d5dde6;border:1px solid #384554;border-radius:9px;padding:0 12px}
+    .note{border-left:3px solid var(--warn);background:#211d14;padding:12px 14px;border-radius:0 9px 9px 0;color:#d8cfb6;font-size:12px;line-height:1.55;margin-top:16px}.success{border-color:#2d6242;background:#13251b}.success-mark{font-size:34px;color:var(--accent);margin-bottom:8px}
+    .help{border-left:1px solid var(--line);padding:28px 22px;background:#0e1318}.help h2{font-size:14px;margin:0 0 18px}.help-card{padding:14px;border:1px solid var(--line);border-radius:11px;background:#141a21;margin-bottom:11px}.help-card b{display:block;font-size:12px;margin-bottom:7px;color:#dbe4ed}.help-card p,.help-card li{font-size:11px;line-height:1.55;color:var(--muted);margin:0}.help-card ul{padding-left:17px;margin:7px 0 0}.tag{display:inline-block;color:#7fe5aa;background:#193225;border:1px solid #28533a;border-radius:5px;padding:2px 6px;font-family:Consolas,monospace;font-size:10px;margin-bottom:8px}
+    .footer{display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--line);padding:16px 36px;background:#0f141a}.progress{font-size:12px;color:var(--muted)}.actions{display:flex;gap:9px}.btn{border-radius:9px;padding:10px 16px;border:1px solid #394654;background:#1b232d;color:#dbe4ed}.btn.primary{background:var(--accent);border-color:var(--accent);color:#08140d;font-weight:800}.btn:disabled{opacity:.35;cursor:not-allowed}
+    .screen{display:none}.screen.active{display:block}.testline{font-family:Consolas,monospace;background:#0a0e12;border:1px solid #26313b;border-radius:10px;padding:12px;color:#a8b4c1;font-size:11px;line-height:1.65}.online{color:#71e3a0}.warn{color:var(--warn)}
+    @media(max-width:900px){.layout{grid-template-columns:190px minmax(0,1fr)}.help{display:none}}@media(max-width:650px){.shell{width:100%;margin:0;border-radius:0}.layout{display:block}.steps{display:flex;overflow:auto;border-right:0;border-bottom:1px solid var(--line)}.eyebrow,.step small{display:none}.step{min-width:145px}.main{padding:24px 18px}.footer{padding:14px 18px}}
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="titlebar">
+      <div class="brand"><img src="https://monitorsoftdeath.vercel.app/icons/icon-192.png" alt="Morniter"><div><strong>Morniter Agent Setup</strong><span>Windows Local Test Runner</span></div></div>
+      <div class="window-actions"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+    </div>
+    <div class="layout">
+      <aside class="steps">
+        <p class="eyebrow">Setup progress</p>
+        <div class="step active" data-step="0"><span class="num">1</span><div><b>เริ่มติดตั้ง</b><small>ภาพรวมระบบ</small></div></div>
+        <div class="step" data-step="1"><span class="num">2</span><div><b>ตรวจเครื่อง</b><small>Node และ Playwright</small></div></div>
+        <div class="step" data-step="2"><span class="num">3</span><div><b>เชื่อม Morniter</b><small>URL และ Agent Token</small></div></div>
+        <div class="step" data-step="3"><span class="num">4</span><div><b>เลือกโปรเจกต์</b><small>Workspace และ tests</small></div></div>
+        <div class="step" data-step="4"><span class="num">5</span><div><b>ทดสอบระบบ</b><small>Connection และ scan</small></div></div>
+        <div class="step" data-step="5"><span class="num">6</span><div><b>พร้อมใช้งาน</b><small>Start with Windows</small></div></div>
+      </aside>
+
+      <main class="main">
+        <section class="screen active">
+          <h1>ติดตั้ง Local Agent บนเครื่องนี้</h1>
+          <p class="lead">Local Agent เชื่อมหน้า Morniter กับไฟล์ test ที่อยู่ในเครื่องของคุณ ตัว Agent จะรัน Playwright และส่งเฉพาะสถานะกับ log ที่ผ่านการกรองกลับไปยังหน้าเว็บ</p>
+          <div class="panel">
+            <h3>สิ่งที่จะถูกติดตั้ง</h3>
+            <div class="check"><div class="check-info"><span class="check-icon">✓</span><div><b>Morniter Local Agent</b><p>ทำงานอยู่ใน System Tray และเปิดพร้อม Windows</p></div></div><span class="status">Included</span></div>
+            <div class="check"><div class="check-info"><span class="check-icon">✓</span><div><b>Settings & safe logs</b><p>ตั้งค่าโปรเจกต์และดูปัญหาโดยไม่ใช้ Terminal</p></div></div><span class="status">Included</span></div>
+            <div class="check"><div class="check-info"><span class="check-icon">i</span><div><b>Project dependencies</b><p>ตรวจจากโปรเจกต์เดิมและไม่แก้ source อัตโนมัติ</p></div></div><span class="status">Checked later</span></div>
+          </div>
+          <div class="note">PWA และ Local Agent เป็นคนละส่วน: PWA คือหน้าควบคุม ส่วน Agent ต้องติดตั้งบนเครื่องที่มี ProjectSTS และเป็นเครื่องที่เปิด browser ตอนทดสอบแบบมองเห็นหน้าจอ</div>
+        </section>
+
+        <section class="screen">
+          <h1>ตรวจความพร้อมของเครื่อง</h1><p class="lead">Setup ตรวจเฉพาะสิ่งที่จำเป็นก่อนเชื่อม Agent หากขาด browser runtime จะมีปุ่มติดตั้งแบบยืนยันก่อนทุกครั้ง</p>
+          <div class="panel">
+            <div class="check"><div class="check-info"><span class="check-icon">✓</span><div><b>Windows 10/11 64-bit</b><p>รองรับการเปิด Tray และ startup task</p></div></div><span class="status">Ready</span></div>
+            <div class="check"><div class="check-info"><span class="check-icon">✓</span><div><b>Node.js project runtime</b><p>พบจาก ProjectSTS หลังเลือกโฟลเดอร์</p></div></div><span class="status">Will verify</span></div>
+            <div class="check"><div class="check-info"><span class="check-icon">!</span><div><b>Playwright Chromium</b><p>ตรวจ version ให้ตรงกับโปรเจกต์</p></div></div><button class="browse">ตรวจภายหลัง</button></div>
+          </div>
+        </section>
+
+        <section class="screen">
+          <h1>เชื่อมกับ Morniter</h1><p class="lead">ค่าชุดนี้ใช้ยืนยันว่า Agent เครื่องนี้มีสิทธิ์รับงานจาก Morniter deployment ของทีม</p>
+          <div class="panel">
+            <div class="field"><label>Server URL <span>จาก URL ที่ deploy</span></label><input value="https://monitorsoftdeath.vercel.app"></div>
+            <div class="field"><label>Agent ID <span>ตั้งชื่อไม่ซ้ำในทีม</span></label><input value="windows-mark-01"></div>
+            <div class="field"><label>Agent Token <span>ค่าเดียวกับ TEST_RUNNER_AGENT_TOKEN บน Vercel</span></label><input type="password" value="agent-token-hidden"></div>
+          </div>
+          <div class="note">Token จะถูกเข้ารหัสด้วย Windows และไม่แสดงในหน้า Morniter, log หรือไฟล์ config ของโปรเจกต์</div>
+        </section>
+
+        <section class="screen">
+          <h1>เลือกโปรเจกต์ที่จะทดสอบ</h1><p class="lead">Agent อ่านไฟล์เฉพาะใน workspace ที่อนุญาต และส่งไปหน้าเว็บเพียง relative path กับชื่อ test</p>
+          <div class="panel">
+            <div class="field"><label>Project name <span>ชื่อที่เห็นใน Test Explorer</span></label><input value="ProjectSTS"></div>
+            <div class="field"><label>Workspace root <span>โฟลเดอร์ frontend ของโปรเจกต์</span></label><div class="input-row"><input value="E:\ProjectSTS\frontend"><button class="browse">Browse</button></div></div>
+            <div class="field"><label>Test root <span>ต้องอยู่ภายใน Workspace root</span></label><div class="input-row"><input value="e2e"><button class="browse">Detect</button></div></div>
+          </div>
+        </section>
+
+        <section class="screen">
+          <h1>ทดสอบก่อนเปิดใช้งาน</h1><p class="lead">ตรวจการเชื่อมต่อและสแกน test โดยยังไม่รัน test จริงหรือแก้ไฟล์โปรเจกต์</p>
+          <div class="panel">
+            <div class="testline"><span class="online">✓ Server connected</span><br><span class="online">✓ Agent token accepted</span><br><span class="online">✓ Workspace contained and readable</span><br><span class="online">✓ Found 23 Playwright tests in 9 spec files</span><br><span class="warn">• Chromium runtime will be verified before first run</span></div>
+          </div>
+          <div class="panel"><h3>ผลที่ Morniter จะเห็น</h3><div class="check"><div class="check-info"><span class="check-icon">✓</span><div><b>Agent Online</b><p>ProjectSTS catalog พร้อมเลือกใน Test Explorer</p></div></div><span class="status">Ready</span></div></div>
+        </section>
+
+        <section class="screen">
+          <h1>พร้อมใช้งาน</h1><p class="lead">Agent จะย่ออยู่ข้างนาฬิกาและเปิดอัตโนมัติเมื่อเข้า Windows คุณสามารถหยุดหรือเปลี่ยน project ได้จาก Settings</p>
+          <div class="panel success"><div class="success-mark">✓</div><h3>Morniter Agent is online</h3><p class="lead" style="margin-bottom:14px">เปิด Morniter PWA แล้วไปที่ Tests เพื่อเลือก ProjectSTS และรัน test ได้ทันที</p><div class="check"><div class="check-info"><span class="check-icon">✓</span><div><b>Start with Windows</b><p>เปิด Agent อัตโนมัติหลัง sign in</p></div></div><span class="status">Enabled</span></div></div>
+          <div class="note">ห้ามเปิด `npm run test-agent` ซ้ำด้วย Agent ID เดียวกันขณะที่ Tray Agent ทำงานอยู่ คำสั่ง npm เก็บไว้สำหรับ developer debugging เท่านั้น</div>
+        </section>
+      </main>
+
+      <aside class="help">
+        <h2>วิธีกรอกและติดตั้ง</h2>
+        <div class="help-card"><span class="tag">PWA</span><b>ติดตั้งหน้าควบคุม</b><p>เปิด production ใน Chrome/Edge แล้วเลือก Install Morniter หรือ Install this site as an app</p></div>
+        <div class="help-card"><span class="tag">TOKEN</span><b>Agent Token เอาจากไหน</b><p>ใช้ค่าเดียวกับ `TEST_RUNNER_AGENT_TOKEN` ใน Environment Variables ของ Morniter บน Vercel ห้ามส่ง token ในแชตหรือ commit</p></div>
+        <div class="help-card"><span class="tag">PATH</span><b>เลือกโฟลเดอร์อะไร</b><ul><li>Workspace: โฟลเดอร์ที่มี package.json</li><li>Test root: เช่น e2e ภายใน workspace</li></ul></div>
+        <div class="help-card"><span class="tag">RUN</span><b>เริ่มทดสอบ</b><p>รอ Agent Online → เปิด Tests → เลือก project/test → Run in background หรือ Run with visible browser</p></div>
+      </aside>
+    </div>
+    <footer class="footer"><span class="progress" id="progress">Step 1 of 6</span><div class="actions"><button class="btn" id="prev" disabled>ย้อนกลับ</button><button class="btn primary" id="next">ถัดไป</button></div></footer>
+  </div>
+  <script>
+    let current=0;const screens=[...document.querySelectorAll('.screen')],steps=[...document.querySelectorAll('.step')],progress=document.getElementById('progress'),prev=document.getElementById('prev'),next=document.getElementById('next');
+    function render(){screens.forEach((s,i)=>s.classList.toggle('active',i===current));steps.forEach((s,i)=>{s.classList.toggle('active',i===current);s.classList.toggle('done',i<current);s.querySelector('.num').textContent=i<current?'✓':String(i+1)});progress.textContent=`Step ${current+1} of ${screens.length}`;prev.disabled=current===0;next.textContent=current===screens.length-1?'ติดตั้งเสร็จ':'ถัดไป'}
+    prev.onclick=()=>{if(current>0){current--;render()}};next.onclick=()=>{if(current<screens.length-1){current++;render()}else{next.textContent='พร้อมใช้งาน ✓';next.disabled=true}};
+    steps.forEach((s,i)=>s.onclick=()=>{current=i;render()});
+  </script>
+</body>
+</html>

@@ -338,6 +338,7 @@ export interface AgentConfig {
   agentId: string;
   serverUrl: string;
   agentToken: string;
+  deviceId?: string;
   pollIntervalSeconds?: number;
   projects: AgentProjectConfig[];
 }

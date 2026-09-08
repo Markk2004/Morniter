@@ -1,6 +1,6 @@
 # Project plan status
 
-Last reviewed: 2026-09-01
+Last reviewed: 2026-09-08
 
 This page is the team-facing source of truth for implementation progress. A plan marked "implemented locally" may still require deployment or production verification. Detailed checklists remain in each linked plan.
 
@@ -9,15 +9,19 @@ Historical task checkboxes inside older plans are not retroactively marked compl
 ## Current release status
 
 - Deployment blocker from the overwritten legacy schema is fixed in the local workspace.
-- `npm run typecheck`: passed on 2026-09-01 (0 errors).
-- `npm run lint`: passed on 2026-09-01 (0 errors, 0 warnings).
-- `npm test`: passed, 100 files and 434 tests on 2026-09-01.
-- `npx playwright test`: passed, 17 tests with 1 expected skip across all 8 spec files on 2026-09-01.
-- `npm run test-agent:build` / `npm run agent:build`: passed on 2026-09-01.
-- `npm run build`: passed and generated 26/26 static & dynamic routes on 2026-09-01.
+- `npm run typecheck`: passed on 2026-09-08 (0 errors).
+- `npm run lint`: passed on 2026-09-08 (0 errors, 0 warnings).
+- `npm test`: passed, 107 files and 468 tests on 2026-09-08.
+- `npx playwright test`: passed, 23 tests with 1 expected skip across all 9 spec files on 2026-09-08.
+- `npm run test-agent:build` / `npm run agent:build`: passed on 2026-09-08.
+- `npm run build`: passed on 2026-09-08, including the Agents settings page and four device-pairing API routes.
+- **GitHub CLI (`gh`)**: Installed v2.100.0 on the host machine and verified.
+- **Desktop PWA & Installability**: Fully verified locally and on production deployment (`https://monitorsoftdeath.vercel.app`). Web App Manifest (`/manifest.webmanifest`), Service Worker (`/sw.js`), 192/512/180 icons, favicon, `display: standalone`, `start_url: /monitor`, and unauthenticated redirect to `/login` verified across 5 automated E2E tests in `e2e/pwa-installability.spec.ts`.
+- **Windows Local Agent package**: Electron renderer/main/preload build, desktop typecheck, package smoke test, bundled Agent runtime check, hardened navigation/IPC, tray lifecycle, capped supervisor restart, and local x64 per-user NSIS artifact passed on 2026-09-08. The artifact is not code-signed for team distribution.
 - **Playwright Interactive UI Session**: Fully implemented locally and verified (Selected-test Playwright UI `--ui` `--ui-host=127.0.0.1` `--ui-port=0` on Local Agent desktop, single browser enforcement, Agent-exclusive session with active lease maintenance up to 30 minutes, idempotently terminated process tree on operator `Stop UI`, user window close, timeout, or process error, mapped terminal status `session_closed` with reason `user_closed | operator_stopped | timeout | process_error`, local loopback URL suppression emitting `[UI] Local Playwright UI ready`, workspace controls with operator guidance banner and 30-min badge, 85 Vitest test files with 411 passing tests, clean TypeScript typecheck, clean lint, and production Next.js build).
 - **Playwright Realtime Terminal Recovery**: Fully implemented locally and verified (Inclusive next-unread sequence log cursor in Redis store, automatic recovery from expired execution session `403 EXECUTION_REQUIRED` with accessible alert and unlock panel, safe run summary metadata emission `[RUN] Project | Source | Tests | Browsers | Mode` excluding paths and secrets, bounded final log reconciliation [250ms polling, up to 3 attempts, hasMore continuation], authenticated recovery E2E test, and real Local Agent smoke test passing 8/8 sequential log deliveries).
 - **Playwright Workspace Balanced Layout (Layout B)**: Fully implemented locally and verified (Compact horizontal control bar with single Run/Cancel slot and source switcher, strictly bounded viewport height [`h-dvh`] with internal scroll, resizable Explorer [280–440px], full Code Space main column, resizable & collapsible Terminal with accessible `<button>` toggle and effect-driven unread logs tracking [default 240px, min 160px–60% vh], 3-tab layout on narrow viewports [< 900px, 587px] where hidden panels have zero layout contribution, smooth `requestAnimationFrame` dragging with unmount cleanup, safe versioned localStorage persistence, Reset layout action, and zero horizontal document overflow across 1440px, 1024px, 900px, 899px, and 587px viewports).
+- **Playwright E2E server lifecycle**: Fully implemented locally and verified. Playwright now starts the Next.js test server through explicit global setup, records its PID, terminates the Windows process tree during global teardown, and treats an already-closed process as successful cleanup. The full browser suite completed without teardown hangs or stale port 3100 listeners.
 - **Source-Assisted Playwright Draft Import**: Fully implemented locally and verified (Direct import of `@playwright/test` files, 1-click draft seed `Draft 🪄` on non-Playwright tests and gaps, pure source analyzer engine deriving routes, locators, actions, assertions, and reusable flows with evidence and confidence tags, Recipe Builder step review, isolated browser Draft Run verification requirement, atomic save to `frontend/e2e/generated/`, manual test protection, and immediate catalog refresh into Generated Playwright).
 - **Test Explorer Reviewable Matches**: Fully implemented locally and verified (`พร้อมทดสอบ` / `ควรตรวจสอบการจับคู่` confidence partitioning, 10-item incremental limits, `รายละเอียด` inline match details panel, search across full catalog, runner filtering, and legacy backwards compatibility).
 - **Test Explorer Sheet Function Labels**: Fully implemented locally and verified (`functionId · functionName` headings, `ตรงกับ Sheet` badge, and multi-field search filtering).
@@ -35,6 +39,33 @@ Historical task checkboxes inside older plans are not retroactively marked compl
 - **Production Ready**: Not signed off. Vercel project `jk-godz/morniter` has a Ready production deployment from commit `7ab536e` at `https://monitorsoftdeath.vercel.app`; `/login`, `/manifest.webmanifest`, and `/sw.js` return HTTP 200 there, while the unassigned `https://morniter.vercel.app` alias returns 404. Local authenticated Agent smoke passes; deployed authenticated runner smoke, installed PWA acceptance, and provider/session checks remain.
 
 ## Active work
+
+### Active platform: Windows Local Agent installer and secure device pairing
+
+Status: Phase 1 pairing backend, Agents settings UI, and Phase 2 installer hardening are implemented locally. Deployed enrollment, real Windows setup, and signed-release verification remain open.
+
+- Design: [Windows Local Agent Installer Design](../specs/2026-09-08-windows-local-agent-installer-design.md)
+- Phase 1: [Agent Device Pairing Implementation Plan](2026-09-08-agent-device-pairing.md)
+- Phase 2: [Windows Local Agent Installer Implementation Plan](2026-09-08-windows-local-agent-installer.md)
+- Order: deploy and verify Phase 1 before team distribution of Phase 2.
+- Scope: one-use 10-minute Pairing Codes, revocable per-device credentials, Morniter Agents settings, Electron tray controls, guided project validation, fixed Playwright Chromium installation with confirmation, per-user NSIS install/upgrade/uninstall, and team documentation.
+
+Completed in this delivery:
+
+- Device contracts, HMAC pairing-code storage, atomic one-use consume, enrollment rate limit, device JWT issuance, revocation, and async authentication across legacy and Playwright Agent routes.
+- Authenticated `/monitor/settings/agents` screen with Pairing Code countdown, copy action, Online/Offline/Revoked labels, 30-second visible refresh, retry after repeated failures, and revoke confirmation.
+- Isolated `desktop-agent` Electron package with secure-storage credential module, validated project checker, pairing client, sandboxed preload allowlist, Agent supervisor foundation, six-step setup UI, per-user NSIS configuration, and Windows icon generator.
+- Bundled the Agent and its runtime dependencies into `resources/agent/index.cjs`; the packaged runtime starts without relying on the repository's `node_modules` and does not ship source maps.
+- Added renderer navigation and IPC sender validation, restrictive CSP and permission denial defaults, per-user tray controls, hide-on-close behavior, graceful quit, and capped exponential Agent restart backoff.
+- Wizard system check now validates the entered Morniter URL before pairing, waits for the Agent to reach Online before completing, and enables Windows startup through the existing preload API.
+- NSIS uninstaller now asks whether to remove the app-owned pairing/settings data; choosing No retains it for a later reinstall.
+- Installer artifact build verified locally: `desktop-agent/dist/Morniter Local Agent Setup 0.1.0.exe`.
+
+Open before production sign-off:
+
+1. Add and run the remaining Electron setup, Chromium-install, uninstall-retention behavior, and Windows 10/11 acceptance tests.
+2. Deploy Phase 1, create a pairing code from production, enroll a disposable Windows machine, verify catalog and one headless/headed run, then revoke the device.
+3. Code-sign and publish the installer with a checksum. Do not distribute the locally generated unsigned-ready artifact as a team release.
 
 ### Active feature: Multi-scenario Playwright function generation
 
