@@ -62,9 +62,14 @@ export async function consumePairingCode(
   now: Date = new Date(),
 ): Promise<AgentDevice> {
   const rawResult = (await redisClient().eval(
-    `local value = redis.call("GET", KEYS[1])\nif not value then return "" end\nredis.call("DEL", KEYS[1])\nreturn value`,
+    `local value = redis.call("GET", KEYS[1])
+if not value then return "" end
+local record = cjson.decode(value)
+if record.agentId ~= ARGV[1] then return value end
+redis.call("DEL", KEYS[1])
+return value`,
     [pairingKey(code)],
-    [],
+    [device.agentId],
   )) as unknown;
   const raw = typeof rawResult === "string"
     ? rawResult
