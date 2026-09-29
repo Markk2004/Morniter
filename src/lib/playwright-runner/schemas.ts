@@ -8,7 +8,7 @@ export const ProjectIdSchema = z
   .max(64, "projectId is too long")
   .regex(PROJECT_ID_PATTERN, "projectId has an invalid format");
 
-export const BrowserNameSchema = z.enum(["chromium", "firefox", "webkit"]);
+export const BrowserNameSchema = z.enum(["chromium", "firefox", "webkit", "msedge"]);
 
 export const BrowserModeSchema = z.enum(["headless", "headed", "interactive"]);
 
@@ -22,7 +22,7 @@ export const PlaywrightSessionCloseReasonSchema = z.enum([
 export const BrowsersSchema = z
   .array(BrowserNameSchema)
   .min(1, "at least one browser must be selected")
-  .max(3, "at most three browsers may be selected")
+  .max(4, "at most four browsers may be selected")
   .refine(
     (browsers) => new Set(browsers).size === browsers.length,
     "browsers must not contain duplicates",
@@ -151,6 +151,7 @@ const PlaywrightCatalogProjectCapabilitiesSchema = z
         chromium: z.boolean().optional(),
         firefox: z.boolean().optional(),
         webkit: z.boolean().optional(),
+        msedge: z.boolean().optional(),
       })
       .optional(),
     headed: z.boolean().optional(),

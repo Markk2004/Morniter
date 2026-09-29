@@ -103,7 +103,7 @@ export type MonitorSnapshot = {
  * and (for project-test jobs) `testIds`, never accepted from the client.
  */
 
-export type BrowserName = "chromium" | "firefox" | "webkit";
+export type BrowserName = "chromium" | "firefox" | "webkit" | "msedge";
 
 export type PlaywrightSource = "project-test" | "workspace";
 

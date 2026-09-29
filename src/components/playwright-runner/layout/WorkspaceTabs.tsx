@@ -105,7 +105,11 @@ export function WorkspaceTabs({
         id="tabpanel-explorer"
         aria-labelledby="tab-explorer"
         hidden={activeTab !== "explorer"}
-        className="flex-1 min-h-[320px] overflow-y-auto"
+        aria-hidden={activeTab !== "explorer"}
+        className={`flex-1 min-h-[320px] overflow-y-auto ${
+          activeTab !== "explorer" ? "hidden" : "block"
+        }`}
+        style={activeTab !== "explorer" ? { contentVisibility: "hidden" } : undefined}
       >
         {explorerPanel}
       </div>
@@ -115,7 +119,11 @@ export function WorkspaceTabs({
         id="tabpanel-code"
         aria-labelledby="tab-code"
         hidden={activeTab !== "code"}
-        className="flex-1 min-h-[320px] overflow-y-auto space-y-4"
+        aria-hidden={activeTab !== "code"}
+        className={`flex-1 min-h-[320px] overflow-y-auto space-y-4 ${
+          activeTab !== "code" ? "hidden" : "block"
+        }`}
+        style={activeTab !== "code" ? { contentVisibility: "hidden" } : undefined}
       >
         {codePanel}
       </div>
@@ -125,7 +133,11 @@ export function WorkspaceTabs({
         id="tabpanel-terminal"
         aria-labelledby="tab-terminal"
         hidden={activeTab !== "terminal"}
-        className="flex-1 min-h-[320px] overflow-y-auto"
+        aria-hidden={activeTab !== "terminal"}
+        className={`flex-1 min-h-[320px] overflow-y-auto ${
+          activeTab !== "terminal" ? "hidden" : "block"
+        }`}
+        style={activeTab !== "terminal" ? { contentVisibility: "hidden" } : undefined}
       >
         {terminalPanel}
       </div>

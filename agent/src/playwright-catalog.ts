@@ -392,6 +392,7 @@ export async function buildPlaywrightCatalogFromConfig(
         chromium: allowed.includes("chromium"),
         firefox: allowed.includes("firefox"),
         webkit: allowed.includes("webkit"),
+        msedge: allowed.includes("msedge"),
       },
       headed: pw.allowHeaded ?? true,
       workspaceExecution: pw.allowWorkspaceExecution ?? true,
@@ -427,7 +428,7 @@ export async function buildPlaywrightCatalogFromConfig(
 export function detectBrowserCapabilities(
   config?: AgentConfig,
 ): {
-  browsers: { chromium: boolean; firefox: boolean; webkit: boolean };
+  browsers: { chromium: boolean; firefox: boolean; webkit: boolean; msedge: boolean };
   headed: boolean;
   workspaceExecution: boolean;
 } {
@@ -452,6 +453,7 @@ export function detectBrowserCapabilities(
       chromium: allBrowsers.has("chromium") || allBrowsers.size === 0,
       firefox: allBrowsers.has("firefox"),
       webkit: allBrowsers.has("webkit"),
+      msedge: allBrowsers.has("msedge"),
     },
     headed: headedAllowed,
     workspaceExecution: workspaceAllowed,

@@ -15,11 +15,31 @@ import type { RecipeDraft, ReusableFlow, RecipeAction } from "@/lib/playwright-r
 import { renderRecipeToPlaywrightCode } from "@/lib/playwright-runner/recipe-renderer";
 import { analyzeSourceForPlaywrightDraft } from "@/lib/playwright-runner/source-analyzer";
 
+export function getDefaultWorkspaceCode(projectId?: string | null): string {
+  if (projectId?.toLowerCase().includes("sts")) {
+    return `import { test, expect } from "@playwright/test";
+
+test("ProjectSTS navigation sanity check", async ({ page }) => {
+  await page.goto("/login");
+  await expect(page).toHaveURL(/.*\\/login/);
+  await expect(page.locator("#login-username, input[type='text'], input[name='username']").first()).toBeVisible();
+});
+`;
+  }
+  return `import { test, expect } from "@playwright/test";
+
+test("Basic sanity check", async ({ page }) => {
+  await page.goto("/");
+  await expect(page).toBeDefined();
+});
+`;
+}
+
 const DEFAULT_WORKSPACE_CODE = `import { test, expect } from "@playwright/test";
 
 test("Basic sanity check", async ({ page }) => {
-  await page.goto("http://localhost:3000/");
-  await expect(page).toHaveTitle(/.*Monitor.*/i);
+  await page.goto("/");
+  await expect(page).toBeDefined();
 });
 `;
 
@@ -59,6 +79,7 @@ export interface UsePlaywrightRunnerResult {
     chromium?: boolean;
     firefox?: boolean;
     webkit?: boolean;
+    msedge?: boolean;
   };
   headedAvailable: boolean;
   isRecipeBuilderOpen: boolean;
@@ -80,6 +101,8 @@ export interface UsePlaywrightRunnerResult {
   setEditorCode: (code: string) => void;
   resetEditorCode: () => void;
   loadTestSource: (testId: string) => Promise<void>;
+  loadingSourceTestId: string | null;
+  prefetchTestSource: (testId: string) => void;
   openRecipeBuilder: (seed?: { testId?: string; relativePath?: string; title?: string; functionId?: string }) => void;
   closeRecipeBuilder: () => void;
   updateRecipeDraft: (draft: RecipeDraft) => void;
@@ -114,9 +137,11 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
   const [saveRecipeError, setSaveRecipeError] = useState<string | null>(null);
   const [saveRecipeSuccess, setSaveRecipeSuccess] = useState(false);
   const [runError, setRunError] = useState<string | null>(null);
+  const [loadingSourceTestId, setLoadingSourceTestId] = useState<string | null>(null);
 
   const nextSequenceRef = useRef<number>(-1);
   const sourceRequestRef = useRef(0);
+  const sourceCacheRef = useRef<Map<string, string>>(new Map());
 
   const projects = useMemo(() => catalog?.projects ?? [], [catalog]);
   const currentProject = useMemo(() => {
@@ -158,6 +183,7 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
         chromium: true,
         firefox: true,
         webkit: true,
+        msedge: true,
       }
     );
   }, [currentProject]);
@@ -204,6 +230,7 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
             const firstProj = catData.catalog.projects[0];
             setSelectedProjectId(firstProj.id);
             setSelectedTestIds([]);
+            setEditorCodeState(getDefaultWorkspaceCode(firstProj.id));
           }
         } else {
           setCatalogError(true);
@@ -305,7 +332,7 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
       sourceRequestRef.current += 1;
       setSelectedProjectId(id);
       setSelectedTestIds([]);
-      setEditorCodeState(DEFAULT_WORKSPACE_CODE);
+      setEditorCodeState(getDefaultWorkspaceCode(id));
       setEditorDirty(false);
       setSource("project-test");
       setIsRecipeBuilderOpen(false);
@@ -381,9 +408,9 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
   }, []);
 
   const resetEditorCode = useCallback(() => {
-    setEditorCodeState(DEFAULT_WORKSPACE_CODE);
+    setEditorCodeState(getDefaultWorkspaceCode(selectedProjectId));
     setEditorDirty(false);
-  }, []);
+  }, [selectedProjectId]);
 
   // Recipe Builder Handlers
   const updateRecipeDraft = useCallback(
@@ -601,12 +628,59 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
     refreshCatalog,
   ]);
 
-  // Load test source code into editor
+  // Reset cache on project switch
+  useEffect(() => {
+    sourceCacheRef.current.clear();
+    setLoadingSourceTestId(null);
+  }, [selectedProjectId]);
+
+  const findTestItem = useCallback(
+    (testId: string) => {
+      if (!currentProject) return null;
+      const canonical = [
+        ...(currentProject.tests || []),
+        ...(currentProject.testGroups?.flatMap((g) => g.tests) || []),
+      ];
+      const coverage = currentProject.coverageGroups?.flatMap((g) => g.tests) || [];
+      return canonical.find((t) => t.id === testId) || coverage.find((t) => t.id === testId) || null;
+    },
+    [currentProject],
+  );
+
+  // Load test source code into editor (0ms instant if cached)
   const loadTestSource = useCallback(
     async (testId: string) => {
       if (!selectedProjectId) return;
+
+      const testItem = findTestItem(testId);
+      const cached =
+        sourceCacheRef.current.get(testId) ||
+        (testItem?.relativePath ? sourceCacheRef.current.get(testItem.relativePath) : undefined);
+
+      if (cached) {
+        if (editorDirty && typeof window !== "undefined") {
+          const proceed = window.confirm(
+            "คุณมีโค้ดที่แก้ไขค้างอยู่ ต้องการละทิ้งการแก้ไขแล้วเปิดโค้ดใหม่หรือไม่?",
+          );
+          if (!proceed) return;
+        }
+        setEditorCodeState(cached);
+        setEditorDirty(false);
+        setSource("workspace");
+        return;
+      }
+
+      if (editorDirty && typeof window !== "undefined") {
+        const proceed = window.confirm(
+          "คุณมีโค้ดที่แก้ไขค้างอยู่ ต้องการละทิ้งการแก้ไขแล้วเปิดโค้ดใหม่หรือไม่?",
+        );
+        if (!proceed) return;
+      }
+
       const requestId = ++sourceRequestRef.current;
       const projectId = selectedProjectId;
+      setLoadingSourceTestId(testId);
+
       try {
         const res = await fetch(
           `/api/playwright-runner/source?projectId=${encodeURIComponent(
@@ -616,6 +690,10 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
         if (res.ok) {
           const data = await res.json();
           if (requestId === sourceRequestRef.current && typeof data.content === "string") {
+            sourceCacheRef.current.set(testId, data.content);
+            if (data.relativePath) {
+              sourceCacheRef.current.set(data.relativePath, data.content);
+            }
             setEditorCodeState(data.content);
             setEditorDirty(false);
             setSource("workspace");
@@ -623,9 +701,59 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
         }
       } catch {
         // ignore
+      } finally {
+        if (requestId === sourceRequestRef.current) {
+          setLoadingSourceTestId(null);
+        }
       }
     },
-    [selectedProjectId],
+    [selectedProjectId, findTestItem, editorDirty, setSource],
+  );
+
+  // Background prefetch
+  const prefetchTestSource = useCallback(
+    (testId: string) => {
+      if (!selectedProjectId) return;
+      const testItem = findTestItem(testId);
+      if (
+        sourceCacheRef.current.has(testId) ||
+        (testItem?.relativePath && sourceCacheRef.current.has(testItem.relativePath))
+      ) {
+        return;
+      }
+
+      const runPrefetch = async () => {
+        try {
+          const res = await fetch(
+            `/api/playwright-runner/source?projectId=${encodeURIComponent(
+              selectedProjectId,
+            )}&testId=${encodeURIComponent(testId)}`,
+          );
+          if (res.ok) {
+            const data = await res.json();
+            if (typeof data.content === "string") {
+              sourceCacheRef.current.set(testId, data.content);
+              if (data.relativePath) {
+                sourceCacheRef.current.set(data.relativePath, data.content);
+              }
+            }
+          }
+        } catch {
+          // ignore background prefetch errors
+        }
+      };
+
+      if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+        window.requestIdleCallback(() => {
+          void runPrefetch();
+        });
+      } else {
+        setTimeout(() => {
+          void runPrefetch();
+        }, 30);
+      }
+    },
+    [selectedProjectId, findTestItem],
   );
 
   // Active Job Polling
@@ -920,6 +1048,8 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
     setEditorCode,
     resetEditorCode,
     loadTestSource,
+    loadingSourceTestId,
+    prefetchTestSource,
     openRecipeBuilder,
     closeRecipeBuilder,
     updateRecipeDraft,

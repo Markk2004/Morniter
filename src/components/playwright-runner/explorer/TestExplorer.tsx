@@ -11,6 +11,7 @@ import {
   partitionTestsByConfidence,
   getRunnerLabel,
   getTestThaiMeta,
+  resolveFunctionCategory,
 } from "./test-explorer-presentation";
 import { TestMatchDetails } from "./TestMatchDetails";
 
@@ -42,6 +43,8 @@ interface TestExplorerProps {
   onSelectAll?: () => void;
   onDeselectAll?: () => void;
   onLoadSource?: (testId: string) => void;
+  loadingSourceTestId?: string | null;
+  onPrefetchSource?: (testId: string) => void;
   onCreateDraft?: (seed: {
     testId?: string;
     title: string;
@@ -60,6 +63,8 @@ export function TestExplorer({
   onSelectAll,
   onDeselectAll,
   onLoadSource,
+  loadingSourceTestId = null,
+  onPrefetchSource,
   onCreateDraft,
   disabled = false,
 }: TestExplorerProps) {
@@ -73,31 +78,69 @@ export function TestExplorer({
 
   const filterKey = `${search.trim().toLowerCase()}:${runnerFilter}:${categoryFilter}:${groups.length}`;
 
-  const normalizedGroups = useMemo<ProjectCoverageGroup[]>(
-    () =>
-      groups.map((group, index) => {
-        if ("id" in group && "gaps" in group) return group;
-        return {
-          id: `legacy-${group.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${index}`,
-          name: group.name,
-          functionId: "functionId" in group ? (group as { functionId?: string }).functionId : undefined,
-          functionName: "functionName" in group ? (group as { functionName?: string }).functionName : undefined,
-          tests: group.tests.map((test) => ({
-            id: test.id,
-            title: test.title,
-            relativePath: test.relativePath,
-            runner: "playwright" as const,
-            executable: true,
-            risk: "read-only" as const,
-            origin: "manual" as const,
-            confidence: "high" as const,
-            matchedBy: ["path" as const],
-          })),
-          gaps: [],
-        };
-      }),
-    [groups],
-  );
+  const normalizedGroups = useMemo<ProjectCoverageGroup[]>(() => {
+    const rawGroups: ProjectCoverageGroup[] = groups.map((group, index) => {
+      if ("id" in group && "gaps" in group) return group;
+      return {
+        id: `legacy-${group.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${index}`,
+        name: group.name,
+        functionId: "functionId" in group ? (group as { functionId?: string }).functionId : undefined,
+        functionName: "functionName" in group ? (group as { functionName?: string }).functionName : undefined,
+        tests: group.tests.map((test) => ({
+          id: test.id,
+          title: test.title,
+          relativePath: test.relativePath,
+          runner: "playwright" as const,
+          executable: true,
+          risk: "read-only" as const,
+          origin: "manual" as const,
+          confidence: "high" as const,
+          matchedBy: ["path" as const],
+        })),
+        gaps: [],
+      };
+    });
+
+    const result: ProjectCoverageGroup[] = [];
+    for (const group of rawGroups) {
+      const isMonolithic =
+        group.name.toLowerCase() === "specs" ||
+        group.name.toLowerCase() === "e2e" ||
+        group.name.toLowerCase() === "tests" ||
+        (!group.functionId && group.tests.length > 5);
+
+      if (!isMonolithic) {
+        result.push(group);
+        continue;
+      }
+
+      const subMap = new Map<string, typeof group.tests>();
+      for (const test of group.tests) {
+        const cat = resolveFunctionCategory(test.title, test.relativePath, group.name);
+        const list = subMap.get(cat.code) || [];
+        list.push(test);
+        subMap.set(cat.code, list);
+      }
+
+      if (subMap.size > 1) {
+        for (const [code, tests] of subMap.entries()) {
+          const firstCat = resolveFunctionCategory(tests[0]?.title || "", tests[0]?.relativePath || "", group.name);
+          result.push({
+            id: `fn-${code.toLowerCase()}`,
+            name: `${firstCat.code} · ${firstCat.name}`,
+            functionId: firstCat.code,
+            functionName: firstCat.name,
+            tests,
+            gaps: [],
+          });
+        }
+      } else {
+        result.push(group);
+      }
+    }
+
+    return result;
+  }, [groups]);
 
   const availableRunners = useMemo(() => {
     const set = new Set<NativeRunner>();
@@ -193,6 +236,22 @@ export function TestExplorer({
     }));
   };
 
+  const expandAllGroups = () => {
+    const next: Record<string, boolean> = {};
+    for (const g of filteredGroups) {
+      next[g.id] = true;
+    }
+    setExpandedGroups(next);
+  };
+
+  const collapseAllGroups = () => {
+    const next: Record<string, boolean> = {};
+    for (const g of filteredGroups) {
+      next[g.id] = false;
+    }
+    setExpandedGroups(next);
+  };
+
   return (
     <section className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 space-y-3">
       <div className="flex items-center justify-between">
@@ -226,6 +285,25 @@ export function TestExplorer({
               None
             </button>
           )}
+          <span className="text-slate-700 text-[10px]" aria-hidden="true">•</span>
+          <button
+            type="button"
+            disabled={disabled || filteredGroups.length === 0}
+            onClick={expandAllGroups}
+            className="text-[10px] font-mono text-slate-400 hover:text-indigo-300 disabled:opacity-40 cursor-pointer"
+            title="ขยายทุกหมวดหมู่"
+          >
+            ขยายทั้งหมด
+          </button>
+          <button
+            type="button"
+            disabled={disabled || filteredGroups.length === 0}
+            onClick={collapseAllGroups}
+            className="text-[10px] font-mono text-slate-400 hover:text-slate-200 disabled:opacity-40 cursor-pointer"
+            title="ยุบทุกหมวดหมู่"
+          >
+            ยุบทั้งหมด
+          </button>
         </div>
       </div>
 
@@ -374,10 +452,17 @@ export function TestExplorer({
             const groupSelectedCount = group.tests.filter((t) =>
               t.executable !== false && selected.includes(t.id),
             ).length;
+            const categoryMeta = resolveFunctionCategory(
+              group.tests[0]?.title || "",
+              group.tests[0]?.relativePath || "",
+              group.name,
+            );
             const hasSheetFunction = Boolean(group.functionId && group.functionName);
             const groupHeading = hasSheetFunction
               ? `${group.functionId} · ${group.functionName}`
-              : group.name;
+              : (group.name.toLowerCase() === "specs" || group.name.toLowerCase() === "e2e"
+                  ? `${categoryMeta.code} · ${categoryMeta.name}`
+                  : group.name);
 
             const { ready, review } = partitionTestsByConfidence(group.tests);
             const readyKey: SectionKey = `${group.id}:ready`;
@@ -398,19 +483,32 @@ export function TestExplorer({
                   type="button"
                   aria-expanded={isExpanded}
                   onClick={() => toggleGroupExpand(group.id)}
-                  className="w-full flex items-center justify-between text-left group py-1 text-slate-400 hover:text-slate-200 cursor-pointer"
+                  className="w-full flex items-center justify-between text-left group py-1.5 px-2.5 rounded-lg border border-slate-800/80 bg-slate-950/40 hover:bg-slate-800/60 hover:border-slate-700 text-slate-300 hover:text-white cursor-pointer transition-all shadow-sm"
                 >
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <span className="text-[10px] font-mono transition-transform duration-150 text-slate-500 group-hover:text-slate-300">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <span className="text-[11px] font-mono text-slate-500 group-hover:text-indigo-400 transition-colors">
                       {isCollapsed ? "▶" : "▼"}
                     </span>
-                    <span className="text-xs font-mono font-semibold uppercase tracking-wider text-slate-300 truncate">
+                    {categoryMeta.code !== "GENERIC" && (
+                      <span
+                        className={`inline-flex items-center gap-1 text-[10px] font-mono font-medium px-2 py-0.5 rounded border shrink-0 ${categoryMeta.badgeStyle}`}
+                      >
+                        <span>{categoryMeta.icon}</span>
+                        <span>{categoryMeta.shortName}</span>
+                      </span>
+                    )}
+                    <span className="text-xs font-mono font-semibold tracking-wide text-slate-200 truncate">
                       {groupHeading}
                     </span>
                   </div>
-                  <span className="text-[10px] font-mono text-slate-400 shrink-0 ml-2">
-                    {groupSelectedCount}/{group.tests.filter((t) => t.executable !== false).length}
-                  </span>
+                  <div className="flex items-center gap-2 shrink-0 ml-2">
+                    <span className="text-[10px] font-mono text-slate-500 group-hover:text-slate-400">
+                      {isCollapsed ? "ขยาย ▼" : "ยุบ ▲"}
+                    </span>
+                    <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-slate-800/90 text-slate-300 border border-slate-700/60">
+                      {groupSelectedCount}/{group.tests.filter((t) => t.executable !== false).length}
+                    </span>
+                  </div>
                 </button>
 
                 {isExpanded && (
@@ -441,7 +539,11 @@ export function TestExplorer({
                               const testMeta = getTestThaiMeta(test.title);
 
                               return (
-                                <div key={`${test.id}-${testIdx}`} className="space-y-1">
+                                <div
+                                  key={`${test.id}-${testIdx}`}
+                                  className="space-y-1"
+                                  onMouseEnter={() => onPrefetchSource?.(test.id)}
+                                >
                                   <div
                                     className={`flex items-center justify-between p-2 rounded-lg border text-xs transition-colors ${
                                       isChecked
@@ -555,11 +657,22 @@ export function TestExplorer({
                                         <button
                                           type="button"
                                           title="Load source code into editor"
-                                          disabled={disabled}
+                                          disabled={disabled || loadingSourceTestId === test.id}
                                           onClick={() => onLoadSource(test.id)}
-                                          className="p-1 text-[10px] font-mono text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded transition-colors cursor-pointer"
+                                          className={`p-1 text-[10px] font-mono rounded transition-colors cursor-pointer flex items-center gap-1 ${
+                                            loadingSourceTestId === test.id
+                                              ? "text-indigo-400 bg-indigo-950/60 border border-indigo-500/40"
+                                              : "text-slate-400 hover:text-indigo-300 hover:bg-slate-800"
+                                          }`}
                                         >
-                                          Open 📝
+                                          {loadingSourceTestId === test.id ? (
+                                            <>
+                                              <span className="inline-block animate-spin text-[9px]">⏳</span>
+                                              <span>Loading...</span>
+                                            </>
+                                          ) : (
+                                            <span>Open 📝</span>
+                                          )}
                                         </button>
                                       )}
                                     </div>
@@ -632,7 +745,11 @@ export function TestExplorer({
                               const testMeta = getTestThaiMeta(test.title);
 
                               return (
-                                <div key={`${test.id}-${testIdx}`} className="space-y-1">
+                                <div
+                                  key={`${test.id}-${testIdx}`}
+                                  className="space-y-1"
+                                  onMouseEnter={() => onPrefetchSource?.(test.id)}
+                                >
                                   <div
                                     className={`flex items-center justify-between p-2 rounded-lg border text-xs transition-colors ${
                                       isChecked
@@ -746,11 +863,22 @@ export function TestExplorer({
                                         <button
                                           type="button"
                                           title="Load source code into editor"
-                                          disabled={disabled}
+                                          disabled={disabled || loadingSourceTestId === test.id}
                                           onClick={() => onLoadSource(test.id)}
-                                          className="p-1 text-[10px] font-mono text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded transition-colors cursor-pointer"
+                                          className={`p-1 text-[10px] font-mono rounded transition-colors cursor-pointer flex items-center gap-1 ${
+                                            loadingSourceTestId === test.id
+                                              ? "text-indigo-400 bg-indigo-950/60 border border-indigo-500/40"
+                                              : "text-slate-400 hover:text-indigo-300 hover:bg-slate-800"
+                                          }`}
                                         >
-                                          Open 📝
+                                          {loadingSourceTestId === test.id ? (
+                                            <>
+                                              <span className="inline-block animate-spin text-[9px]">⏳</span>
+                                              <span>Loading...</span>
+                                            </>
+                                          ) : (
+                                            <span>Open 📝</span>
+                                          )}
                                         </button>
                                       )}
                                     </div>

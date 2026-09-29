@@ -293,3 +293,147 @@ export function getTestThaiMeta(title: string): TestThaiMeta {
     description: "",
   };
 }
+
+export interface FunctionCategoryMeta {
+  code: string;
+  name: string;
+  shortName: string;
+  icon: string;
+  badgeStyle: string;
+}
+
+export function resolveFunctionCategory(
+  title = "",
+  relativePath = "",
+  groupName = "",
+): FunctionCategoryMeta {
+  const combined = `${title} ${relativePath} ${groupName}`.toUpperCase();
+
+  if (combined.includes("AUTH") || combined.includes("LOGIN") || combined.includes("01-AUTH")) {
+    return {
+      code: "FN-STS-01",
+      name: "เข้าสู่ระบบ (Authentication)",
+      shortName: "เข้าสู่ระบบ",
+      icon: "🔐",
+      badgeStyle: "border-purple-500/40 bg-purple-950/60 text-purple-300",
+    };
+  }
+  if (
+    combined.includes("USER") ||
+    combined.includes("08-USER") ||
+    combined.includes("เปลี่ยน USER") ||
+    combined.includes("จัดการผู้ใช้")
+  ) {
+    return {
+      code: "FN-STS-02",
+      name: "การจัดการผู้ใช้ (User Management)",
+      shortName: "การจัดการผู้ใช้",
+      icon: "👥",
+      badgeStyle: "border-blue-500/40 bg-blue-950/60 text-blue-300",
+    };
+  }
+  if (combined.includes("STU") || combined.includes("03-STUDENT") || combined.includes("นักเรียน")) {
+    return {
+      code: "FN-STS-03",
+      name: "ข้อมูลนักเรียนและห้องเรียน (Students)",
+      shortName: "ข้อมูลนักเรียน",
+      icon: "🎒",
+      badgeStyle: "border-teal-500/40 bg-teal-950/60 text-teal-300",
+    };
+  }
+  if (combined.includes("ATT") || combined.includes("04-ATTENDANCE") || combined.includes("เช็คชื่อ")) {
+    return {
+      code: "FN-STS-04",
+      name: "การเช็คชื่อเข้าเรียน (Attendance)",
+      shortName: "เช็คชื่อเข้าเรียน",
+      icon: "📅",
+      badgeStyle: "border-emerald-500/40 bg-emerald-950/60 text-emerald-300",
+    };
+  }
+  if (combined.includes("CASE") || combined.includes("05-CASE") || combined.includes("เคส")) {
+    return {
+      code: "FN-STS-05",
+      name: "ระบบจัดการเคสปัญหา (Student Cases)",
+      shortName: "จัดการเคสปัญหา",
+      icon: "📋",
+      badgeStyle: "border-amber-500/40 bg-amber-950/60 text-amber-300",
+    };
+  }
+  if (combined.includes("REP") || combined.includes("06-REPORT") || combined.includes("รายงาน")) {
+    return {
+      code: "FN-STS-06",
+      name: "รายงานสรุปและสถิติ (Reports & Export)",
+      shortName: "รายงานสรุป",
+      icon: "📊",
+      badgeStyle: "border-cyan-500/40 bg-cyan-950/60 text-cyan-300",
+    };
+  }
+  if (
+    combined.includes("TRK") ||
+    combined.includes("07-OBSERVATION") ||
+    combined.includes("TRACKING") ||
+    combined.includes("พฤติกรรม")
+  ) {
+    return {
+      code: "FN-STS-07",
+      name: "การติดตามและสังเกตพฤติกรรม (Observations)",
+      shortName: "ติดตามพฤติกรรม",
+      icon: "🔍",
+      badgeStyle: "border-yellow-500/40 bg-yellow-950/60 text-yellow-300",
+    };
+  }
+  if (combined.includes("DASH") || combined.includes("02-DASHBOARD") || combined.includes("แดชบอร์ด")) {
+    return {
+      code: "FN-STS-08",
+      name: "แดชบอร์ดตามบทบาท (Dashboard Navigation)",
+      shortName: "แดชบอร์ดตามบทบาท",
+      icon: "🧭",
+      badgeStyle: "border-indigo-500/40 bg-indigo-950/60 text-indigo-300",
+    };
+  }
+  if (combined.includes("AI") || combined.includes("11-AI")) {
+    return {
+      code: "FN-STS-09",
+      name: "ระบบวิเคราะห์ AI (AI Evaluation)",
+      shortName: "การวิเคราะห์ AI",
+      icon: "🤖",
+      badgeStyle: "border-pink-500/40 bg-pink-950/60 text-pink-300",
+    };
+  }
+  if (
+    combined.includes("PRV") ||
+    combined.includes("09-PROVINCE") ||
+    combined.includes("เขต") ||
+    combined.includes("จังหวัด")
+  ) {
+    return {
+      code: "FN-STS-10",
+      name: "แดชบอร์ดระดับเขตและจังหวัด (Platform & Province)",
+      shortName: "ระดับเขต/จังหวัด",
+      icon: "🏛️",
+      badgeStyle: "border-sky-500/40 bg-sky-950/60 text-sky-300",
+    };
+  }
+  if (
+    combined.includes("PWD") ||
+    combined.includes("10-PROFILE") ||
+    combined.includes("PASSWORD") ||
+    combined.includes("รหัสผ่าน")
+  ) {
+    return {
+      code: "FN-STS-11",
+      name: "โปรไฟล์ส่วนตัวและการเปลี่ยนรหัสผ่าน (Profile & Password)",
+      shortName: "โปรไฟล์/รหัสผ่าน",
+      icon: "🔑",
+      badgeStyle: "border-rose-500/40 bg-rose-950/60 text-rose-300",
+    };
+  }
+
+  return {
+    code: "GENERIC",
+    name: groupName || "ทั่วไป (General)",
+    shortName: "ทั่วไป",
+    icon: "📂",
+    badgeStyle: "border-slate-700 bg-slate-800 text-slate-300",
+  };
+}

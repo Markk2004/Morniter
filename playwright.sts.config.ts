@@ -46,5 +46,12 @@ export default defineConfig({
         launchOptions: { slowMo: 500 },
       },
     },
+    {
+      name: "webkit",
+      use: {
+        ...devices["Desktop Safari"],
+        launchOptions: { slowMo: 500 },
+      },
+    },
   ],
 });

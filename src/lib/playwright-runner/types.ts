@@ -2,7 +2,7 @@
  * Playwright Automation Workspace — core job types.
  */
 
-export type BrowserName = "chromium" | "firefox" | "webkit";
+export type BrowserName = "chromium" | "firefox" | "webkit" | "msedge";
 
 export type PlaywrightSource = "project-test" | "workspace";
 
@@ -121,6 +121,7 @@ export interface PlaywrightCatalogProjectCapabilities {
     chromium?: boolean;
     firefox?: boolean;
     webkit?: boolean;
+    msedge?: boolean;
   };
   headed?: boolean;
   workspaceExecution?: boolean;
@@ -231,6 +232,7 @@ export interface AgentPlaywrightCapabilities {
     chromium: boolean;
     firefox: boolean;
     webkit: boolean;
+    msedge: boolean;
   };
   headed: boolean;
 }

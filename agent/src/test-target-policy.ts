@@ -55,7 +55,8 @@ export function resolveAndAssertSafeTestTarget(
     } else if (target?.baseUrl) {
       resolved = new URL(actionUrl, target.baseUrl);
     } else {
-      resolved = new URL(actionUrl, "http://localhost:3000");
+      const fallbackBase = process.env.STS_BASE_URL || process.env.BASE_URL || "http://localhost:3001";
+      resolved = new URL(actionUrl, fallbackBase);
     }
   } catch (err) {
     throw new Error(`Invalid target URL '${actionUrl}': ${err instanceof Error ? err.message : String(err)}`);

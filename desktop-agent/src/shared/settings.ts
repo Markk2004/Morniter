@@ -10,7 +10,7 @@ export const LocalProjectSchema = z.object({
   testRoot: z.string().min(1).default("e2e"),
   config: z.string().optional(),
   automationMap: z.string().optional(),
-  allowedBrowsers: z.array(z.enum(["chromium", "firefox", "webkit"])).default(["chromium"]),
+  allowedBrowsers: z.array(z.enum(["chromium", "firefox", "webkit", "msedge"])).default(["chromium"]),
   allowHeaded: z.boolean().default(true),
   allowWorkspaceExecution: z.boolean().default(true),
   maxTimeoutSeconds: z.number().int().min(1).max(1800).default(600),

@@ -4,6 +4,7 @@ import { resolveInsideRoot } from "./playwright-catalog.js";
 import { buildSafeTestEnv } from "./playwright-executor.js";
 import type {
   AutomationMap,
+  BrowserName,
   DiscoveredProjectTest,
   NativeRunner,
   RunnerProfile,
@@ -27,7 +28,7 @@ export interface BuildNativeExecutionPlanOptions {
   map: AutomationMap;
   selectedTestIds: string[];
   discoveredTests: DiscoveredProjectTest[];
-  browsers?: ("chromium" | "firefox" | "webkit")[];
+  browsers?: BrowserName[];
   mode?: RunMode;
   envAllowlist?: string[];
   timeoutSeconds?: number;

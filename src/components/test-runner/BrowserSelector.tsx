@@ -13,6 +13,7 @@ interface BrowserSelectorProps {
       chromium?: boolean;
       firefox?: boolean;
       webkit?: boolean;
+      msedge?: boolean;
     };
     headed?: boolean;
   };
@@ -30,6 +31,7 @@ export function BrowserSelector({
   const availableBrowsers: { id: BrowserName; label: string; icon: string }[] = [
     { id: "chromium", label: "Google Chrome", icon: "🌐" },
     { id: "firefox", label: "Firefox", icon: "🦊" },
+    { id: "msedge", label: "Microsoft Edge", icon: "🌊" },
     { id: "webkit", label: "WebKit (Safari)", icon: "🧭" },
   ];
 

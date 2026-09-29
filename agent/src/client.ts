@@ -129,7 +129,7 @@ export class AgentClient {
   async pollPlaywright(
     catalogVersion: string,
     catalog?: PlaywrightCatalog,
-    capabilities?: { browsers?: { chromium?: boolean; firefox?: boolean; webkit?: boolean }; headed?: boolean; workspaceExecution?: boolean },
+    capabilities?: { browsers?: { chromium?: boolean; firefox?: boolean; webkit?: boolean; msedge?: boolean }; headed?: boolean; workspaceExecution?: boolean },
   ): Promise<PlaywrightJob | null> {
     const url = `${this.serverUrl}/api/playwright-runner/agent/poll`;
     const res = await fetch(url, {

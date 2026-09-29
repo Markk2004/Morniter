@@ -28,7 +28,7 @@ export interface AgentPlaywrightProjectConfig {
   config?: string;
   automationMap?: string;
   generateMissingTests?: boolean;
-  allowedBrowsers?: ("chromium" | "firefox" | "webkit")[];
+  allowedBrowsers?: BrowserName[];
   allowHeaded?: boolean;
   allowWorkspaceExecution?: boolean;
   maxTimeoutSeconds?: number;
@@ -43,7 +43,7 @@ export interface AgentProjectConfig {
   playwright?: AgentPlaywrightProjectConfig;
 }
 
-export type BrowserName = "chromium" | "firefox" | "webkit";
+export type BrowserName = "chromium" | "firefox" | "webkit" | "msedge";
 export type RunMode = "headless" | "headed" | "interactive";
 export type PlaywrightSessionCloseReason =
   | "user_closed"
@@ -222,6 +222,7 @@ export interface PlaywrightProjectCatalog {
       chromium?: boolean;
       firefox?: boolean;
       webkit?: boolean;
+      msedge?: boolean;
     };
     headed?: boolean;
     workspaceExecution?: boolean;

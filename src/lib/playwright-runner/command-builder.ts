@@ -27,7 +27,7 @@ import path from "node:path";
  * this repo already uses for preset jobs.
  */
 
-export type BrowserName = "chromium" | "firefox" | "webkit";
+export type BrowserName = "chromium" | "firefox" | "webkit" | "msedge";
 // Named RunMode (not BrowserMode) to match the confirmed real name from
 // types.ts — a real Next.js typecheck error on BrowserSelector.tsx
 // proved the project-wide name is RunMode.

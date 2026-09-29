@@ -18,6 +18,7 @@ export interface WorkspaceControlBarProps {
     chromium?: boolean;
     firefox?: boolean;
     webkit?: boolean;
+    msedge?: boolean;
   };
   onToggleBrowser: (browser: BrowserName) => void;
   runMode: RunMode;
@@ -40,6 +41,7 @@ export interface WorkspaceControlBarProps {
 const BROWSERS: Array<{ id: BrowserName; label: string; icon: string; short: string }> = [
   { id: "chromium", label: "Chrome", icon: "🌐", short: "Chrome" },
   { id: "firefox", label: "Firefox", icon: "🦊", short: "Firefox" },
+  { id: "msedge", label: "Edge", icon: "🌊", short: "Edge" },
   { id: "webkit", label: "WebKit", icon: "🧭", short: "WebKit" },
 ];
 

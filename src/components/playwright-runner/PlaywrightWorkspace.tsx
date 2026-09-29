@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState, useEffect } from "react";
+import React, { useCallback, useRef, useState, useEffect } from "react";
 import { ExecutionUnlock } from "@/components/test-runner/ExecutionUnlock";
 import { LiveTestTerminal } from "@/components/test-runner/LiveTestTerminal";
 import { JobHistory } from "@/components/test-runner/JobHistory";
@@ -76,6 +76,16 @@ export function PlaywrightWorkspace() {
     ...(!hasExecutableTests ? (["select-test"] as const) : []),
     ...(!hasResults ? (["result"] as const) : []),
   ];
+
+  const handleLoadTestSource = useCallback(
+    async (testId: string) => {
+      await runner.loadTestSource(testId);
+      if (layout.isNarrow) {
+        layout.setActiveTab("code");
+      }
+    },
+    [runner, layout],
+  );
 
   return (
     <div
@@ -226,7 +236,9 @@ export function PlaywrightWorkspace() {
                     onToggle={runner.toggleTest}
                     onSelectAll={runner.selectAllTests}
                     onDeselectAll={runner.deselectAllTests}
-                    onLoadSource={runner.loadTestSource}
+                    onLoadSource={handleLoadTestSource}
+                    loadingSourceTestId={runner.loadingSourceTestId}
+                    onPrefetchSource={runner.prefetchTestSource}
                     onCreateDraft={runner.openRecipeBuilder}
                     disabled={runner.isJobRunning}
                   />
