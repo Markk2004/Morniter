@@ -75,9 +75,30 @@ export async function requireExecuteSession(req: NextRequest): Promise<SessionPa
 
 export function requireSameOrigin(req: NextRequest): void {
   const origin = req.headers.get("origin");
+  const secFetchSite = req.headers.get("sec-fetch-site");
+  const referer = req.headers.get("referer");
   const targetOrigin = req.nextUrl.origin;
 
-  if (!origin || origin !== targetOrigin) {
-    throw new ExecuteSessionError(403, "Cross-origin requests forbidden");
+  if (origin && origin === targetOrigin) {
+    return;
   }
+  if (secFetchSite === "same-origin" && (!origin || origin === targetOrigin)) {
+    return;
+  }
+  if (referer) {
+    try {
+      if (new URL(referer).origin === targetOrigin) {
+        return;
+      }
+    } catch {
+      // ignore malformed referer
+    }
+  }
+
+  const host = req.headers.get("host") || req.headers.get("x-forwarded-host");
+  if (host && targetOrigin.includes(host) && (!origin || origin.includes(host))) {
+    return;
+  }
+
+  throw new ExecuteSessionError(403, "Cross-origin requests forbidden");
 }

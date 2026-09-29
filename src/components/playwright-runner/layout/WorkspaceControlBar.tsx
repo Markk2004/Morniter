@@ -33,6 +33,7 @@ export interface WorkspaceControlBarProps {
   canRun: boolean;
   isSubmitting: boolean;
   isJobRunning: boolean;
+  isCancelling?: boolean;
   onRun: () => void;
   onCancel: () => void;
   onResetLayout?: () => void;
@@ -64,6 +65,7 @@ export function WorkspaceControlBar({
   canRun,
   isSubmitting,
   isJobRunning,
+  isCancelling = false,
   onRun,
   onCancel,
   onResetLayout,
@@ -250,11 +252,18 @@ export function WorkspaceControlBar({
           {isJobRunning ? (
             <button
               type="button"
+              disabled={isCancelling}
               onClick={onCancel}
-              className="px-4 py-1.5 bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/40 rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
+              className="px-4 py-1.5 bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/40 rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <span>⏹</span>
-              <span>{runMode === "interactive" ? "Stop UI" : "Cancel"}</span>
+              <span>{isCancelling ? "⏳" : "⏹"}</span>
+              <span>
+                {isCancelling
+                  ? "Cancelling..."
+                  : runMode === "interactive"
+                    ? "Stop UI"
+                    : "Cancel"}
+              </span>
             </button>
           ) : (
             <button

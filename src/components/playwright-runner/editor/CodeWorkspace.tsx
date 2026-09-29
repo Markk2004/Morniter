@@ -9,6 +9,8 @@ interface CodeWorkspaceProps {
   onReset?: () => void;
   onCreateDraft?: () => void;
   disabled?: boolean;
+  activeTitle?: string;
+  isLoading?: boolean;
 }
 
 const TEMPLATES = [
@@ -58,10 +60,21 @@ export function CodeWorkspace({
   onReset,
   onCreateDraft,
   disabled = false,
+  activeTitle,
+  isLoading = false,
 }: CodeWorkspaceProps) {
   const lineCount = code ? code.split("\n").length : 1;
   const byteSize = typeof window !== "undefined" ? new Blob([code]).size : code.length;
   const maxBytes = 200000;
+
+  const lineNumbersText = React.useMemo(() => {
+    const count = Math.max(lineCount, 12);
+    const lines: string[] = [];
+    for (let i = 1; i <= count; i++) {
+      lines.push(String(i));
+    }
+    return lines.join("\n");
+  }, [lineCount]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Tab") {
@@ -83,12 +96,25 @@ export function CodeWorkspace({
     <section className="rounded-xl border border-slate-800 bg-slate-900/70 backdrop-blur-sm overflow-hidden flex flex-col">
       {/* Editor Header */}
       <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 bg-slate-950/70 border-b border-slate-800">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-mono font-bold text-slate-200">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-xs font-mono font-bold text-slate-200 shrink-0">
             📝 Code Workspace
           </span>
+          {activeTitle && (
+            <span
+              className="max-w-[280px] truncate px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 text-[10px] font-mono"
+              title={activeTitle}
+            >
+              {activeTitle}
+            </span>
+          )}
+          {isLoading && (
+            <span className="text-[10px] font-mono text-indigo-400 animate-pulse shrink-0">
+              Loading spec...
+            </span>
+          )}
           {dirty && (
-            <span className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px] font-mono">
+            <span className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px] font-mono shrink-0">
               Draft Modified
             </span>
           )}
@@ -151,17 +177,19 @@ export function CodeWorkspace({
         </div>
       </div>
 
-      {/* Editor Body */}
-      <div className="relative flex min-h-[260px] max-h-[440px] bg-slate-950/90 font-mono text-xs">
-        {/* Line Numbers */}
-        <div
+      {/* Editor Body with smooth transition */}
+      <div
+        className={`relative flex min-h-[260px] max-h-[440px] bg-slate-950/90 font-mono text-xs transition-opacity duration-200 ${
+          isLoading ? "opacity-60" : "opacity-100"
+        }`}
+      >
+        {/* Line Numbers - single fast DOM node */}
+        <pre
           aria-hidden="true"
-          className="select-none py-3 px-2 text-right text-slate-600 bg-slate-950 border-r border-slate-800/80 font-mono text-xs leading-relaxed"
+          className="select-none py-3 px-2 text-right text-slate-600 bg-slate-950 border-r border-slate-800/80 font-mono text-xs leading-relaxed whitespace-pre m-0"
         >
-          {Array.from({ length: Math.max(lineCount, 12) }, (_, i) => (
-            <div key={i + 1}>{i + 1}</div>
-          ))}
-        </div>
+          {lineNumbersText}
+        </pre>
 
         {/* Code Textarea */}
         <textarea

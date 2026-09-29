@@ -91,6 +91,8 @@ export interface UsePlaywrightRunnerResult {
   saveRecipeSuccess: boolean;
   runError: string | null;
 
+  activeSourceTestId: string | null;
+  activeTestTitle?: string;
   selectProject: (id: string) => void;
   setSource: (source: PlaywrightSource) => void;
   toggleTest: (id: string) => void;
@@ -138,6 +140,7 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
   const [saveRecipeSuccess, setSaveRecipeSuccess] = useState(false);
   const [runError, setRunError] = useState<string | null>(null);
   const [loadingSourceTestId, setLoadingSourceTestId] = useState<string | null>(null);
+  const [activeSourceTestId, setActiveSourceTestId] = useState<string | null>(null);
 
   const nextSequenceRef = useRef<number>(-1);
   const sourceRequestRef = useRef(0);
@@ -147,6 +150,25 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
   const currentProject = useMemo(() => {
     return projects.find((p) => p.id === selectedProjectId) ?? (projects[0] || null);
   }, [projects, selectedProjectId]);
+
+  const findTestItem = useCallback(
+    (testId: string) => {
+      if (!currentProject) return null;
+      const canonical = [
+        ...(currentProject.tests || []),
+        ...(currentProject.testGroups?.flatMap((g) => g.tests) || []),
+      ];
+      const coverage = currentProject.coverageGroups?.flatMap((g) => g.tests) || [];
+      return canonical.find((t) => t.id === testId) || coverage.find((t) => t.id === testId) || null;
+    },
+    [currentProject],
+  );
+
+  const activeTestTitle = useMemo(() => {
+    if (!activeSourceTestId) return undefined;
+    const item = findTestItem(activeSourceTestId);
+    return item ? `${item.title} (${item.relativePath})` : undefined;
+  }, [activeSourceTestId, findTestItem]);
 
   const reusableFlows = useMemo<ReusableFlow[]>(() => {
     return [
@@ -332,6 +354,7 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
       sourceRequestRef.current += 1;
       setSelectedProjectId(id);
       setSelectedTestIds([]);
+      setActiveSourceTestId(null);
       setEditorCodeState(getDefaultWorkspaceCode(id));
       setEditorDirty(false);
       setSource("project-test");
@@ -343,12 +366,170 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
     [],
   );
 
+  // Source switching
+  const handleSetSource = useCallback((newSource: PlaywrightSource) => {
+    setSource(newSource);
+    if (newSource === "workspace" && runMode === "interactive") {
+      setRunMode("headless");
+    }
+  }, [runMode]);
+
+  // Reset cache on project switch
+  useEffect(() => {
+    sourceCacheRef.current.clear();
+    setLoadingSourceTestId(null);
+    setActiveSourceTestId(null);
+  }, [selectedProjectId]);
+
+  // Load test source code into editor (0ms instant if cached)
+  const loadTestSource = useCallback(
+    async (testId: string) => {
+      if (!selectedProjectId) return;
+
+      setActiveSourceTestId(testId);
+
+      const testItem = findTestItem(testId);
+      const cached =
+        sourceCacheRef.current.get(testId) ||
+        (testItem?.relativePath ? sourceCacheRef.current.get(testItem.relativePath) : undefined);
+
+      if (cached) {
+        if (editorDirty && typeof window !== "undefined") {
+          const proceed = window.confirm(
+            "คุณมีโค้ดที่แก้ไขค้างอยู่ ต้องการละทิ้งการแก้ไขแล้วเปิดโค้ดใหม่หรือไม่?",
+          );
+          if (!proceed) return;
+        }
+        setEditorCodeState(cached);
+        setEditorDirty(false);
+        setSource("workspace");
+        return;
+      }
+
+      if (editorDirty && typeof window !== "undefined") {
+        const proceed = window.confirm(
+          "คุณมีโค้ดที่แก้ไขค้างอยู่ ต้องการละทิ้งการแก้ไขแล้วเปิดโค้ดใหม่หรือไม่?",
+        );
+        if (!proceed) return;
+      }
+
+      const requestId = ++sourceRequestRef.current;
+      const projectId = selectedProjectId;
+      setLoadingSourceTestId(testId);
+
+      try {
+        const res = await fetch(
+          `/api/playwright-runner/source?projectId=${encodeURIComponent(
+            projectId,
+          )}&testId=${encodeURIComponent(testId)}`,
+        );
+        if (res.ok) {
+          const data = await res.json();
+          if (requestId === sourceRequestRef.current && typeof data.content === "string") {
+            sourceCacheRef.current.set(testId, data.content);
+            if (data.relativePath) {
+              sourceCacheRef.current.set(data.relativePath, data.content);
+              if (currentProject) {
+                const allTests = [
+                  ...(currentProject.tests || []),
+                  ...(currentProject.testGroups?.flatMap((g) => g.tests) || []),
+                  ...(currentProject.coverageGroups?.flatMap((g) => g.tests) || []),
+                ];
+                for (const t of allTests) {
+                  if (t.relativePath === data.relativePath) {
+                    sourceCacheRef.current.set(t.id, data.content);
+                  }
+                }
+              }
+            }
+            setEditorCodeState(data.content);
+            setEditorDirty(false);
+            setSource("workspace");
+          }
+        }
+      } catch {
+        // ignore
+      } finally {
+        if (requestId === sourceRequestRef.current) {
+          setLoadingSourceTestId(null);
+        }
+      }
+    },
+    [selectedProjectId, findTestItem, editorDirty, currentProject],
+  );
+
+  // Background prefetch
+  const prefetchTestSource = useCallback(
+    (testId: string) => {
+      if (!selectedProjectId) return;
+      const testItem = findTestItem(testId);
+      if (
+        sourceCacheRef.current.has(testId) ||
+        (testItem?.relativePath && sourceCacheRef.current.has(testItem.relativePath))
+      ) {
+        return;
+      }
+
+      const runPrefetch = async () => {
+        try {
+          const res = await fetch(
+            `/api/playwright-runner/source?projectId=${encodeURIComponent(
+              selectedProjectId,
+            )}&testId=${encodeURIComponent(testId)}`,
+          );
+          if (res.ok) {
+            const data = await res.json();
+            if (typeof data.content === "string") {
+              sourceCacheRef.current.set(testId, data.content);
+              if (data.relativePath) {
+                sourceCacheRef.current.set(data.relativePath, data.content);
+                if (currentProject) {
+                  const allTests = [
+                    ...(currentProject.tests || []),
+                    ...(currentProject.testGroups?.flatMap((g) => g.tests) || []),
+                    ...(currentProject.coverageGroups?.flatMap((g) => g.tests) || []),
+                  ];
+                  for (const t of allTests) {
+                    if (t.relativePath === data.relativePath) {
+                      sourceCacheRef.current.set(t.id, data.content);
+                    }
+                  }
+                }
+              }
+            }
+          }
+        } catch {
+          // ignore background prefetch errors
+        }
+      };
+
+      if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+        window.requestIdleCallback(() => {
+          void runPrefetch();
+        });
+      } else {
+        setTimeout(() => {
+          void runPrefetch();
+        }, 30);
+      }
+    },
+    [selectedProjectId, findTestItem, currentProject],
+  );
+
   // Test toggling
-  const toggleTest = useCallback((id: string) => {
-    setSelectedTestIds((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
-    );
-  }, []);
+  const toggleTest = useCallback(
+    (id: string) => {
+      setSelectedTestIds((prev) => {
+        const isSelected = prev.includes(id);
+        if (!isSelected) {
+          void loadTestSource(id);
+          return [...prev, id];
+        }
+        return prev.filter((item) => item !== id);
+      });
+    },
+    [loadTestSource],
+  );
 
   const selectAllTests = useCallback(() => {
     if (currentProject) {
@@ -365,14 +546,6 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
   const deselectAllTests = useCallback(() => {
     setSelectedTestIds([]);
   }, []);
-
-  // Source switching
-  const handleSetSource = useCallback((newSource: PlaywrightSource) => {
-    setSource(newSource);
-    if (newSource === "workspace" && runMode === "interactive") {
-      setRunMode("headless");
-    }
-  }, [runMode]);
 
   // Mode switching
   const handleSetRunMode = useCallback((mode: RunMode) => {
@@ -628,134 +801,6 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
     refreshCatalog,
   ]);
 
-  // Reset cache on project switch
-  useEffect(() => {
-    sourceCacheRef.current.clear();
-    setLoadingSourceTestId(null);
-  }, [selectedProjectId]);
-
-  const findTestItem = useCallback(
-    (testId: string) => {
-      if (!currentProject) return null;
-      const canonical = [
-        ...(currentProject.tests || []),
-        ...(currentProject.testGroups?.flatMap((g) => g.tests) || []),
-      ];
-      const coverage = currentProject.coverageGroups?.flatMap((g) => g.tests) || [];
-      return canonical.find((t) => t.id === testId) || coverage.find((t) => t.id === testId) || null;
-    },
-    [currentProject],
-  );
-
-  // Load test source code into editor (0ms instant if cached)
-  const loadTestSource = useCallback(
-    async (testId: string) => {
-      if (!selectedProjectId) return;
-
-      const testItem = findTestItem(testId);
-      const cached =
-        sourceCacheRef.current.get(testId) ||
-        (testItem?.relativePath ? sourceCacheRef.current.get(testItem.relativePath) : undefined);
-
-      if (cached) {
-        if (editorDirty && typeof window !== "undefined") {
-          const proceed = window.confirm(
-            "คุณมีโค้ดที่แก้ไขค้างอยู่ ต้องการละทิ้งการแก้ไขแล้วเปิดโค้ดใหม่หรือไม่?",
-          );
-          if (!proceed) return;
-        }
-        setEditorCodeState(cached);
-        setEditorDirty(false);
-        setSource("workspace");
-        return;
-      }
-
-      if (editorDirty && typeof window !== "undefined") {
-        const proceed = window.confirm(
-          "คุณมีโค้ดที่แก้ไขค้างอยู่ ต้องการละทิ้งการแก้ไขแล้วเปิดโค้ดใหม่หรือไม่?",
-        );
-        if (!proceed) return;
-      }
-
-      const requestId = ++sourceRequestRef.current;
-      const projectId = selectedProjectId;
-      setLoadingSourceTestId(testId);
-
-      try {
-        const res = await fetch(
-          `/api/playwright-runner/source?projectId=${encodeURIComponent(
-            projectId,
-          )}&testId=${encodeURIComponent(testId)}`,
-        );
-        if (res.ok) {
-          const data = await res.json();
-          if (requestId === sourceRequestRef.current && typeof data.content === "string") {
-            sourceCacheRef.current.set(testId, data.content);
-            if (data.relativePath) {
-              sourceCacheRef.current.set(data.relativePath, data.content);
-            }
-            setEditorCodeState(data.content);
-            setEditorDirty(false);
-            setSource("workspace");
-          }
-        }
-      } catch {
-        // ignore
-      } finally {
-        if (requestId === sourceRequestRef.current) {
-          setLoadingSourceTestId(null);
-        }
-      }
-    },
-    [selectedProjectId, findTestItem, editorDirty, setSource],
-  );
-
-  // Background prefetch
-  const prefetchTestSource = useCallback(
-    (testId: string) => {
-      if (!selectedProjectId) return;
-      const testItem = findTestItem(testId);
-      if (
-        sourceCacheRef.current.has(testId) ||
-        (testItem?.relativePath && sourceCacheRef.current.has(testItem.relativePath))
-      ) {
-        return;
-      }
-
-      const runPrefetch = async () => {
-        try {
-          const res = await fetch(
-            `/api/playwright-runner/source?projectId=${encodeURIComponent(
-              selectedProjectId,
-            )}&testId=${encodeURIComponent(testId)}`,
-          );
-          if (res.ok) {
-            const data = await res.json();
-            if (typeof data.content === "string") {
-              sourceCacheRef.current.set(testId, data.content);
-              if (data.relativePath) {
-                sourceCacheRef.current.set(data.relativePath, data.content);
-              }
-            }
-          }
-        } catch {
-          // ignore background prefetch errors
-        }
-      };
-
-      if (typeof window !== "undefined" && "requestIdleCallback" in window) {
-        window.requestIdleCallback(() => {
-          void runPrefetch();
-        });
-      } else {
-        setTimeout(() => {
-          void runPrefetch();
-        }, 30);
-      }
-    },
-    [selectedProjectId, findTestItem],
-  );
-
   // Active Job Polling
   const activeJobId = activeJob?.id ?? null;
   const isJobRunning = Boolean(
@@ -862,7 +907,8 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
           return;
         }
 
-        scheduleNext(1000);
+        const isCancelRequested = data.job.status === "cancel_requested";
+        scheduleNext(isCancelRequested ? 500 : 1000);
       } catch {
         scheduleNext(1000);
       }
@@ -990,13 +1036,24 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
   const cancelActiveJob = useCallback(async (): Promise<boolean> => {
     if (!activeJob) return false;
     try {
+      setActiveJob((prev) =>
+        prev ? { ...prev, status: "cancel_requested" } : null,
+      );
+      setTerminalLines((prev) => [
+        ...prev,
+        {
+          sequence: (nextSequenceRef.current += 1),
+          timestamp: new Date().toISOString(),
+          stream: "system",
+          message: "[system] Cancellation requested...",
+        },
+      ]);
       const res = await fetch(`/api/playwright-runner/jobs/${activeJob.id}/cancel`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
       });
       if (res.ok) {
-        setActiveJob((prev) =>
-          prev ? { ...prev, status: "cancel_requested" } : null,
-        );
         return true;
       }
       return false;
@@ -1038,6 +1095,8 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
     saveRecipeSuccess,
     runError,
 
+    activeSourceTestId,
+    activeTestTitle,
     selectProject,
     setSource: handleSetSource,
     toggleTest,

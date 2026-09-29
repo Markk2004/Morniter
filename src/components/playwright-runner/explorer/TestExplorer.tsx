@@ -44,6 +44,7 @@ interface TestExplorerProps {
   onDeselectAll?: () => void;
   onLoadSource?: (testId: string) => void;
   loadingSourceTestId?: string | null;
+  activeSourceTestId?: string | null;
   onPrefetchSource?: (testId: string) => void;
   onCreateDraft?: (seed: {
     testId?: string;
@@ -64,6 +65,7 @@ export function TestExplorer({
   onDeselectAll,
   onLoadSource,
   loadingSourceTestId = null,
+  activeSourceTestId = null,
   onPrefetchSource,
   onCreateDraft,
   disabled = false,
@@ -537,6 +539,7 @@ export function TestExplorer({
                               const panelId = `details-${test.id.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
                               const isDetailsOpen = Boolean(expandedDetails[test.id]);
                               const testMeta = getTestThaiMeta(test.title);
+                              const isActiveSource = activeSourceTestId === test.id;
 
                               return (
                                 <div
@@ -546,9 +549,11 @@ export function TestExplorer({
                                 >
                                   <div
                                     className={`flex items-center justify-between p-2 rounded-lg border text-xs transition-colors ${
-                                      isChecked
-                                        ? "bg-indigo-950/30 border-indigo-500/30 text-white"
-                                        : "bg-slate-950/30 border-slate-800/80 text-slate-300 hover:bg-slate-800/30"
+                                      isActiveSource
+                                        ? "bg-indigo-950/60 border-indigo-500/70 ring-1 ring-indigo-500/40 text-white shadow-sm"
+                                        : isChecked
+                                          ? "bg-indigo-950/30 border-indigo-500/30 text-white"
+                                          : "bg-slate-950/30 border-slate-800/80 text-slate-300 hover:bg-slate-800/30"
                                     }`}
                                   >
                                     <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -558,7 +563,10 @@ export function TestExplorer({
                                           aria-label={`Select ${test.title}`}
                                           checked={isChecked}
                                           disabled={disabled}
-                                          onChange={() => onToggle(test.id)}
+                                          onChange={() => {
+                                            onToggle(test.id);
+                                            onLoadSource?.(test.id);
+                                          }}
                                           className="rounded border-slate-700 bg-slate-800 text-indigo-600 focus:ring-0 cursor-pointer"
                                         />
                                       ) : (
@@ -743,6 +751,7 @@ export function TestExplorer({
                               const panelId = `details-${test.id.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
                               const isDetailsOpen = Boolean(expandedDetails[test.id]);
                               const testMeta = getTestThaiMeta(test.title);
+                              const isActiveSource = activeSourceTestId === test.id;
 
                               return (
                                 <div
@@ -752,9 +761,11 @@ export function TestExplorer({
                                 >
                                   <div
                                     className={`flex items-center justify-between p-2 rounded-lg border text-xs transition-colors ${
-                                      isChecked
-                                        ? "bg-indigo-950/30 border-indigo-500/30 text-white"
-                                        : "bg-slate-950/30 border-slate-800/80 text-slate-300 hover:bg-slate-800/30"
+                                      isActiveSource
+                                        ? "bg-indigo-950/60 border-indigo-500/70 ring-1 ring-indigo-500/40 text-white shadow-sm"
+                                        : isChecked
+                                          ? "bg-indigo-950/30 border-indigo-500/30 text-white"
+                                          : "bg-slate-950/30 border-slate-800/80 text-slate-300 hover:bg-slate-800/30"
                                     }`}
                                   >
                                     <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -764,7 +775,10 @@ export function TestExplorer({
                                           aria-label={`Select ${test.title}`}
                                           checked={isChecked}
                                           disabled={disabled}
-                                          onChange={() => onToggle(test.id)}
+                                          onChange={() => {
+                                            onToggle(test.id);
+                                            onLoadSource?.(test.id);
+                                          }}
                                           className="rounded border-slate-700 bg-slate-800 text-indigo-600 focus:ring-0 cursor-pointer"
                                         />
                                       ) : (
