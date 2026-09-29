@@ -221,6 +221,7 @@ export function PlaywrightWorkspace() {
                   canRun={runner.canRun}
                   isSubmitting={runner.isSubmitting}
                   isJobRunning={runner.isJobRunning}
+                  isCancelling={runner.activeJob?.status === "cancel_requested"}
                   onRun={runner.run}
                   onCancel={runner.cancelActiveJob}
                   onResetLayout={layout.resetLayout}
@@ -238,6 +239,7 @@ export function PlaywrightWorkspace() {
                     onDeselectAll={runner.deselectAllTests}
                     onLoadSource={handleLoadTestSource}
                     loadingSourceTestId={runner.loadingSourceTestId}
+                    activeSourceTestId={runner.activeSourceTestId}
                     onPrefetchSource={runner.prefetchTestSource}
                     onCreateDraft={runner.openRecipeBuilder}
                     disabled={runner.isJobRunning}
@@ -274,6 +276,8 @@ export function PlaywrightWorkspace() {
                       onReset={runner.resetEditorCode}
                       onCreateDraft={() => runner.openRecipeBuilder()}
                       disabled={runner.isJobRunning}
+                      activeTitle={runner.activeTestTitle}
+                      isLoading={Boolean(runner.loadingSourceTestId)}
                     />
                   </div>
 

@@ -64,7 +64,7 @@ export async function executeClaimedJob(
       } finally {
         scheduleHeartbeat();
       }
-    }, 5000);
+    }, 1000);
   };
 
   scheduleHeartbeat();
@@ -168,7 +168,7 @@ export async function executeClaimedPlaywrightJob(
       } finally {
         scheduleHeartbeat();
       }
-    }, 5000);
+    }, 1000);
   };
 
   scheduleHeartbeat();
@@ -260,9 +260,9 @@ export async function executeClaimedPlaywrightJob(
 
       const browserResults: BrowserExecutionResult[] = job.browsers.map((b) => ({
         browser: b,
-        status: aggregateStatus === "passed" ? "passed" : "failed",
+        status: aggregateStatus === "passed" ? "passed" : aggregateStatus === "cancelled" ? "cancelled" : "failed",
         passed: aggregateStatus === "passed" ? runnerResults.length : 0,
-        failed: aggregateStatus === "passed" ? 0 : 1,
+        failed: aggregateStatus === "passed" || aggregateStatus === "cancelled" ? 0 : 1,
         skipped: 0,
         durationMs,
       }));
@@ -307,25 +307,26 @@ export async function executeClaimedPlaywrightJob(
   } catch (err) {
     const nowStr = new Date().toISOString();
     const errMsg = err instanceof Error ? err.message : "Test execution failed";
+    const status = abortController.signal.aborted ? "cancelled" : "failed";
     try {
       await logBatcher.drain();
     } catch (drainErr) {
       console.error("[Monitor Local Agent] Log drain warning during error handler:", drainErr);
     }
     await client.completePlaywright(job.id, {
-      status: "failed",
+      status,
       browserResults: job.browsers.map((b) => ({
         browser: b,
-        status: "failed",
+        status,
         passed: 0,
-        failed: 1,
+        failed: status === "failed" ? 1 : 0,
         skipped: 0,
       })),
       startedAt: nowStr,
       finishedAt: nowStr,
       durationMs: 0,
       truncated: false,
-      error: errMsg,
+      error: status === "cancelled" ? "Execution cancelled by user" : errMsg,
     });
   } finally {
     heartbeatStopped = true;

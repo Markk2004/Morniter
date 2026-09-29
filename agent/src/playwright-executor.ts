@@ -387,7 +387,7 @@ export async function runPlaywrightExecution(
       }
 
       browserResults.forEach((br) => {
-        br.status = finalStatus === "passed" ? "passed" : "failed";
+        br.status = finalStatus === "passed" ? "passed" : finalStatus === "cancelled" ? "cancelled" : "failed";
         br.durationMs = durationMs;
       });
 
