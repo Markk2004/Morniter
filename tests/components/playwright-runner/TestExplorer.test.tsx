@@ -197,7 +197,7 @@ describe("TestExplorer Component", () => {
     expect(screen.queryByText("Low Confidence Test 11")).not.toBeInTheDocument();
   });
 
-  it("supports expanding inline match details and keeping multiple panels open", () => {
+  it("supports expanding test details in right drawer", () => {
     render(<TestExplorer groups={sheetGroups} selected={[]} onToggle={vi.fn()} />);
 
     fireEvent.click(screen.getByText("FN-STS-01 · Authentication"));
@@ -205,26 +205,25 @@ describe("TestExplorer Component", () => {
     const detailButtons = screen.getAllByRole("button", { name: "รายละเอียด" });
     expect(detailButtons).toHaveLength(2);
 
-    // Open first test details
+    // Open first test details drawer
     fireEvent.click(detailButtons[0]);
     expect(detailButtons[0]).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByText("ข้อมูลการจับคู่ฟังก์ชัน")).toBeInTheDocument();
+    expect(screen.getByText("รายละเอียดการทดสอบ (Test Details)")).toBeInTheDocument();
+    expect(screen.getByText("ข้อมูลทางเทคนิคและการจับคู่ฟังก์ชัน")).toBeInTheDocument();
     expect(screen.getAllByText("e2e/auth/login.spec.ts")).toHaveLength(2);
 
-    // Open second test details
+    // Switch to second test details drawer
     fireEvent.click(detailButtons[1]);
+    expect(detailButtons[0]).toHaveAttribute("aria-expanded", "false");
     expect(detailButtons[1]).toHaveAttribute("aria-expanded", "true");
     expect(screen.getAllByText("e2e/auth/logout.spec.ts")).toHaveLength(2);
-
-    // Both details remain open simultaneously
-    expect(screen.getAllByText("e2e/auth/login.spec.ts")).toHaveLength(2);
-    expect(screen.getAllByText("e2e/auth/logout.spec.ts")).toHaveLength(2);
-
-    // Close first details; second remains open
-    fireEvent.click(detailButtons[0]);
-    expect(detailButtons[0]).toHaveAttribute("aria-expanded", "false");
     expect(screen.getAllByText("e2e/auth/login.spec.ts")).toHaveLength(1);
-    expect(screen.getAllByText("e2e/auth/logout.spec.ts")).toHaveLength(2);
+
+    // Toggle close second details drawer
+    fireEvent.click(detailButtons[1]);
+    expect(detailButtons[1]).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByText("รายละเอียดการทดสอบ (Test Details)")).not.toBeInTheDocument();
+    expect(screen.getAllByText("e2e/auth/logout.spec.ts")).toHaveLength(1);
   });
 
   it("supports searching tests beyond the initial 10-item page limit", () => {

@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from "react";
 import type {
   ProjectCoverageGroup,
+  ProjectCoverageTest,
   PlaywrightTestDescriptor,
   NativeRunner,
 } from "@/lib/playwright-runner/types";
@@ -13,7 +14,7 @@ import {
   getTestThaiMeta,
   resolveFunctionCategory,
 } from "./test-explorer-presentation";
-import { TestMatchDetails } from "./TestMatchDetails";
+import { TestDetailDrawer } from "./TestDetailDrawer";
 
 type LegacyTestGroup = {
   name: string;
@@ -76,7 +77,11 @@ export function TestExplorer({
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
   const [expandedSections, setExpandedSections] = useState<Record<SectionKey, boolean>>({});
   const [visibleLimits, setVisibleLimits] = useState<Record<string, number>>({});
-  const [expandedDetails, setExpandedDetails] = useState<Record<string, boolean>>({});
+  const [drawerTest, setDrawerTest] = useState<{
+    test: ProjectCoverageTest;
+    functionId?: string;
+    functionName?: string;
+  } | null>(null);
 
   const filterKey = `${search.trim().toLowerCase()}:${runnerFilter}:${categoryFilter}:${groups.length}`;
 
@@ -231,12 +236,6 @@ export function TestExplorer({
     }));
   };
 
-  const toggleDetail = (testId: string) => {
-    setExpandedDetails((prev) => ({
-      ...prev,
-      [testId]: !prev[testId],
-    }));
-  };
 
   const expandAllGroups = () => {
     const next: Record<string, boolean> = {};
@@ -537,7 +536,7 @@ export function TestExplorer({
                                 RUNNER_BADGE_STYLES[test.runner] ||
                                 "border-slate-700 bg-slate-800 text-slate-300";
                               const panelId = `details-${test.id.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
-                              const isDetailsOpen = Boolean(expandedDetails[test.id]);
+                              const isDetailsOpen = drawerTest?.test.id === test.id;
                               const testMeta = getTestThaiMeta(test.title);
                               const isActiveSource = activeSourceTestId === test.id;
 
@@ -652,7 +651,17 @@ export function TestExplorer({
                                         type="button"
                                         aria-expanded={isDetailsOpen}
                                         aria-controls={panelId}
-                                        onClick={() => toggleDetail(test.id)}
+                                        onClick={() =>
+                                          setDrawerTest((prev) =>
+                                            prev?.test.id === test.id
+                                              ? null
+                                              : {
+                                                  test,
+                                                  functionId: group.functionId,
+                                                  functionName: group.functionName,
+                                                }
+                                          )
+                                        }
                                         className={`px-1.5 py-0.5 text-[10px] font-mono rounded border transition-colors cursor-pointer ${
                                           isDetailsOpen
                                             ? "bg-slate-700 border-slate-600 text-white"
@@ -686,14 +695,6 @@ export function TestExplorer({
                                     </div>
                                   </div>
 
-                                  {isDetailsOpen && (
-                                    <TestMatchDetails
-                                      panelId={panelId}
-                                      functionId={group.functionId}
-                                      functionName={group.functionName}
-                                      test={test}
-                                    />
-                                  )}
                                 </div>
                               );
                             })}
@@ -749,7 +750,7 @@ export function TestExplorer({
                                 RUNNER_BADGE_STYLES[test.runner] ||
                                 "border-slate-700 bg-slate-800 text-slate-300";
                               const panelId = `details-${test.id.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
-                              const isDetailsOpen = Boolean(expandedDetails[test.id]);
+                              const isDetailsOpen = drawerTest?.test.id === test.id;
                               const testMeta = getTestThaiMeta(test.title);
                               const isActiveSource = activeSourceTestId === test.id;
 
@@ -864,7 +865,17 @@ export function TestExplorer({
                                         type="button"
                                         aria-expanded={isDetailsOpen}
                                         aria-controls={panelId}
-                                        onClick={() => toggleDetail(test.id)}
+                                        onClick={() =>
+                                          setDrawerTest((prev) =>
+                                            prev?.test.id === test.id
+                                              ? null
+                                              : {
+                                                  test,
+                                                  functionId: group.functionId,
+                                                  functionName: group.functionName,
+                                                }
+                                          )
+                                        }
                                         className={`px-1.5 py-0.5 text-[10px] font-mono rounded border transition-colors cursor-pointer ${
                                           isDetailsOpen
                                             ? "bg-slate-700 border-slate-600 text-white"
@@ -898,14 +909,6 @@ export function TestExplorer({
                                     </div>
                                   </div>
 
-                                  {isDetailsOpen && (
-                                    <TestMatchDetails
-                                      panelId={panelId}
-                                      functionId={group.functionId}
-                                      functionName={group.functionName}
-                                      test={test}
-                                    />
-                                  )}
                                 </div>
                               );
                             })}
@@ -970,6 +973,18 @@ export function TestExplorer({
           })
         )}
       </div>
+
+      <TestDetailDrawer
+        isOpen={Boolean(drawerTest)}
+        onClose={() => setDrawerTest(null)}
+        test={drawerTest?.test || null}
+        functionId={drawerTest?.functionId}
+        functionName={drawerTest?.functionName}
+        onLoadSource={onLoadSource}
+        onToggleSelect={onToggle}
+        isSelected={drawerTest ? selected.includes(drawerTest.test.id) : false}
+        disabled={disabled}
+      />
     </section>
   );
 }

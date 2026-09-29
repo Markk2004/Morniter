@@ -17,28 +17,53 @@ import { analyzeSourceForPlaywrightDraft } from "@/lib/playwright-runner/source-
 
 export function getDefaultWorkspaceCode(projectId?: string | null): string {
   if (projectId?.toLowerCase().includes("sts")) {
-    return `import { test, expect } from "@playwright/test";
+    return `// ==============================================================
+// 🧪 ชุดทดสอบระบบ ProjectSTS: ตรวจสอบหน้าเข้าสู่ระบบและแบบฟอร์ม
+// วัตถุประสงค์: ตรวจสอบความพร้อมของหน้า Login, ช่องกรอก Username และการเชื่อมต่อ
+// ==============================================================
+import { test, expect } from "@playwright/test";
 
+// กำหนด Scenario ทดสอบการเข้าถึงหน้าเข้าสู่ระบบ (Login Page Sanity Check)
 test("ProjectSTS navigation sanity check", async ({ page }) => {
+  // 1. สั่งให้ Browser เปิดไปยังหน้า /login ของระบบ STS
   await page.goto("/login");
+
+  // 2. ตรวจสอบเงื่อนไข: URL ของหน้าเว็บต้องตรงกับเส้นทาง /login
   await expect(page).toHaveURL(/.*\\/login/);
+
+  // 3. ตรวจสอบว่าช่องกรอกชื่อผู้ใช้ (Username Input) แสดงผลและพร้อมรับการพิมพ์
   await expect(page.locator("#login-username, input[type='text'], input[name='username']").first()).toBeVisible();
 });
 `;
   }
-  return `import { test, expect } from "@playwright/test";
+  return `// ==============================================================
+// 🌐 ชุดทดสอบเริ่มต้น (Playwright Basic Sanity Check)
+// วัตถุประสงค์: ตรวจสอบการเปิดหน้าเว็บหลัก และความพร้อมของ Page Context
+// ==============================================================
+import { test, expect } from "@playwright/test";
 
+// กำหนด Scenario สำหรับการทดสอบความพร้อมพื้นฐาน
 test("Basic sanity check", async ({ page }) => {
+  // 1. เปิดหน้าแรกของเว็บไซต์ (Home Page: /)
   await page.goto("/");
+
+  // 2. ตรวจสอบว่า Browser Page Context พร้อมทำงาน
   await expect(page).toBeDefined();
 });
 `;
 }
 
-const DEFAULT_WORKSPACE_CODE = `import { test, expect } from "@playwright/test";
+const DEFAULT_WORKSPACE_CODE = `// ==============================================================
+// 🌐 ชุดทดสอบเริ่มต้น (Playwright Basic Sanity Check)
+// วัตถุประสงค์: ตรวจสอบการเปิดหน้าเว็บหลัก และความพร้อมของ Page Context
+// ==============================================================
+import { test, expect } from "@playwright/test";
 
 test("Basic sanity check", async ({ page }) => {
+  // 1. เปิดหน้าแรกของเว็บไซต์ (Home Page: /)
   await page.goto("/");
+
+  // 2. ตรวจสอบว่า Browser Page Context พร้อมทำงาน
   await expect(page).toBeDefined();
 });
 `;
