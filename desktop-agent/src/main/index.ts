@@ -3,6 +3,7 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { pathToFileURL } from "node:url";
 import { writeSettingsAtomic, readSettings } from "./settings-store";
+import { readDeviceCredential, clearDeviceCredential } from "./credential-store";
 import { enrollDevice } from "./pairing-client";
 import { validateLocalProject } from "./project-validator";
 import { AgentSupervisor } from "./agent-supervisor";
@@ -74,6 +75,67 @@ async function openAllowedUrl(url: string) {
 
 function registerIpc() {
   ipcMain.handle("agent:get-state", (event) => { assertTrustedSender(event); return supervisor.state(); });
+  ipcMain.handle("agent:is-paired", async (event) => {
+    assertTrustedSender(event);
+    try {
+      const token = await readDeviceCredential();
+      const settings = await readSettings();
+      return Boolean(token && settings);
+    } catch {
+      return false;
+    }
+  });
+  ipcMain.handle("agent:unpair", async (event) => {
+    assertTrustedSender(event);
+    try {
+      await supervisor.stop();
+      await clearDeviceCredential();
+      return result(true, "ยกเลิกการจับคู่เรียบร้อย");
+    } catch {
+      return result(false, "ยกเลิกการจับคู่ไม่สำเร็จ", "UNPAIR_FAILED");
+    }
+  });
+  ipcMain.handle("agent:update-project", async (event, project: { workspaceRoot: string; testRoot: string }) => {
+    assertTrustedSender(event);
+    try {
+      const validation = await validateLocalProject(project);
+      if (!validation.ok) {
+        return result(false, "โฟลเดอร์โปรเจกต์ไม่ถูกต้อง", validation.code);
+      }
+      const settings = await readSettings();
+      if (!settings) return result(false, "ยังไม่ได้ตั้งค่า Agent", "AGENT_NOT_CONFIGURED");
+
+      const existingProj = settings.projects[0];
+      const updatedSettings = {
+        ...settings,
+        projects: [
+          {
+            ...existingProj,
+            id: existingProj?.id || "projectsts",
+            name: existingProj?.name || "ProjectSTS",
+            workspaceRoot: project.workspaceRoot,
+            testRoot: project.testRoot || "e2e",
+            config: existingProj?.config || "playwright.sts.config.ts",
+            allowedBrowsers: existingProj?.allowedBrowsers || ["chromium", "firefox", "webkit", "msedge"],
+            allowedBaseUrls: existingProj?.allowedBaseUrls || ["http://localhost:3001", "https://monitorsoftdeath.vercel.app"],
+          },
+          ...settings.projects.slice(1),
+        ],
+      };
+      await writeSettingsAtomic(updatedSettings);
+
+      // Auto-restart agent in background to rescan and sync new tests immediately
+      await supervisor.stop();
+      try {
+        await supervisor.start();
+      } catch {
+        // state broadcast handles UI
+      }
+      return result(true, "บันทึกและรีสตาร์ต Agent สำเร็จ พร้อมรันเทสบน Morniter");
+    } catch {
+      return result(false, "บันทึกโปรเจกต์ไม่สำเร็จ", "UPDATE_PROJECT_FAILED");
+    }
+  });
   ipcMain.handle("agent:get-settings", async (event) => {
     assertTrustedSender(event);
     try { return await readSettings(); }

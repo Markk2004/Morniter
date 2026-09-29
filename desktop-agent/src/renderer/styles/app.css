@@ -8,15 +8,16 @@ button { cursor: pointer; }
 .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; }
 .brand-mark { width: 42px; height: 42px; border-radius: 10px; background: #101722 url("https://monitorsoftdeath.vercel.app/icons/icon-192.png") center / cover no-repeat; }
 .eyebrow { color: #55d6be; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; }
-h1, h2, p { margin: 0; }
-h1 { font-size: clamp(24px, 4vw, 36px); margin-top: 8px; }
+h1, h2, h3, p { margin: 0; }
+h1 { font-size: clamp(22px, 3.5vw, 32px); margin-top: 8px; }
+h2 { font-size: 18px; font-weight: 600; }
 .muted { color: #8b9aab; line-height: 1.6; }
-.grid { display: grid; grid-template-columns: 1.2fr .8fr; gap: 16px; }
+.grid { display: grid; grid-template-columns: 1.25fr .75fr; gap: 16px; }
 .card { background: #101722; border: 1px solid #223042; border-radius: 14px; padding: 22px; }
 .stepper { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
 .step { border: 1px solid #2b3a4d; border-radius: 999px; color: #8b9aab; padding: 7px 10px; font-size: 12px; }
 .step.active { border-color: #55d6be; color: #55d6be; }
-.field { display: grid; gap: 7px; margin-top: 16px; color: #b9c5d2; font-size: 13px; }
+.field { display: grid; gap: 7px; margin-top: 16px; color: #b9c5d2; font-size: 13px; font-weight: 500; }
 .field-row { display: flex; gap: 8px; align-items: stretch; }
 .field-row input { flex: 1; }
 .browse-btn { border: 1px solid #2b3a4d; border-radius: 9px; background: #172231; color: #dbe7f2; padding: 0 16px; white-space: nowrap; font-size: 13px; font-weight: 500; display: inline-flex; align-items: center; justify-content: center; transition: background 0.15s, border-color 0.15s; }
@@ -24,11 +25,28 @@ h1 { font-size: clamp(24px, 4vw, 36px); margin-top: 8px; }
 input { width: 100%; border: 1px solid #2b3a4d; border-radius: 9px; background: #080d15; color: #edf4fb; padding: 11px 12px; outline: none; }
 input:focus, button:focus-visible { border-color: #55d6be; outline: 2px solid #55d6be55; outline-offset: 2px; }
 .actions { display: flex; justify-content: space-between; gap: 10px; margin-top: 22px; }
-button { border: 1px solid #2b3a4d; border-radius: 9px; background: #172231; color: #dbe7f2; padding: 10px 14px; }
+button { border: 1px solid #2b3a4d; border-radius: 9px; background: #172231; color: #dbe7f2; padding: 10px 14px; transition: all 0.15s; }
+button:hover:not(:disabled) { border-color: #3f5570; background: #1c2b3d; }
 button.primary { border-color: #55d6be; background: #55d6be; color: #071016; font-weight: 700; }
+button.primary:hover:not(:disabled) { background: #6cf0d6; border-color: #6cf0d6; }
+button.danger { border-color: #ef444455; background: #ef444415; color: #fca5a5; font-size: 12px; }
+button.danger:hover:not(:disabled) { border-color: #ef4444; background: #ef444425; color: #ffffff; }
 button:disabled { cursor: not-allowed; opacity: .5; }
 .status { display: flex; align-items: center; gap: 9px; color: #55d6be; font-weight: 600; }
-.dot { width: 9px; height: 9px; border-radius: 50%; background: #55d6be; }
+.status.online { color: #55d6be; }
+.status.running { color: #38bdf8; }
+.status.stopped { color: #94a3b8; }
+.status.error { color: #f87171; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: currentColor; }
+.dot.pulse { animation: pulseDot 2s infinite; }
+@keyframes pulseDot { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 .code { margin-top: 16px; border: 1px solid #55d6be66; border-radius: 10px; padding: 16px; background: #0d201f; font: 700 28px ui-monospace, monospace; letter-spacing: .18em; color: #b7fff1; }
 .tip { margin-top: 18px; border-left: 2px solid #55d6be; padding-left: 12px; }
+.meta-tag { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 6px; background: #182434; border: 1px solid #2b3a4d; font-family: ui-monospace, monospace; font-size: 11px; color: #94a3b8; }
+.badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+.badge-online { background: #064e3b40; border: 1px solid #059669; color: #34d399; }
+.badge-stopped { background: #1e293b; border: 1px solid #475569; color: #94a3b8; }
+.badge-error { background: #450a0a50; border: 1px solid #dc2626; color: #f87171; }
+.badge-running { background: #0c4a6e40; border: 1px solid #0284c7; color: #38bdf8; }
+.success-msg { margin-top: 14px; padding: 10px 14px; border-radius: 8px; background: #064e3b30; border: 1px solid #05966950; color: #34d399; font-size: 13px; }
 @media (max-width: 700px) { .app { padding: 18px; } .grid { grid-template-columns: 1fr; } }

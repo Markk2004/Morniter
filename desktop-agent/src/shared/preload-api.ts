@@ -7,6 +7,9 @@ export interface SetupResult { ok: boolean; code?: string; message: string; }
 export interface MorniterAgentApi {
   getState(): Promise<PublicAgentState>;
   getSettings(): Promise<DesktopAgentSettings | null>;
+  isPaired(): Promise<boolean>;
+  unpair(): Promise<SetupResult>;
+  updateProject(project: Pick<LocalProject, "workspaceRoot" | "testRoot">): Promise<SetupResult>;
   selectDirectory(defaultPath?: string): Promise<string | null>;
   saveSettings(settings: DesktopAgentSettings): Promise<SetupResult>;
   enroll(serverUrl: string, pairingCode: string, agentId: string, deviceId: string): Promise<SetupResult>;
