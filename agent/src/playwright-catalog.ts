@@ -71,6 +71,63 @@ function displayGroupName(group: string): string {
     .join(" ");
 }
 
+export function resolveTestGroupName(groupPath: string[], fileName: string): string {
+  const baseName = fileName.replace(/\.(spec|test)\.[a-z]+$/i, "").toLowerCase();
+
+  // STS module files follow explicit numeric prefixing or login in sts context
+  if (baseName.includes("02-dashboard")) {
+    return "FN-STS-08 · Dashboard Navigation (แดชบอร์ดตามบทบาทผู้ใช้)";
+  }
+  if (baseName.includes("03-student")) {
+    return "FN-STS-03 · Students & Classrooms (รายชื่อนักเรียนและห้องเรียน)";
+  }
+  if (baseName.includes("04-attendance")) {
+    return "FN-STS-04 · Attendance (ระบบเช็คชื่อเข้าเรียน)";
+  }
+  if (baseName.includes("05-case")) {
+    return "FN-STS-05 · Student Cases (ระบบจัดการเคสปัญหา)";
+  }
+  if (baseName.includes("06-report")) {
+    return "FN-STS-06 · Reports & Export (ระบบรายงานสรุปและการส่งออก)";
+  }
+  if (baseName.includes("07-observation") || baseName.includes("tracking")) {
+    return "FN-STS-07 · Observations & Tracking (บันทึกพฤติกรรมและการติดตาม)";
+  }
+  if (baseName.includes("08-user")) {
+    return "FN-STS-02 · User Management (ระบบจัดการผู้ใช้)";
+  }
+  if (baseName.includes("09-province") || baseName.includes("platform")) {
+    return "FN-STS-10 · Platform & Province (แดชบอร์ดระดับเขตและจังหวัด)";
+  }
+  if (baseName.includes("10-profile") || baseName.includes("password")) {
+    return "FN-STS-11 · Profile & Password (โปรไฟล์ส่วนตัวและการเปลี่ยนรหัสผ่าน)";
+  }
+  if (baseName.includes("11-ai")) {
+    return "FN-STS-09 · AI Insights & Evaluation (ระบบวิเคราะห์ AI)";
+  }
+
+  const cleanPath = groupPath.filter((p) => p && p !== ".");
+
+  // STS login test (either in e2e/sts or root of test root)
+  const isSts =
+    cleanPath.some((p) => p.toLowerCase() === "sts") ||
+    cleanPath.length === 0 ||
+    cleanPath.every((p) => p.toLowerCase() === "specs");
+  if (isSts && (baseName.includes("login") || baseName.includes("auth"))) {
+    return "FN-STS-01 · Authentication (ระบบยืนยันตัวตน)";
+  }
+
+  // Generic folder-based grouping for standard playwright setups
+  const specificFolder = cleanPath.find(
+    (p) => p.toLowerCase() !== "specs" && p.toLowerCase() !== "sts",
+  );
+  if (specificFolder) {
+    return displayGroupName(specificFolder);
+  }
+
+  return displayGroupName(cleanPath[0] || baseName || "General");
+}
+
 export interface PlaywrightScanResult {
   tests: PlaywrightTestDescriptor[];
   sourceByPath: Record<string, string>;
@@ -131,7 +188,7 @@ export async function scanPlaywrightProject(
         const relativeToRoot = path.relative(workspaceRoot, fullPath).replace(/\\/g, "/");
         const relativeToTestRoot = path.relative(fullTestDir, fullPath).replace(/\\/g, "/");
         const groupPath = path.dirname(relativeToTestRoot).split("/").filter(Boolean);
-        const cleanGroup = displayGroupName(groupPath[0] || "General");
+        const cleanGroup = resolveTestGroupName(groupPath, entry);
 
         try {
           const content = await fs.readFile(fullPath, "utf-8");

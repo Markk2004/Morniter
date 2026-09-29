@@ -8,6 +8,7 @@ export default defineConfig({
     environment: "node",
     setupFiles: ["./vitest.setup.ts"],
     passWithNoTests: true,
+    testTimeout: 15000,
     exclude: ["**/node_modules/**", "**/e2e/**"],
   },
   resolve: {

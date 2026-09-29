@@ -94,7 +94,18 @@ export async function preparePlaywrightExecution(
 
   const testRoot = pw.testRoot || "e2e";
   const testRootPath = resolveInsideRoot(workspaceRoot, testRoot);
-  const configPath = pw.config ? resolveInsideRoot(workspaceRoot, pw.config) : undefined;
+  let configPath = pw.config ? resolveInsideRoot(workspaceRoot, pw.config) : undefined;
+  if (!configPath) {
+    const stsConfigCandidate = resolveInsideRoot(workspaceRoot, "playwright.sts.config.ts");
+    try {
+      await fs.access(stsConfigCandidate);
+      if (job.projectId.toLowerCase().includes("sts") || testRoot.toLowerCase().includes("sts")) {
+        configPath = stsConfigCandidate;
+      }
+    } catch {
+      // not available
+    }
+  }
   const executionCwd = configPath ? path.dirname(configPath) : workspaceRoot;
   let specPaths: string[] = [];
   let cleanup = async () => {};
@@ -129,6 +140,33 @@ export async function preparePlaywrightExecution(
 
     const workspaceDir = resolveInsideRoot(testRootPath, "__workspace__");
     await fs.mkdir(workspaceDir, { recursive: true });
+
+    // Link helper directories so relative imports (page-objects, fixtures) resolve seamlessly
+    for (const name of ["page-objects", "fixtures"]) {
+      const dest = path.join(workspaceDir, name);
+      try {
+        await fs.access(dest);
+      } catch {
+        for (const candidateRoot of [
+          testRootPath,
+          path.join(testRootPath, "sts"),
+          path.join(workspaceRoot, "e2e"),
+          path.join(workspaceRoot, "e2e", "sts"),
+        ]) {
+          const src = path.join(candidateRoot, name);
+          try {
+            const stat = await fs.stat(src);
+            if (stat.isDirectory()) {
+              const linkType = process.platform === "win32" ? "junction" : "dir";
+              await fs.symlink(src, dest, linkType);
+              break;
+            }
+          } catch {
+            // continue searching
+          }
+        }
+      }
+    }
 
     const specFile = path.join(workspaceDir, `${job.id}.spec.ts`);
     await fs.writeFile(specFile, job.code, "utf-8");

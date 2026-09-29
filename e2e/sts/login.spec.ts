@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { StsLoginPage } from "./page-objects/login.page";
-import { DEMO_CREDENTIALS, STS_ROLES, type StsRole } from "./fixtures/auth-data";
+import { DEMO_CREDENTIALS, STS_ROLES } from "./fixtures/auth-data";
 
 test.describe("ProjectSTS Authentication Suite (Run from project-monitor)", () => {
   test.beforeEach(async ({ page }) => {

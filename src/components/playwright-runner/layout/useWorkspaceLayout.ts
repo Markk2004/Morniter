@@ -30,22 +30,29 @@ export interface UseWorkspaceLayoutResult {
 }
 
 function subscribeNarrow(callback: () => void): () => void {
-  if (typeof window === "undefined" || !window.matchMedia) return () => {};
-  const mediaQuery = window.matchMedia("(max-width: 899px)");
+  if (typeof window === "undefined") return () => {};
+  window.addEventListener("resize", callback);
+  if (!window.matchMedia) return () => window.removeEventListener("resize", callback);
+  const mediaQuery = window.matchMedia("(max-width: 899px), (max-height: 500px)");
 
   if (typeof mediaQuery.addEventListener === "function") {
     mediaQuery.addEventListener("change", callback);
-    return () => mediaQuery.removeEventListener("change", callback);
   } else if (typeof mediaQuery.addListener === "function") {
     mediaQuery.addListener(callback);
-    return () => mediaQuery.removeListener(callback);
   }
-  return () => {};
+  return () => {
+    window.removeEventListener("resize", callback);
+    if (typeof mediaQuery.removeEventListener === "function") {
+      mediaQuery.removeEventListener("change", callback);
+    } else if (typeof mediaQuery.removeListener === "function") {
+      mediaQuery.removeListener(callback);
+    }
+  };
 }
 
 function getNarrowSnapshot(): boolean {
   if (typeof window === "undefined" || !window.matchMedia) return false;
-  return window.matchMedia("(max-width: 899px)").matches;
+  return window.matchMedia("(max-width: 899px), (max-height: 500px)").matches;
 }
 
 function getServerSnapshot(): boolean {
@@ -65,9 +72,13 @@ export function useWorkspaceLayout(): UseWorkspaceLayoutResult {
 
     const updateSize = () => {
       const rect = node.getBoundingClientRect();
+      const nextWidth = Math.round(rect.width);
+      const nextHeight = Math.round(rect.height);
       setWorkspaceSize((previous) => {
-        const next = { width: Math.round(rect.width), height: Math.round(rect.height) };
-        return previous.width === next.width && previous.height === next.height ? previous : next;
+        if (previous.width === nextWidth && previous.height === nextHeight) {
+          return previous;
+        }
+        return { width: nextWidth, height: nextHeight };
       });
     };
 
@@ -83,9 +94,7 @@ export function useWorkspaceLayout(): UseWorkspaceLayoutResult {
 
   const usableHeight = workspaceSize.height > 0 ? Math.max(0, workspaceSize.height - 320) : 800;
   const terminalMaxHeight = clampTerminalHeight(Number.POSITIVE_INFINITY, usableHeight);
-  const isNarrow = workspaceSize.width > 0
-    ? workspaceSize.width < 860 || (workspaceSize.height > 0 && workspaceSize.height < 500)
-    : mediaNarrow;
+  const isNarrow = mediaNarrow;
 
   const [preferences, setPreferences] = useState<WorkspaceLayoutPreferences>(() => {
     if (typeof window === "undefined") return { ...DEFAULT_WORKSPACE_LAYOUT };

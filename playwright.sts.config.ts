@@ -3,7 +3,13 @@ import { defineConfig, devices } from "@playwright/test";
 const STS_BASE_URL = process.env.STS_BASE_URL || "http://localhost:3001";
 
 export default defineConfig({
-  testDir: "./e2e/sts",
+  testDir: "./e2e",
+  testMatch: [
+    "sts/**/*.spec.ts",
+    "sts/**/*.test.ts",
+    "__workspace__/**/*.spec.ts",
+    "__workspace__/**/*.test.ts",
+  ],
   timeout: 30_000,
   expect: { timeout: 10_000 },
   fullyParallel: false,

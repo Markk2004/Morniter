@@ -1,0 +1,51 @@
+{
+  "version": 2,
+  "projectId": "sts-monitor-e2e",
+  "testTarget": {
+    "id": "sts-local",
+    "label": "Student Tracking System (STS)",
+    "baseUrl": "http://localhost:3001",
+    "allowMutating": true
+  },
+  "runnerProfiles": [
+    {
+      "id": "playwright-sts",
+      "runner": "playwright",
+      "workingDirectory": ".",
+      "config": "playwright.sts.config.ts"
+    }
+  ],
+  "scanRoots": [
+    { "path": "e2e/sts", "runner": "playwright", "executionProfileId": "playwright-sts", "executable": true }
+  ],
+  "excludeDirectories": ["node_modules", ".next", "dist", "coverage", "playwright-report-sts", ".git"],
+  "generatedRoot": "e2e/sts/generated",
+  "functions": [
+    { "id": "FN-STS-01", "name": "Authentication (ระบบยืนยันตัวตน)", "keywords": ["auth", "login", "password", "session"] },
+    { "id": "FN-STS-02", "name": "User Management (ระบบจัดการผู้ใช้)", "keywords": ["user", "role", "permission", "management"] },
+    { "id": "FN-STS-03", "name": "Students & Classrooms (รายชื่อนักเรียนและห้องเรียน)", "keywords": ["student", "classroom", "profile"] },
+    { "id": "FN-STS-04", "name": "Attendance (ระบบเช็คชื่อเข้าเรียน)", "keywords": ["attendance", "check-in", "present", "absent"] },
+    { "id": "FN-STS-05", "name": "Student Cases (ระบบจัดการเคสปัญหา)", "keywords": ["case", "risk", "severity"] },
+    { "id": "FN-STS-06", "name": "Case Reports & Export (ระบบรายงานสรุปและการส่งออก)", "keywords": ["report", "export", "excel", "pdf"] },
+    { "id": "FN-STS-07", "name": "Observations & Tracking (บันทึกพฤติกรรมและการติดตาม)", "keywords": ["observation", "tracking", "map"] },
+    { "id": "FN-STS-08", "name": "Dashboard Navigation (แดชบอร์ดตามบทบาทผู้ใช้)", "keywords": ["dashboard", "navigation", "director", "teacher"] },
+    { "id": "FN-STS-09", "name": "AI Insights & Evaluation (ระบบวิเคราะห์ AI)", "keywords": ["ai", "evaluation", "benchmark", "insight"] },
+    { "id": "FN-STS-10", "name": "Platform & Province (แดชบอร์ดระดับเขตและจังหวัด)", "keywords": ["province", "platform", "zone"] },
+    { "id": "FN-STS-11", "name": "Profile & Password (โปรไฟล์ส่วนตัวและการเปลี่ยนรหัสผ่าน)", "keywords": ["profile", "password", "policy"] }
+  ],
+  "explicitMappings": [
+    { "path": "e2e/sts/login.spec.ts", "functionId": "FN-STS-01" },
+    { "path": "e2e/sts/specs/08-user-management.spec.ts", "functionId": "FN-STS-02" },
+    { "path": "e2e/sts/specs/03-students-classrooms.spec.ts", "functionId": "FN-STS-03" },
+    { "path": "e2e/sts/specs/04-attendance.spec.ts", "functionId": "FN-STS-04" },
+    { "path": "e2e/sts/specs/05-cases.spec.ts", "functionId": "FN-STS-05" },
+    { "path": "e2e/sts/specs/06-reports-export.spec.ts", "functionId": "FN-STS-06" },
+    { "path": "e2e/sts/specs/07-observations-tracking.spec.ts", "functionId": "FN-STS-07" },
+    { "path": "e2e/sts/specs/02-dashboard-navigation.spec.ts", "functionId": "FN-STS-08" },
+    { "path": "e2e/sts/specs/11-ai-evaluation.spec.ts", "functionId": "FN-STS-09" },
+    { "path": "e2e/sts/specs/09-province-platform.spec.ts", "functionId": "FN-STS-10" },
+    { "path": "e2e/sts/specs/10-profile-password.spec.ts", "functionId": "FN-STS-11" }
+  ],
+  "coverageTargets": [],
+  "recipes": []
+}

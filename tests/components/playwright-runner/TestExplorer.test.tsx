@@ -396,6 +396,34 @@ describe("TestExplorer Component", () => {
     );
   });
 
+  it("filters test groups using the category dropdown", () => {
+    render(
+      <TestExplorer
+        groups={sheetGroups}
+        selected={[]}
+        onToggle={vi.fn()}
+      />,
+    );
+
+    const categorySelect = screen.getByLabelText("เลือกหมวดหมู่ฟังก์ชัน");
+    expect(categorySelect).toBeInTheDocument();
+
+    // Initially both groups are present in headings
+    expect(screen.getAllByText(/FN-STS-01 · Authentication/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/FN-STS-02 · Dashboard/).length).toBeGreaterThanOrEqual(1);
+
+    // Select FN-STS-01
+    fireEvent.change(categorySelect, { target: { value: "FN-STS-01" } });
+
+    // FN-STS-01 should remain and be expanded
+    expect(screen.getByText("Login with valid credentials")).toBeInTheDocument();
+
+    // In the test tree, only FN-STS-01 should have a group button
+    const groupButtons = screen.getAllByRole("button", { expanded: true });
+    expect(groupButtons.some((b) => b.textContent?.includes("FN-STS-01"))).toBe(true);
+    expect(groupButtons.some((b) => b.textContent?.includes("FN-STS-02"))).toBe(false);
+  });
+
   it("shows empty state when no tests are found", () => {
     render(
       <TestExplorer

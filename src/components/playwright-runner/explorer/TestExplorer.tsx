@@ -10,6 +10,7 @@ import {
   TEST_SECTION_PAGE_SIZE,
   partitionTestsByConfidence,
   getRunnerLabel,
+  getTestThaiMeta,
 } from "./test-explorer-presentation";
 import { TestMatchDetails } from "./TestMatchDetails";
 
@@ -64,12 +65,13 @@ export function TestExplorer({
 }: TestExplorerProps) {
   const [search, setSearch] = useState("");
   const [runnerFilter, setRunnerFilter] = useState<RunnerFilter>("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
   const [expandedSections, setExpandedSections] = useState<Record<SectionKey, boolean>>({});
   const [visibleLimits, setVisibleLimits] = useState<Record<string, number>>({});
   const [expandedDetails, setExpandedDetails] = useState<Record<string, boolean>>({});
 
-  const filterKey = `${search.trim().toLowerCase()}:${runnerFilter}:${groups.length}`;
+  const filterKey = `${search.trim().toLowerCase()}:${runnerFilter}:${categoryFilter}:${groups.length}`;
 
   const normalizedGroups = useMemo<ProjectCoverageGroup[]>(
     () =>
@@ -119,6 +121,7 @@ export function TestExplorer({
   const filteredGroups = useMemo(() => {
     const q = search.trim().toLowerCase();
     return normalizedGroups
+      .filter((group) => categoryFilter === "all" || group.id === categoryFilter)
       .map((group) => ({
         ...group,
         tests: group.tests.filter((t) => {
@@ -143,7 +146,7 @@ export function TestExplorer({
         }),
       }))
       .filter((group) => group.tests.length > 0 || (group.gaps.length > 0 && runnerFilter === "all" && !q));
-  }, [normalizedGroups, search, runnerFilter]);
+  }, [normalizedGroups, search, runnerFilter, categoryFilter]);
 
   const toggleGroupExpand = (groupId: string) => {
     setExpandedGroups((prev) => ({
@@ -225,6 +228,42 @@ export function TestExplorer({
           )}
         </div>
       </div>
+
+      {/* Category / Function Dropdown */}
+      {normalizedGroups.length > 1 && (
+        <div className="relative">
+          <label htmlFor="test-category-select" className="sr-only">
+            เลือกหมวดหมู่ฟังก์ชัน
+          </label>
+          <div className="flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/90 px-2.5 py-1.5 focus-within:border-indigo-500">
+            <span className="text-xs text-slate-400" aria-hidden="true">📂</span>
+            <select
+              id="test-category-select"
+              aria-label="เลือกหมวดหมู่ฟังก์ชัน"
+              value={categoryFilter}
+              disabled={disabled}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className="w-full bg-transparent text-xs font-mono text-slate-200 focus:outline-none cursor-pointer"
+            >
+              <option value="all" className="bg-slate-900 text-slate-200">
+                📁 ทุกหมวดหมู่ (All Functions - {normalizedGroups.length} หมวด)
+              </option>
+              {normalizedGroups.map((group) => {
+                const label =
+                  group.functionId && group.functionName
+                    ? `${group.functionId} · ${group.functionName}`
+                    : group.name;
+                const count = group.tests.filter((t) => t.executable !== false).length;
+                return (
+                  <option key={group.id} value={group.id} className="bg-slate-900 text-slate-200">
+                    {label} ({count})
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+        </div>
+      )}
 
       {/* Search Input */}
       <div>
@@ -326,7 +365,11 @@ export function TestExplorer({
           </div>
         ) : (
           filteredGroups.map((group, groupIdx) => {
-            const isExpanded = Boolean(search.trim()) || runnerFilter !== "all" || Boolean(expandedGroups[group.id]);
+            const isExpanded =
+              Boolean(search.trim()) ||
+              runnerFilter !== "all" ||
+              categoryFilter !== "all" ||
+              Boolean(expandedGroups[group.id]);
             const isCollapsed = !isExpanded;
             const groupSelectedCount = group.tests.filter((t) =>
               t.executable !== false && selected.includes(t.id),
@@ -395,6 +438,7 @@ export function TestExplorer({
                                 "border-slate-700 bg-slate-800 text-slate-300";
                               const panelId = `details-${test.id.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
                               const isDetailsOpen = Boolean(expandedDetails[test.id]);
+                              const testMeta = getTestThaiMeta(test.title);
 
                               return (
                                 <div key={`${test.id}-${testIdx}`} className="space-y-1">
@@ -430,10 +474,20 @@ export function TestExplorer({
                                         onClick={() => onLoadSource?.(test.id)}
                                         className="truncate text-left cursor-pointer disabled:cursor-default disabled:opacity-100 flex-1 min-w-0"
                                       >
-                                        <span className="block truncate font-medium hover:text-indigo-300">
-                                          {test.title}
-                                        </span>
-                                        <span className="block text-[10px] font-mono text-slate-400 truncate">
+                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                          <span className={`inline-block text-[9px] font-mono px-1.5 py-0.2 rounded border ${testMeta.roleBadgeStyle}`}>
+                                            {testMeta.role}
+                                          </span>
+                                          <span className="font-medium hover:text-indigo-300 truncate">
+                                            {test.title}
+                                          </span>
+                                        </div>
+                                        {testMeta.description && (
+                                          <span className="block text-[11px] text-indigo-200/90 font-sans mt-0.5 truncate">
+                                            💡 {testMeta.description}
+                                          </span>
+                                        )}
+                                        <span className="block text-[10px] font-mono text-slate-500 truncate mt-0.5">
                                           {test.relativePath}
                                         </span>
                                         <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
@@ -575,6 +629,7 @@ export function TestExplorer({
                                 "border-slate-700 bg-slate-800 text-slate-300";
                               const panelId = `details-${test.id.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
                               const isDetailsOpen = Boolean(expandedDetails[test.id]);
+                              const testMeta = getTestThaiMeta(test.title);
 
                               return (
                                 <div key={`${test.id}-${testIdx}`} className="space-y-1">
@@ -610,10 +665,20 @@ export function TestExplorer({
                                         onClick={() => onLoadSource?.(test.id)}
                                         className="truncate text-left cursor-pointer disabled:cursor-default disabled:opacity-100 flex-1 min-w-0"
                                       >
-                                        <span className="block truncate font-medium hover:text-indigo-300">
-                                          {test.title}
-                                        </span>
-                                        <span className="block text-[10px] font-mono text-slate-400 truncate">
+                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                          <span className={`inline-block text-[9px] font-mono px-1.5 py-0.2 rounded border ${testMeta.roleBadgeStyle}`}>
+                                            {testMeta.role}
+                                          </span>
+                                          <span className="font-medium hover:text-indigo-300 truncate">
+                                            {test.title}
+                                          </span>
+                                        </div>
+                                        {testMeta.description && (
+                                          <span className="block text-[11px] text-indigo-200/90 font-sans mt-0.5 truncate">
+                                            💡 {testMeta.description}
+                                          </span>
+                                        )}
+                                        <span className="block text-[10px] font-mono text-slate-500 truncate mt-0.5">
                                           {test.relativePath}
                                         </span>
                                         <div className="flex flex-wrap items-center gap-1.5 mt-0.5">

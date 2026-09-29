@@ -1,8 +1,8 @@
 import bcrypt from "bcryptjs";
 
 const password = process.argv[2];
-if (!password || password.length < 12) {
-  console.error("Password must contain at least 12 characters.");
+if (!password || password.length < 6) {
+  console.error("Password must contain at least 6 characters.");
   process.exit(1);
 }
 
