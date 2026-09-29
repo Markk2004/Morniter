@@ -3,6 +3,8 @@ import type { MorniterAgentApi } from "../shared/preload-api";
 
 const api: MorniterAgentApi = {
   getState: () => ipcRenderer.invoke("agent:get-state"),
+  getSettings: () => ipcRenderer.invoke("agent:get-settings"),
+  selectDirectory: (defaultPath?: string) => ipcRenderer.invoke("agent:select-directory", defaultPath),
   saveSettings: (settings) => ipcRenderer.invoke("agent:save-settings", settings),
   enroll: (serverUrl, pairingCode, agentId, deviceId) => ipcRenderer.invoke("agent:enroll", serverUrl, pairingCode, agentId, deviceId),
   validateProject: (project) => ipcRenderer.invoke("agent:validate-project", project),

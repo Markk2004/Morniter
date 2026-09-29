@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell, type IpcMainInvokeEvent } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, shell, type IpcMainInvokeEvent } from "electron";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { pathToFileURL } from "node:url";
@@ -74,6 +74,23 @@ async function openAllowedUrl(url: string) {
 
 function registerIpc() {
   ipcMain.handle("agent:get-state", (event) => { assertTrustedSender(event); return supervisor.state(); });
+  ipcMain.handle("agent:get-settings", async (event) => {
+    assertTrustedSender(event);
+    try { return await readSettings(); }
+    catch { return null; }
+  });
+  ipcMain.handle("agent:select-directory", async (event, defaultPath?: string) => {
+    assertTrustedSender(event);
+    const target = windowRef || BrowserWindow.getFocusedWindow();
+    if (!target) return null;
+    const { canceled, filePaths } = await dialog.showOpenDialog(target, {
+      title: "เลือกโฟลเดอร์โปรเจกต์ (Workspace Path)",
+      defaultPath: defaultPath && typeof defaultPath === "string" && defaultPath.trim() ? defaultPath.trim() : undefined,
+      properties: ["openDirectory", "dontAddToRecent"],
+    });
+    if (canceled || filePaths.length === 0) return null;
+    return filePaths[0];
+  });
   ipcMain.handle("agent:save-settings", async (event, raw: unknown) => {
     assertTrustedSender(event);
     try { const settings = DesktopAgentSettingsSchema.parse(raw); await writeSettingsAtomic(settings); return result(true, "บันทึกการตั้งค่าแล้ว"); }
