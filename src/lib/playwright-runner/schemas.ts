@@ -401,6 +401,7 @@ export const PlaywrightPollRequestSchema = z
             chromium: z.boolean().optional(),
             firefox: z.boolean().optional(),
             webkit: z.boolean().optional(),
+            msedge: z.boolean().optional(),
           })
           .optional(),
         headed: z.boolean().optional(),
