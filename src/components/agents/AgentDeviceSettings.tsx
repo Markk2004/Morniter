@@ -28,6 +28,7 @@ export function AgentDeviceSettings() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pairingExpired, setPairingExpired] = useState(false);
+  const [pairSuccess, setPairSuccess] = useState<string | null>(null);
   const failures = useRef(0);
 
   const loadDevices = useCallback(async () => {
@@ -46,6 +47,7 @@ export function AgentDeviceSettings() {
     return () => { cancelled = true; };
   }, []);
 
+  // Standard device list refresh + tab focus / visibility listener
   useEffect(() => {
     if (unlocked !== true) return;
     const refresh = () => {
@@ -62,15 +64,27 @@ export function AgentDeviceSettings() {
       });
     }, 0);
     const timer = window.setInterval(refresh, 30_000);
+
+    const handleFocus = () => {
+      if (document.visibilityState === "visible") {
+        void loadDevices().catch(() => {});
+      }
+    };
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleFocus);
+
     return () => {
       window.clearTimeout(initialRefresh);
       window.clearInterval(timer);
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleFocus);
     };
   }, [loadDevices, unlocked]);
 
+  // Fast polling while pairing code is active
   useEffect(() => {
     if (!pairing) return;
-    const timer = window.setInterval(() => {
+    const countdownTimer = window.setInterval(() => {
       const nextNow = Date.now();
       setNow(nextNow);
       if (new Date(pairing.expiresAt).getTime() <= nextNow) {
@@ -78,8 +92,30 @@ export function AgentDeviceSettings() {
         setPairingExpired(true);
       }
     }, 1000);
-    return () => window.clearInterval(timer);
-  }, [pairing]);
+
+    const fastPollTimer = window.setInterval(() => {
+      void loadDevices().catch(() => {});
+    }, 2500);
+
+    return () => {
+      window.clearInterval(countdownTimer);
+      window.clearInterval(fastPollTimer);
+    };
+  }, [loadDevices, pairing]);
+
+  // Auto-detect newly connected agent and celebrate in existing tab
+  useEffect(() => {
+    if (!pairing) return;
+    const targetId = agentId.trim().toLowerCase();
+    const isOnline = devices.some(
+      (d) => d.agentId.toLowerCase() === targetId && d.status === "online",
+    );
+    if (isOnline) {
+      setPairSuccess(`เชื่อมต่อ Agent "${agentId.trim()}" สำเร็จแล้ว! เครื่องออนไลน์พร้อมใช้งาน`);
+      setPairing(null);
+      setPairingExpired(false);
+    }
+  }, [devices, pairing, agentId]);
 
   const remaining = useMemo(() => pairing ? formatRemaining(pairing.expiresAt, now) : null, [now, pairing]);
   const expired = pairing ? new Date(pairing.expiresAt).getTime() <= now : false;
@@ -87,6 +123,7 @@ export function AgentDeviceSettings() {
   async function createCode() {
     setLoading(true);
     setError(null);
+    setPairSuccess(null);
     try {
       const res = await fetch("/api/playwright-runner/agents/pairing-code", {
         method: "POST",
@@ -151,6 +188,11 @@ export function AgentDeviceSettings() {
         </div>
         {pairing && !expired && <div className="mt-4 rounded-lg border border-emerald-500/40 bg-emerald-500/10 p-4"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs text-emerald-300">กรอกรหัสนี้ในหน้าติดตั้ง Agent</p><p aria-live="polite" className="mt-1 font-mono text-2xl font-bold tracking-[0.2em] text-emerald-100">{pairing.code}</p></div><div className="flex items-center gap-2"><p className="text-xs text-emerald-200">เหลือ {remaining}</p><button type="button" onClick={() => void navigator.clipboard?.writeText(pairing.code)} className="rounded-md border border-emerald-400/30 px-2 py-1 text-xs text-emerald-100 hover:bg-emerald-400/10">คัดลอก</button></div></div><p className="mt-3 text-xs text-emerald-200/80">Morniter → Settings → Agents → Pair new agent</p></div>}
         {pairingExpired && <p className="mt-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">Pairing Code หมดอายุแล้ว สร้างรหัสใหม่เพื่อเชื่อมเครื่อง</p>}
+        {pairSuccess && (
+          <div role="status" className="mt-4 rounded-lg border border-emerald-500/40 bg-emerald-500/10 p-4 text-xs font-medium text-emerald-200">
+            🎉 {pairSuccess}
+          </div>
+        )}
         {error && <p role="alert" className="mt-3 text-xs text-rose-300">{error}</p>}
       </section>
       <section className="rounded-xl border border-slate-800 bg-slate-900 p-5">

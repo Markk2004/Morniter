@@ -374,6 +374,9 @@ export function App() {
       if (!startup) return;
       const started = await run(() => window.morniterAgent.startAgent());
       if (!started || !(await waitForOnline())) return;
+
+      // Automatically focus existing Morniter window on connection success
+      void window.morniterAgent.openMorniter();
     }
     setStep((current) => Math.min(5, current + 1));
   }
@@ -491,9 +494,10 @@ export function App() {
                 <button
                   type="button"
                   onClick={() => void window.morniterAgent.openMorniter()}
+                  title="สลับไปยังหน้าต่าง Morniter เดิมที่เปิดอยู่ หรือเปิดเบราว์เซอร์ใหม่หากยังไม่ได้เปิด"
                   style={{ background: "#1c2b3d", borderColor: "#38bdf8", color: "#38bdf8", fontWeight: 600 }}
                 >
-                  🚀 เปิด Morniter บนเว็บ
+                  🚀 สลับไป Morniter เดิม
                 </button>
 
                 <button
@@ -695,8 +699,9 @@ export function App() {
                       </button>
                       <button
                         onClick={() => void window.morniterAgent.openMorniter()}
+                        title="สลับไปยังแท็บหรือหน้าต่าง Morniter เดิมที่เปิดอยู่"
                       >
-                        เปิด Morniter
+                        สลับไป Morniter เดิม
                       </button>
                     </div>
                   </>

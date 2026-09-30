@@ -10,6 +10,7 @@ import { AgentSupervisor } from "./agent-supervisor";
 import { DesktopAgentSettingsSchema } from "../shared/settings";
 import { AgentTray } from "./tray";
 import { readRecentPaths, addRecentPath, removeRecentPath } from "./recent-paths-store";
+import { focusExistingMorniterWindow } from "./window-activator";
 
 let windowRef: BrowserWindow | null = null;
 let tray: AgentTray | null = null;
@@ -69,6 +70,13 @@ async function openAllowedUrl(url: string) {
   try {
     const settings = await readSettings();
     if (!settings || new URL(url).origin !== new URL(settings.serverUrl).origin) return result(false, "URL ไม่ได้รับอนุญาต", "URL_NOT_ALLOWED");
+
+    // Try to focus existing Morniter window first (avoid opening duplicate tabs)
+    const activated = await focusExistingMorniterWindow(settings.serverUrl);
+    if (activated) {
+      return result(true, "สลับไปยัง Morniter เดิมแล้ว");
+    }
+
     await shell.openExternal(url);
     return result(true, "เปิด Morniter แล้ว");
   } catch { return result(false, "URL ไม่ถูกต้อง", "URL_NOT_ALLOWED"); }

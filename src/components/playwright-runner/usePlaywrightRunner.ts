@@ -362,6 +362,38 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
     }
   }, []);
 
+  // Auto-refresh catalog & lock when user returns/focuses the Morniter tab
+  useEffect(() => {
+    const handleFocus = () => {
+      void refreshCatalog();
+      void refreshUnlock();
+    };
+
+    window.addEventListener("focus", handleFocus);
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        handleFocus();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [refreshCatalog, refreshUnlock]);
+
+  // Periodic polling when catalog is not yet ready or in error state (e.g. waiting for Local Agent to connect)
+  useEffect(() => {
+    if (catalog && !catalogError && presence?.state === "online") return;
+
+    const timer = setInterval(() => {
+      void refreshCatalog();
+    }, 3500);
+
+    return () => clearInterval(timer);
+  }, [catalog, catalogError, presence?.state, refreshCatalog]);
+
   // Fetch History
   const refreshHistory = useCallback(async () => {
     try {
