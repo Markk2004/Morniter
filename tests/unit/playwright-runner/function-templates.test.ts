@@ -54,6 +54,23 @@ describe("STS Function Playwright Templates", () => {
     expect(tplAI?.id).toBe("FN-STS-09");
   });
 
+  it("resolves specific sub-part templates for authentication parts", () => {
+    const tplInvalid = getFunctionTemplate("TC-STS-AUTH-INVALID: Invalid credentials displays an error alert");
+    expect(tplInvalid?.id).toBe("FN-STS-01-INVALID");
+    expect(tplInvalid?.shortName).toBe("รหัสผ่านผิด");
+    expect(tplInvalid?.code).toContain("TC-STS-AUTH-INVALID");
+
+    const tplEmpty = getFunctionTemplate("TC-STS-AUTH-EMPTY: Empty username/password submission is rejected");
+    expect(tplEmpty?.id).toBe("FN-STS-01-EMPTY");
+    expect(tplEmpty?.shortName).toBe("เว้นว่างรหัสผ่าน");
+    expect(tplEmpty?.code).toContain("TC-STS-AUTH-EMPTY");
+
+    const tplRoles = getFunctionTemplate("TC-STS-AUTH-TEACHER: Login as teacher succeeds and redirects");
+    expect(tplRoles?.id).toBe("FN-STS-01-ROLES");
+    expect(tplRoles?.shortName).toBe("เข้าสู่ระบบสำเร็จ");
+    expect(tplRoles?.code).toContain("TC-STS-AUTH-TEACHER");
+  });
+
   it("returns undefined for unknown or empty input", () => {
     expect(getFunctionTemplate("")).toBeUndefined();
     expect(getFunctionTemplate("unknown-function-xyz")).toBeUndefined();

@@ -1307,6 +1307,235 @@ test.describe("FN-STS-11: Profile & Password Suite", () => {
   },
 };
 
+export const STS_SUB_TEMPLATES: Record<string, FunctionTemplate> = {
+  "FN-STS-01-ROLES": {
+    id: "FN-STS-01-ROLES",
+    name: "FN-STS-01 (Part 1) · เข้าสู่ระบบสำเร็จตามสิทธิ์ (Login as Role)",
+    shortName: "เข้าสู่ระบบสำเร็จ",
+    relativePath: "e2e/sts/specs/01-auth-login-roles.spec.ts",
+    description: "ทดสอบการเข้าสู่ระบบตามบทบาทผู้ใช้ (Teacher, Director, Admin, Officer) และการ Redirect ไปยังแดชบอร์ดที่ถูกต้อง",
+    code: `// ==============================================================
+// 🧪 ชุดทดสอบ: FN-STS-01 (Part 1): เข้าสู่ระบบสำเร็จตามสิทธิ์ (Login as Role)
+// 🎯 วัตถุประสงค์: ตรวจสอบการ Login ตามบทบาทผู้ใช้ และการ Redirect ไปยังแดชบอร์ดตามสิทธิ์
+// 👥 บทบาทผู้ใช้: ครูประจำชั้น (Teacher), ผู้บริหาร (Director), แอดมิน (Admin), เจ้าหน้าที่ (Officer)
+// ==============================================================
+import { test, expect } from "@playwright/test";
+
+test.describe("FN-STS-01 (Part 1): Login as Role Suite", () => {
+  // [Precondition]: ล้างคุกกี้และตั้งค่า Route Mocking ก่อนเริ่มทดสอบ
+  test.beforeEach(async ({ page }) => {
+    // 1. ล้างคุกกี้ทั้งหมดเพื่อจำลองสถานะก่อนเริ่มล็อกอิน
+    await page.context().clearCookies();
+
+    // 2. จำลอง Mock Auth Login API ให้สำเร็จและคืนค่า Token ตาม Role
+    await page.route("**/api/auth/login", async (route) => {
+      let postData: { username?: string; password?: string } | null = null;
+      try {
+        postData = route.request().postDataJSON();
+      } catch {
+        postData = null;
+      }
+      const { username } = postData || {};
+      const role = username?.includes("admin")
+        ? "ADMIN"
+        : username?.includes("director")
+        ? "DIRECTOR"
+        : username?.includes("officer")
+        ? "OFFICER"
+        : "TEACHER";
+
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          accessToken: "mock-jwt-token-workspace",
+          user: {
+            id: 99,
+            username: username || "teacher_a",
+            name: "ผู้ใช้ทดสอบ (" + (username || "teacher_a") + ")",
+            role,
+            schoolId: 1,
+            provinceId: 1,
+          },
+        }),
+      });
+    });
+
+    // 3. จำลอง Mock Session Refresh API
+    await page.route("**/api/auth/refresh*", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          accessToken: "mock-jwt-token-workspace",
+          user: {
+            id: 99,
+            username: "teacher_a",
+            name: "ผู้ใช้ทดสอบ",
+            role: "TEACHER",
+            schoolId: 1,
+            provinceId: 1,
+          },
+        }),
+      });
+    });
+  });
+
+  // [เคสทดสอบที่ 1]: ทดสอบเข้าสู่ระบบในฐานะครูประจำชั้น
+  test("TC-STS-AUTH-TEACHER: Login as teacher succeeds and redirects", async ({ page }) => {
+    // [ขั้นตอนที่ 1]: เปิดไปยังหน้าเข้าสู่ระบบ (/login)
+    await page.goto("/login");
+    await expect(page).toHaveURL(/.*\\/login/);
+
+    // [ขั้นตอนที่ 2]: กรอกชื่อผู้ใช้และรหัสผ่านของครูประจำชั้น
+    await page.locator("#login-username, input[name='username']").first().fill("teacher_a");
+    await page.locator("#login-password, input[name='password']").first().fill("changeme");
+
+    // [ขั้นตอนที่ 3]: คลิกปุ่ม 'เข้าสู่ระบบ' (Submit Button)
+    await page.locator("#login-submit, button[type='submit']").first().click();
+
+    // [ขั้นตอนที่ 4]: ตรวจสอบว่าระบบนำทางออกจากหน้า /login ไปยังหน้าห้องเรียน/แดชบอร์ดครู
+    await expect(page).toHaveURL(/.*\\/(?:teacher|students|dashboard)/, { timeout: 15000 });
+
+    // [ขั้นตอนที่ 5]: หน่วงเวลา 2.5 วินาทีเพื่อให้เห็นผลลัพธ์บนหน้าจอในโหมด Headed
+    await page.waitForTimeout(2500);
+  });
+
+  // [เคสทดสอบที่ 2]: ทดสอบเข้าสู่ระบบในฐานะผู้บริหารสถานศึกษา
+  test("TC-STS-AUTH-DIRECTOR: Login as director succeeds and redirects", async ({ page }) => {
+    await page.goto("/login");
+    await page.locator("#login-username, input[name='username']").first().fill("director_a");
+    await page.locator("#login-password, input[name='password']").first().fill("changeme");
+    await page.locator("#login-submit, button[type='submit']").first().click();
+
+    // ตรวจสอบการนำทางไปยังหน้าแดชบอร์ดสถิติผู้บริหาร
+    await expect(page).toHaveURL(/.*\\/(?:director|reports|dashboard)/, { timeout: 15000 });
+    await page.waitForTimeout(2500);
+  });
+
+  // [เคสทดสอบที่ 3]: ทดสอบเข้าสู่ระบบในฐานะแอดมินสถานศึกษา
+  test("TC-STS-AUTH-ADMIN: Login as admin succeeds and redirects", async ({ page }) => {
+    await page.goto("/login");
+    await page.locator("#login-username, input[name='username']").first().fill("admin_a");
+    await page.locator("#login-password, input[name='password']").first().fill("changeme");
+    await page.locator("#login-submit, button[type='submit']").first().click();
+
+    // ตรวจสอบการนำทางไปยังหน้าคอนโซลแอดมิน
+    await expect(page).toHaveURL(/.*\\/(?:admin|dashboard)/, { timeout: 15000 });
+    await page.waitForTimeout(2500);
+  });
+});
+`,
+  },
+
+  "FN-STS-01-INVALID": {
+    id: "FN-STS-01-INVALID",
+    name: "FN-STS-01 (Part 2) · ตรวจสอบความปลอดภัยเมื่อรหัสผ่านผิด (Invalid Credentials)",
+    shortName: "รหัสผ่านผิด",
+    relativePath: "e2e/sts/specs/01-auth-invalid-credentials.spec.ts",
+    description: "ทดสอบการปฏิเสธการเข้าสู่ระบบเมื่อกรอกรหัสผ่านไม่ถูกต้อง และตรวจสอบว่าระบบต้องแสดง Alert แจ้งเตือนข้อผิดพลาด",
+    code: `// ==============================================================
+// 🧪 ชุดทดสอบ: FN-STS-01 (Part 2): ตรวจสอบความปลอดภัยเมื่อรหัสผ่านไม่ถูกต้อง
+// 🎯 วัตถุประสงค์: ตรวจสอบว่าระบบปฏิเสธการเข้าถึง และแสดงข้อความเตือน Error Alert สีแดง
+// 🛡️ ระดับความปลอดภัย: Authentication Security Check
+// ==============================================================
+import { test, expect } from "@playwright/test";
+
+test.describe("FN-STS-01 (Part 2): Invalid Credentials Suite", () => {
+  // [Precondition]: ล้างคุกกี้และตั้งค่า Route Mocking สำหรับกรณีรหัสผ่านผิด (401)
+  test.beforeEach(async ({ page }) => {
+    // 1. ล้างคุกกี้เพื่อจำลองสถานะยังไม่ได้ล็อกอิน
+    await page.context().clearCookies();
+
+    // 2. จำลอง Mock API ให้ตอบกลับ 401 Unauthorized พร้อมข้อความแจ้งเตือน
+    await page.route("**/api/auth/login", async (route) => {
+      return route.fulfill({
+        status: 401,
+        contentType: "application/json",
+        body: JSON.stringify({ message: "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง" }),
+      });
+    });
+  });
+
+  // [เคสทดสอบ]: ตรวจสอบการปฏิเสธและแสดงข้อความแจ้งเตือน Error Alert
+  test("TC-STS-AUTH-INVALID: Invalid credentials displays an error alert", async ({ page }) => {
+    // [ขั้นตอนที่ 1]: นำทางไปยังหน้า Login
+    await page.goto("/login");
+    await expect(page).toHaveURL(/.*\\/login/);
+
+    // [ขั้นตอนที่ 2]: กรอกชื่อผู้ใช้จำลองและรหัสผ่านที่ไม่ถูกต้อง
+    const usernameInput = page.locator("#login-username, input[name='username']").first();
+    const passwordInput = page.locator("#login-password, input[name='password']").first();
+    await usernameInput.fill("invalid_user");
+    await passwordInput.fill("wrong_password_999");
+
+    // [ขั้นตอนที่ 3]: คลิกปุ่มเข้าสู่ระบบ (Submit)
+    await page.locator("#login-submit, button[type='submit']").first().click();
+
+    // [ขั้นตอนที่ 4]: ตรวจสอบว่าต้องมีกล่องข้อความเตือน Error Alert ปรากฏขึ้นบนหน้าจอ
+    const alertBox = page.locator("[role='alert']:not(#__next-route-announcer__), .text-rose-500, .bg-rose-950, [data-testid='error-alert']");
+    await expect(alertBox.first()).toBeVisible({ timeout: 10000 });
+
+    // [ขั้นตอนที่ 5]: ตรวจสอบว่าระบบต้องไม่หลุดออกจากหน้า /login (URL ยังคงเป็น /login)
+    await expect(page).toHaveURL(/.*\\/login/);
+
+    // [ขั้นตอนที่ 6]: หน่วงเวลา 2.5 วินาทีเพื่อให้ตรวจสอบ UI ในโหมด Headed
+    await page.waitForTimeout(2500);
+  });
+});
+`,
+  },
+
+  "FN-STS-01-EMPTY": {
+    id: "FN-STS-01-EMPTY",
+    name: "FN-STS-01 (Part 3) · ปฏิเสธการส่งฟอร์มเมื่อเว้นว่าง (Empty Credentials)",
+    shortName: "เว้นว่างรหัสผ่าน",
+    relativePath: "e2e/sts/specs/01-auth-empty-submission.spec.ts",
+    description: "ทดสอบการส่งฟอร์มโดยไม่กรอก Username หรือ Password ระบบต้องปฏิเสธและแสดงข้อความแจ้งเตือนให้กรอกข้อมูล",
+    code: `// ==============================================================
+// 🧪 ชุดทดสอบ: FN-STS-01 (Part 3): ตรวจสอบการเว้นว่างฟิลด์เข้าสู่ระบบ (Empty Submission)
+// 🎯 วัตถุประสงค์: ตรวจสอบว่าระบบปฏิเสธการส่งฟอร์มเมื่อเว้นว่าง Username หรือ Password
+// 🛡️ ระดับความปลอดภัย: Client-side / Form Validation Check
+// ==============================================================
+import { test, expect } from "@playwright/test";
+
+test.describe("FN-STS-01 (Part 3): Empty Submission Suite", () => {
+  // [Precondition]: ล้างคุกกี้ก่อนเริ่มทดสอบ
+  test.beforeEach(async ({ page }) => {
+    await page.context().clearCookies();
+  });
+
+  // [เคสทดสอบ]: เว้นว่าง Username และ Password แล้วกดส่งฟอร์ม
+  test("TC-STS-AUTH-EMPTY: Empty username/password submission is rejected", async ({ page }) => {
+    // [ขั้นตอนที่ 1]: นำทางไปยังหน้า Login
+    await page.goto("/login");
+    await expect(page).toHaveURL(/.*\\/login/);
+
+    // [ขั้นตอนที่ 2]: ไม่กรอกข้อมูลใดๆ ในช่อง Username และ Password (ปล่อยว่าง)
+    const usernameInput = page.locator("#login-username, input[name='username']").first();
+    const passwordInput = page.locator("#login-password, input[name='password']").first();
+    await usernameInput.fill("");
+    await passwordInput.fill("");
+
+    // [ขั้นตอนที่ 3]: คลิกปุ่มเข้าสู่ระบบทันทีโดยไม่กรอกข้อมูล
+    const submitBtn = page.locator("#login-submit, button[type='submit']").first();
+    await submitBtn.click();
+
+    // [ขั้นตอนที่ 4]: ตรวจสอบว่าระบบยังคงอยู่ที่หน้า /login ไม่เปลี่ยนเส้นทาง
+    await expect(page).toHaveURL(/.*\\/login/);
+
+    // [ขั้นตอนที่ 5]: ตรวจสอบว่ามี Alert หรือ Validation Message เตือนให้กรอกข้อมูล
+    const validationOrAlert = page.locator("[role='alert'], :invalid, .text-rose-500, input:invalid");
+    await expect(validationOrAlert.first()).toBeVisible({ timeout: 5000 });
+
+    // [ขั้นตอนที่ 6]: หน่วงเวลา 2.5 วินาทีเพื่อให้สังเกตผลลัพธ์บนหน้าจอ
+    await page.waitForTimeout(2500);
+  });
+});
+`,
+  },
+};
+
 /**
  * Resolves a function template by function ID, category code, or matching keyword
  */
@@ -1314,30 +1543,32 @@ export function getFunctionTemplate(functionIdOrCode: string): FunctionTemplate 
   if (!functionIdOrCode) return undefined;
   const upper = functionIdOrCode.toUpperCase().trim();
 
-  // Direct match e.g. "FN-STS-02"
-  if (STS_FUNCTION_TEMPLATES[upper]) {
-    return STS_FUNCTION_TEMPLATES[upper];
-  }
-
-  // Matching with prefix fn- e.g. "fn-fn-sts-02" or "fn-02"
-  for (const [key, tpl] of Object.entries(STS_FUNCTION_TEMPLATES)) {
-    if (upper.includes(key) || key.includes(upper)) {
-      return tpl;
-    }
-  }
-
-  // Authentication matches (including invalid / empty / role variations)
+  // Check granular sub-part templates first
   if (
-    upper.includes("AUTH") ||
-    upper.includes("LOGIN") ||
-    upper.includes("01-AUTH") ||
-    upper.includes("FN-01") ||
-    upper.includes("FN-STS-01") ||
     upper.includes("INVALID") ||
-    upper.includes("EMPTY") ||
-    upper.includes("ROLE")
+    upper.includes("AUTH-INVALID") ||
+    upper.includes("รหัสผ่านผิด") ||
+    upper.includes("รหัสผิด")
   ) {
-    return STS_FUNCTION_TEMPLATES["FN-STS-01"];
+    return STS_SUB_TEMPLATES["FN-STS-01-INVALID"];
+  }
+  if (
+    upper.includes("EMPTY") ||
+    upper.includes("AUTH-EMPTY") ||
+    upper.includes("เว้นว่าง")
+  ) {
+    return STS_SUB_TEMPLATES["FN-STS-01-EMPTY"];
+  }
+  if (
+    upper.includes("AUTH-ROLE") ||
+    upper.includes("AUTH-TEACHER") ||
+    upper.includes("AUTH-DIRECTOR") ||
+    upper.includes("AUTH-ADMIN") ||
+    upper.includes("AUTH-OFFICER") ||
+    (upper.includes("AUTH") && upper.includes("SUCCEEDS")) ||
+    (upper.includes("LOGIN") && upper.includes("SUCCEEDS"))
+  ) {
+    return STS_SUB_TEMPLATES["FN-STS-01-ROLES"];
   }
 
   // Specific keyword & test ID pattern matching

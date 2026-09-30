@@ -4,6 +4,7 @@ import {
   partitionTestsByConfidence,
   getMatchReasonLabels,
   getRunnerLabel,
+  getFunctionDetailedDoc,
 } from "@/components/playwright-runner/explorer/test-explorer-presentation";
 import type { ProjectCoverageTest } from "@/lib/playwright-runner/types";
 
@@ -59,5 +60,24 @@ describe("Test Explorer Review Presentation Helpers", () => {
     expect(getRunnerLabel("node-test")).toBe("Frontend Node");
     expect(getRunnerLabel("jest")).toBe("Backend Jest");
     expect(getRunnerLabel("jest-e2e")).toBe("Backend Jest E2E");
+  });
+
+  it("resolves specific sub-part documentation for authentication cases", () => {
+    const invalidDoc = getFunctionDetailedDoc("TC-STS-AUTH-INVALID: Invalid credentials displays an error alert");
+    expect(invalidDoc?.id).toBe("FN-STS-01-INVALID");
+    expect(invalidDoc?.name).toContain("รหัสผ่านผิด");
+    expect(invalidDoc?.role).toBe("ตรวจสอบความปลอดภัย (Security Check)");
+
+    const emptyDoc = getFunctionDetailedDoc("TC-STS-AUTH-EMPTY: Empty username/password submission is rejected");
+    expect(emptyDoc?.id).toBe("FN-STS-01-EMPTY");
+    expect(emptyDoc?.name).toContain("เว้นว่าง");
+    expect(emptyDoc?.role).toBe("ตรวจสอบความปลอดภัย (Validation Check)");
+
+    const roleDoc = getFunctionDetailedDoc("TC-STS-AUTH-TEACHER: Login as teacher succeeds and redirects");
+    expect(roleDoc?.id).toBe("FN-STS-01-ROLES");
+    expect(roleDoc?.name).toContain("เข้าสู่ระบบตามบทบาทผู้ใช้");
+
+    const genericDoc = getFunctionDetailedDoc("FN-STS-01");
+    expect(genericDoc?.id).toBe("FN-STS-01");
   });
 });
