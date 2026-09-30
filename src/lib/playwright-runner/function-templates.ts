@@ -31,7 +31,7 @@ const COMMON_STS_ROUTE_MOCKS = `
       });
     });
 
-    await page.route(/\/api\/auth\/me/, async (route) => {
+    await page.route("**/api/auth/me*", async (route) => {
       const url = route.request().url();
       if (url.includes("/avatar")) {
         return route.fulfill({
@@ -54,19 +54,36 @@ const COMMON_STS_ROUTE_MOCKS = `
       });
     });
 
-    // [Central Route Mocks]: ข้อมูลปีการศึกษาและเทอมปัจจุบัน
-    await page.route("**/api/academic-years/**", async (route) => {
+    // [Central Route Mocks]: ข้อมูลปีการศึกษาและเทอมปัจจุบัน (รองรับทั้ง /current และรายการ array)
+    await page.route("**/api/academic-years*", async (route) => {
+      const url = route.request().url();
+      if (url.includes("/current")) {
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            id: 1,
+            year: 2569,
+            startDate: "2026-05-16",
+            endDate: "2027-03-31",
+            isCurrent: true,
+            terms: [{ termNo: 1, startDate: "2026-05-16", endDate: "2026-10-15", isCurrent: true }],
+          }),
+        });
+      }
       return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({
-          id: 1,
-          year: 2569,
-          startDate: "2026-05-16",
-          endDate: "2027-03-31",
-          isCurrent: true,
-          terms: [{ termNo: 1, isCurrent: true }],
-        }),
+        body: JSON.stringify([
+          {
+            id: 1,
+            year: 2569,
+            startDate: "2026-05-16",
+            endDate: "2027-03-31",
+            isCurrent: true,
+            terms: [{ termNo: 1, startDate: "2026-05-16", endDate: "2026-10-15", isCurrent: true }],
+          },
+        ]),
       });
     });
 
@@ -93,6 +110,17 @@ const COMMON_STS_ROUTE_MOCKS = `
         status: 200,
         contentType: "application/json",
         body: JSON.stringify([{ id: "1", name: "ม.3/1", gradeLevel: 9, studentCount: 35 }]),
+      });
+    });
+
+    await page.route("**/api/classrooms*", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify([
+          { id: 1, roomName: "1", grade: "ม.3", name: "ม.3/1", grade_level_id: 9, studentCount: 35, academic_year_id: 1 },
+          { id: 2, roomName: "2", grade: "ม.3", name: "ม.3/2", grade_level_id: 9, studentCount: 32, academic_year_id: 1 },
+        ]),
       });
     });
 
@@ -165,6 +193,36 @@ const COMMON_STS_ROUTE_MOCKS = `
         }),
       });
     });
+
+    // [Central Route Mocks]: ข้อมูลระดับเขต/จังหวัด และกลุ่มสถานศึกษา
+    await page.route("**/api/provinces*", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify([{ id: 1, name: "กรุงเทพมหานคร" }]),
+      });
+    });
+
+    await page.route("**/api/school-groups*", async (route) => {
+      return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([]) });
+    });
+
+    await page.route("**/api/referrals*", async (route) => {
+      return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([]) });
+    });
+
+    await page.route("**/api/users/access-change-requests*", async (route) => {
+      return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([]) });
+    });
+
+    await page.route("**/api/auth/change-password*", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ success: true, message: "เปลี่ยนรหัสผ่านสำเร็จแล้ว" }),
+      });
+    });
+    
 `;
 
 export const STS_FUNCTION_TEMPLATES: Record<string, FunctionTemplate> = {
@@ -195,6 +253,22 @@ test.describe("FN-STS-01: Authentication Suite", () => {
   // [Precondition]: ล้างคุกกี้และตั้งค่า Route Mocking ก่อนเริ่มแต่ละเคส
   test.beforeEach(async ({ page }) => {
     await page.context().clearCookies();
+    await page.addInitScript(() => {
+      try {
+        localStorage.clear();
+        sessionStorage.clear();
+      } catch {}
+    });
+
+    activeUser = {
+      id: 99,
+      username: "teacher_a",
+      name: "ผู้ใช้ทดสอบ (teacher_a)",
+      role: "TEACHER",
+      roleName: "TEACHER",
+      schoolId: 1,
+      provinceId: 1,
+    };
 
     // จำลอง Mock Auth Login API เพื่อให้รันได้อิสระโดยไม่ต้องมี Backend หรือ Database จริง
     await page.route("**/api/auth/login", async (route) => {
@@ -467,8 +541,8 @@ ${COMMON_STS_ROUTE_MOCKS}
     // 2. Mock Students
     await page.route("**/api/students*", async (route) => {
       const url = route.request().url();
-      const matchDetail = url.match(/\/api\/students\/([0-9a-zA-Z_-]+)(?:\?|$)/);
-      if (matchDetail) {
+      const isStudentDetail = url.includes("/api/students/") && !url.endsWith("/api/students");
+      if (isStudentDetail) {
         return route.fulfill({
           status: 200,
           contentType: "application/json",
@@ -1478,6 +1552,22 @@ test.describe("FN-STS-01 (Part 1): Login as Role Suite", () => {
   test.beforeEach(async ({ page }) => {
     // 1. ล้างคุกกี้ทั้งหมดเพื่อจำลองสถานะก่อนเริ่มล็อกอิน
     await page.context().clearCookies();
+    await page.addInitScript(() => {
+      try {
+        localStorage.clear();
+        sessionStorage.clear();
+      } catch {}
+    });
+
+    activeUser = {
+      id: 99,
+      username: "teacher_a",
+      name: "ผู้ใช้ทดสอบ (teacher_a)",
+      role: "TEACHER",
+      roleName: "TEACHER",
+      schoolId: 1,
+      provinceId: 1,
+    };
 
     // 2. จำลอง Mock Auth Login API ให้สำเร็จและคืนค่า Token ตาม Role
     await page.route("**/api/auth/login", async (route) => {

@@ -91,6 +91,21 @@ describe("STS Function Playwright Templates", () => {
       expect(tpl.code).toContain("/api/auth/refresh");
       expect(tpl.code).toContain("/api/auth/me");
       expect(tpl.code).toContain("/api/academic-years");
+      expect(tpl.code).toContain("/api/classrooms");
+      expect(tpl.code).toContain("/api/provinces");
+      expect(tpl.code).toContain("expect(page)");
+    }
+  });
+
+  it("ensures all sub-templates have isolated and executable test structure", () => {
+    const subIds = ["FN-STS-01-ROLES", "FN-STS-01-INVALID", "FN-STS-01-EMPTY"];
+    for (const id of subIds) {
+      const tpl = getFunctionTemplate(id);
+      expect(tpl).toBeDefined();
+      expect(tpl?.code).toContain('import { test, expect } from "@playwright/test";');
+      expect(tpl?.code).toContain("test.describe");
+      expect(tpl?.code).toContain("test(");
+      expect(tpl?.code).toContain("expect(page)");
     }
   });
 
