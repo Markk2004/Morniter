@@ -9,6 +9,7 @@ import { validateLocalProject } from "./project-validator";
 import { AgentSupervisor } from "./agent-supervisor";
 import { DesktopAgentSettingsSchema } from "../shared/settings";
 import { AgentTray } from "./tray";
+import { readRecentPaths, addRecentPath, removeRecentPath } from "./recent-paths-store";
 
 let windowRef: BrowserWindow | null = null;
 let tray: AgentTray | null = null;
@@ -100,7 +101,13 @@ function registerIpc() {
     try {
       const validation = await validateLocalProject(project);
       if (!validation.ok) {
-        return result(false, "โฟลเดอร์โปรเจกต์ไม่ถูกต้อง", validation.code);
+        const errorMsg =
+          validation.code === "WORKSPACE_NOT_FOUND"
+            ? "ไม่พบโฟลเดอร์โปรเจกต์บนเครื่อง กรุณาตรวจสอบ Path"
+            : validation.code === "TEST_ROOT_OUTSIDE_WORKSPACE"
+              ? "โฟลเดอร์ Test Root อยู่นอก Workspace"
+              : "โฟลเดอร์โปรเจกต์ไม่พร้อมสำหรับการทดสอบ";
+        return result(false, errorMsg, validation.code);
       }
       const settings = await readSettings();
       if (!settings) return result(false, "ยังไม่ได้ตั้งค่า Agent", "AGENT_NOT_CONFIGURED");
@@ -114,15 +121,19 @@ function registerIpc() {
             id: existingProj?.id || "projectsts",
             name: existingProj?.name || "ProjectSTS",
             workspaceRoot: project.workspaceRoot,
-            testRoot: project.testRoot || "e2e",
+            testRoot: validation.testRoot || project.testRoot || "e2e",
             config: existingProj?.config || "playwright.sts.config.ts",
-            allowedBrowsers: existingProj?.allowedBrowsers || ["chromium", "firefox", "webkit", "msedge"],
+            allowedBrowsers: ["chromium", "firefox", "webkit", "msedge"],
             allowedBaseUrls: existingProj?.allowedBaseUrls || ["http://localhost:3001", "https://monitorsoftdeath.vercel.app"],
           },
           ...settings.projects.slice(1),
         ],
       };
       await writeSettingsAtomic(updatedSettings);
+      void addRecentPath({
+        workspaceRoot: project.workspaceRoot,
+        testRoot: validation.testRoot || project.testRoot || "e2e",
+      });
 
       // Auto-restart agent in background to rescan and sync new tests immediately
       await supervisor.stop();
@@ -141,6 +152,21 @@ function registerIpc() {
     try { return await readSettings(); }
     catch { return null; }
   });
+  ipcMain.handle("agent:get-recent-paths", async (event) => {
+    assertTrustedSender(event);
+    try { return await readRecentPaths(); }
+    catch { return []; }
+  });
+  ipcMain.handle("agent:add-recent-path", async (event, entry: { workspaceRoot: string; testRoot?: string }) => {
+    assertTrustedSender(event);
+    try { return await addRecentPath(entry); }
+    catch { return []; }
+  });
+  ipcMain.handle("agent:remove-recent-path", async (event, workspaceRoot: string) => {
+    assertTrustedSender(event);
+    try { return await removeRecentPath(workspaceRoot); }
+    catch { return []; }
+  });
   ipcMain.handle("agent:select-directory", async (event, defaultPath?: string) => {
     assertTrustedSender(event);
     const target = windowRef || BrowserWindow.getFocusedWindow();
@@ -155,7 +181,17 @@ function registerIpc() {
   });
   ipcMain.handle("agent:save-settings", async (event, raw: unknown) => {
     assertTrustedSender(event);
-    try { const settings = DesktopAgentSettingsSchema.parse(raw); await writeSettingsAtomic(settings); return result(true, "บันทึกการตั้งค่าแล้ว"); }
+    try {
+      const settings = DesktopAgentSettingsSchema.parse(raw);
+      await writeSettingsAtomic(settings);
+      if (settings.projects[0]) {
+        void addRecentPath({
+          workspaceRoot: settings.projects[0].workspaceRoot,
+          testRoot: settings.projects[0].testRoot,
+        });
+      }
+      return result(true, "บันทึกการตั้งค่าแล้ว");
+    }
     catch { return result(false, "การตั้งค่าไม่ถูกต้อง", "SETTINGS_INVALID"); }
   });
   ipcMain.handle("agent:enroll", async (event, serverUrl: string, pairingCode: string, agentId: string, deviceId: string) => {

@@ -20,6 +20,9 @@ const api: MorniterAgentApi = {
   openMorniter: () => ipcRenderer.invoke("agent:open-morniter"),
   readSafeLogs: () => ipcRenderer.invoke("agent:read-safe-logs"),
   subscribeState: (listener) => { const handler = (_event: Electron.IpcRendererEvent, state: Parameters<typeof listener>[0]) => listener(state); ipcRenderer.on("agent:state", handler); return () => ipcRenderer.removeListener("agent:state", handler); },
+  getRecentPaths: () => ipcRenderer.invoke("agent:get-recent-paths"),
+  addRecentPath: (entry) => ipcRenderer.invoke("agent:add-recent-path", entry),
+  removeRecentPath: (workspaceRoot) => ipcRenderer.invoke("agent:remove-recent-path", workspaceRoot),
 };
 
 contextBridge.exposeInMainWorld("morniterAgent", api);

@@ -4,6 +4,12 @@ export type AgentState = "stopped" | "connecting" | "online" | "running" | "erro
 export interface PublicAgentState { state: AgentState; message?: string; }
 export interface SetupResult { ok: boolean; code?: string; message: string; }
 
+export interface RecentPathEntry {
+  workspaceRoot: string;
+  testRoot: string;
+  lastUsedAt: string;
+}
+
 export interface MorniterAgentApi {
   getState(): Promise<PublicAgentState>;
   getSettings(): Promise<DesktopAgentSettings | null>;
@@ -23,6 +29,9 @@ export interface MorniterAgentApi {
   openMorniter(): Promise<SetupResult>;
   readSafeLogs(): Promise<{ lines: string[] }>;
   subscribeState(listener: (state: PublicAgentState) => void): () => void;
+  getRecentPaths(): Promise<RecentPathEntry[]>;
+  addRecentPath(entry: { workspaceRoot: string; testRoot: string }): Promise<RecentPathEntry[]>;
+  removeRecentPath(workspaceRoot: string): Promise<RecentPathEntry[]>;
 }
 
 declare global { interface Window { morniterAgent: MorniterAgentApi; } }

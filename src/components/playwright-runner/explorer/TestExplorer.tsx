@@ -44,6 +44,7 @@ interface TestExplorerProps {
   onSelectAll?: () => void;
   onDeselectAll?: () => void;
   onLoadSource?: (testId: string) => void;
+  onLoadFunctionSource?: (functionId: string) => void;
   loadingSourceTestId?: string | null;
   activeSourceTestId?: string | null;
   onPrefetchSource?: (testId: string) => void;
@@ -65,6 +66,7 @@ export function TestExplorer({
   onSelectAll,
   onDeselectAll,
   onLoadSource,
+  onLoadFunctionSource,
   loadingSourceTestId = null,
   activeSourceTestId = null,
   onPrefetchSource,
@@ -478,15 +480,34 @@ export function TestExplorer({
             const visibleReady = ready.slice(0, readyLimit);
             const visibleReview = review.slice(0, reviewLimit);
 
+            const fnCode =
+              group.functionId ||
+              (categoryMeta.code !== "GENERIC" ? categoryMeta.code : group.id);
+            const isGroupActive =
+              activeSourceTestId === group.id ||
+              (group.functionId && activeSourceTestId === group.functionId) ||
+              (categoryMeta.code !== "GENERIC" && activeSourceTestId === categoryMeta.code);
+
             return (
               <div key={`${group.id}-${groupIdx}`} className="space-y-2">
-                <button
-                  type="button"
-                  aria-expanded={isExpanded}
-                  onClick={() => toggleGroupExpand(group.id)}
-                  className="w-full flex items-center justify-between text-left group py-1.5 px-2.5 rounded-lg border border-slate-800/80 bg-slate-950/40 hover:bg-slate-800/60 hover:border-slate-700 text-slate-300 hover:text-white cursor-pointer transition-all shadow-sm"
+                <div
+                  className={`w-full flex items-center justify-between text-left group py-1.5 px-2.5 rounded-lg border transition-all shadow-sm ${
+                    isGroupActive
+                      ? "border-indigo-500/70 bg-indigo-950/60 ring-1 ring-indigo-500/40 text-white"
+                      : "border-slate-800/80 bg-slate-950/40 hover:bg-slate-800/60 hover:border-slate-700 text-slate-300 hover:text-white"
+                  }`}
                 >
-                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <button
+                    type="button"
+                    aria-expanded={isExpanded}
+                    onClick={() => {
+                      toggleGroupExpand(group.id);
+                      if (onLoadFunctionSource) {
+                        onLoadFunctionSource(fnCode);
+                      }
+                    }}
+                    className="flex items-center gap-2 min-w-0 flex-1 cursor-pointer"
+                  >
                     <span className="text-[11px] font-mono text-slate-500 group-hover:text-indigo-400 transition-colors">
                       {isCollapsed ? "▶" : "▼"}
                     </span>
@@ -501,16 +522,38 @@ export function TestExplorer({
                     <span className="text-xs font-mono font-semibold tracking-wide text-slate-200 truncate">
                       {groupHeading}
                     </span>
-                  </div>
+                  </button>
                   <div className="flex items-center gap-2 shrink-0 ml-2">
-                    <span className="text-[10px] font-mono text-slate-500 group-hover:text-slate-400">
+                    {onLoadFunctionSource && (
+                      <button
+                        type="button"
+                        title={`โหลดโค้ดทดสอบของ ${groupHeading} เข้าสู่ Code Workspace`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onLoadFunctionSource(fnCode);
+                        }}
+                        className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono border transition-colors cursor-pointer ${
+                          isGroupActive
+                            ? "bg-indigo-600 border-indigo-400 text-white font-semibold shadow-sm"
+                            : "bg-indigo-950/70 hover:bg-indigo-900 border-indigo-500/40 text-indigo-300 hover:text-white"
+                        }`}
+                      >
+                        <span>💻</span>
+                        <span>{isGroupActive ? "โค้ดทำงานอยู่" : "ดูโค้ด"}</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => toggleGroupExpand(group.id)}
+                      className="text-[10px] font-mono text-slate-500 hover:text-slate-300 cursor-pointer"
+                    >
                       {isCollapsed ? "ขยาย ▼" : "ยุบ ▲"}
-                    </span>
+                    </button>
                     <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-slate-800/90 text-slate-300 border border-slate-700/60">
                       {groupSelectedCount}/{group.tests.filter((t) => t.executable !== false).length}
                     </span>
                   </div>
-                </button>
+                </div>
 
                 {isExpanded && (
                   <div className="space-y-3 pt-1">

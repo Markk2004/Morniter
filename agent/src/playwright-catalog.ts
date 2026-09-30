@@ -386,7 +386,10 @@ export async function buildPlaywrightCatalogFromConfig(
       tests: groupTests,
     }));
 
-    const allowed = pw.allowedBrowsers || ["chromium"];
+    const allowed =
+      pw.allowedBrowsers && pw.allowedBrowsers.length > 0
+        ? pw.allowedBrowsers
+        : ["chromium", "firefox", "webkit", "msedge"];
     const capabilities = {
       browsers: {
         chromium: allowed.includes("chromium"),
@@ -439,7 +442,10 @@ export function detectBrowserCapabilities(
   if (config) {
     for (const p of config.projects) {
       if (p.playwright) {
-        (p.playwright.allowedBrowsers || ["chromium"]).forEach((b) => allBrowsers.add(b));
+        const pwBrowsers = p.playwright.allowedBrowsers;
+        (pwBrowsers && pwBrowsers.length > 0 ? pwBrowsers : ["chromium", "firefox", "webkit", "msedge"]).forEach(
+          (b) => allBrowsers.add(b),
+        );
         if (p.playwright.allowHeaded === false) headedAllowed = false;
         if (p.playwright.allowWorkspaceExecution === false) workspaceAllowed = false;
       }

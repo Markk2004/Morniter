@@ -49,4 +49,16 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .badge-error { background: #450a0a50; border: 1px solid #dc2626; color: #f87171; }
 .badge-running { background: #0c4a6e40; border: 1px solid #0284c7; color: #38bdf8; }
 .success-msg { margin-top: 14px; padding: 10px 14px; border-radius: 8px; background: #064e3b30; border: 1px solid #05966950; color: #34d399; font-size: 13px; }
+.recent-paths-container { margin-top: 10px; padding: 10px 12px; background: #080d15; border: 1px solid #1a2533; border-radius: 9px; }
+.recent-paths-header { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #8b9aab; margin-bottom: 8px; font-weight: 500; }
+.recent-paths-count { font-size: 10px; color: #55d6be; font-family: ui-monospace, monospace; }
+.recent-paths-list { display: flex; flex-direction: column; gap: 6px; }
+.recent-path-chip { display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: #111a26; border: 1px solid #223042; border-radius: 7px; font-size: 12px; cursor: pointer; transition: all 0.15s ease; }
+.recent-path-chip:hover { background: #182434; border-color: #55d6be88; }
+.recent-path-chip.selected { background: #0b2923; border-color: #55d6be; color: #ffffff; }
+.recent-path-icon { font-size: 13px; flex-shrink: 0; }
+.recent-path-text { flex: 1; font-family: ui-monospace, monospace; font-size: 11.5px; color: #dbe7f2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.recent-path-test-root { font-size: 10px; padding: 2px 6px; border-radius: 4px; background: #1c2b3d; color: #7dd3fc; border: 1px solid #2b3a4d; font-family: ui-monospace, monospace; flex-shrink: 0; }
+.recent-path-remove { background: transparent; border: none; color: #64748b; font-size: 14px; padding: 2px 6px; border-radius: 4px; cursor: pointer; line-height: 1; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+.recent-path-remove:hover { color: #ef4444; background: #ef444420; }
 @media (max-width: 700px) { .app { padding: 18px; } .grid { grid-template-columns: 1fr; } }

@@ -87,6 +87,16 @@ export function PlaywrightWorkspace() {
     [runner, layout],
   );
 
+  const handleLoadFunctionSource = useCallback(
+    async (functionId: string) => {
+      await runner.loadFunctionSource(functionId);
+      if (layout.isNarrow) {
+        layout.setActiveTab("code");
+      }
+    },
+    [runner, layout],
+  );
+
   return (
     <div
       id="playwright-workspace-root"
@@ -238,6 +248,7 @@ export function PlaywrightWorkspace() {
                     onSelectAll={runner.selectAllTests}
                     onDeselectAll={runner.deselectAllTests}
                     onLoadSource={handleLoadTestSource}
+                    onLoadFunctionSource={handleLoadFunctionSource}
                     loadingSourceTestId={runner.loadingSourceTestId}
                     activeSourceTestId={runner.activeSourceTestId}
                     onPrefetchSource={runner.prefetchTestSource}

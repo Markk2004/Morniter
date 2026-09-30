@@ -70,7 +70,7 @@ export const AgentPlaywrightProjectSchema = z.object({
   config: z.string().optional(),
   automationMap: z.string().optional(),
   generateMissingTests: z.boolean().default(false),
-  allowedBrowsers: z.array(z.enum(["chromium", "firefox", "webkit", "msedge"])).default(["chromium"]),
+  allowedBrowsers: z.array(z.enum(["chromium", "firefox", "webkit", "msedge"])).default(["chromium", "firefox", "webkit", "msedge"]),
   allowHeaded: z.boolean().default(true),
   allowWorkspaceExecution: z.boolean().default(true),
   maxTimeoutSeconds: z.number().int().min(1).max(1800).default(600),

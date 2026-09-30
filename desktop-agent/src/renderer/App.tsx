@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { PublicAgentState, SetupResult } from "../shared/preload-api";
+import type { PublicAgentState, SetupResult, RecentPathEntry } from "../shared/preload-api";
 import type { DesktopAgentSettings } from "../shared/settings";
 
 const steps = ["Welcome", "System Check", "Secure Pairing", "Project Setup", "Verification", "Completed"];
@@ -35,9 +35,38 @@ export function App() {
   const [state, setState] = useState<PublicAgentState>({ state: "stopped" });
   const [isSaving, setIsSaving] = useState(false);
   const [saveFeedback, setSaveFeedback] = useState<string | null>(null);
+  const [recentPaths, setRecentPaths] = useState<RecentPathEntry[]>([]);
 
   useEffect(() => {
     const unsub = window.morniterAgent.subscribeState(setState);
+
+    // Load recent paths and auto-fill if empty
+    window.morniterAgent
+      ?.getRecentPaths?.()
+      .then((paths) => {
+        if (Array.isArray(paths) && paths.length > 0) {
+          setRecentPaths(paths);
+          setForm((current) => {
+            if (!current.workspaceRoot.trim()) {
+              const next = {
+                ...current,
+                workspaceRoot: paths[0].workspaceRoot,
+                testRoot: paths[0].testRoot || current.testRoot,
+              };
+              try {
+                localStorage.setItem(FORM_STORAGE_KEY, JSON.stringify(next));
+              } catch {
+                // ignore
+              }
+              return next;
+            }
+            return current;
+          });
+        }
+      })
+      .catch(() => {
+        // ignore
+      });
 
     // Check if machine is already paired
     window.morniterAgent
@@ -112,6 +141,16 @@ export function App() {
       if (res.ok) {
         setSaveFeedback(res.message || "บันทึกและซิงค์โปรเจกต์สำเร็จ");
         setMessage(res.message);
+        if (form.workspaceRoot.trim()) {
+          void window.morniterAgent
+            ?.addRecentPath?.({
+              workspaceRoot: form.workspaceRoot,
+              testRoot: form.testRoot || "e2e",
+            })
+            .then((updated) => {
+              if (Array.isArray(updated)) setRecentPaths(updated);
+            });
+        }
       } else {
         setSaveFeedback(`ข้อผิดพลาด: ${res.message}`);
         setMessage(res.message);
@@ -123,6 +162,80 @@ export function App() {
       setIsSaving(false);
     }
   }
+
+  const handleSelectRecentPath = (item: RecentPathEntry) => {
+    setForm((current) => {
+      const next = {
+        ...current,
+        workspaceRoot: item.workspaceRoot,
+        testRoot: item.testRoot || "e2e",
+      };
+      try {
+        localStorage.setItem(FORM_STORAGE_KEY, JSON.stringify(next));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+    void window.morniterAgent
+      ?.addRecentPath?.(item)
+      .then((updated) => {
+        if (Array.isArray(updated)) setRecentPaths(updated);
+      })
+      .catch(() => {
+        // ignore
+      });
+  };
+
+  const handleRemoveRecentPath = async (e: React.MouseEvent, workspaceRoot: string) => {
+    e.stopPropagation();
+    try {
+      const updated = await window.morniterAgent?.removeRecentPath?.(workspaceRoot);
+      if (Array.isArray(updated)) setRecentPaths(updated);
+    } catch {
+      // ignore
+    }
+  };
+
+  const renderRecentPaths = () => {
+    if (!recentPaths || recentPaths.length === 0) return null;
+    return (
+      <div className="recent-paths-container">
+        <div className="recent-paths-header">
+          <span>🕒 ประวัติโฟลเดอร์ล่าสุด (Recent Paths)</span>
+          <span className="recent-paths-count">{recentPaths.length} รายการ</span>
+        </div>
+        <div className="recent-paths-list">
+          {recentPaths.map((item) => {
+            const isSelected =
+              form.workspaceRoot.trim().toLowerCase() === item.workspaceRoot.trim().toLowerCase();
+            return (
+              <div
+                key={item.workspaceRoot}
+                className={`recent-path-chip ${isSelected ? "selected" : ""}`}
+                onClick={() => handleSelectRecentPath(item)}
+                title={`คลิกเพื่อเลือก: ${item.workspaceRoot}\n(Test Root: ${item.testRoot})`}
+              >
+                <span className="recent-path-icon">📁</span>
+                <span className="recent-path-text">{item.workspaceRoot}</span>
+                {item.testRoot && (
+                  <span className="recent-path-test-root">{item.testRoot}</span>
+                )}
+                <button
+                  type="button"
+                  className="recent-path-remove"
+                  title="ลบจากประวัติ"
+                  onClick={(e) => void handleRemoveRecentPath(e, item.workspaceRoot)}
+                >
+                  ×
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
 
   async function handleUnpair() {
     if (!window.confirm("คุณต้องการยกเลิกการจับคู่เครื่องนี้กับ Morniter ใช่หรือไม่?\n(จะต้องสร้าง Pairing Code ใหม่จากหน้าเว็บเพื่อเชื่อมต่ออีกครั้ง)")) {
@@ -170,6 +283,17 @@ export function App() {
         }),
       );
       if (!ok) return;
+
+      if (form.workspaceRoot.trim()) {
+        void window.morniterAgent
+          ?.addRecentPath?.({
+            workspaceRoot: form.workspaceRoot,
+            testRoot: form.testRoot || "e2e",
+          })
+          .then((updated) => {
+            if (Array.isArray(updated)) setRecentPaths(updated);
+          });
+      }
 
       try {
         const existing = await window.morniterAgent.getSettings();
@@ -324,6 +448,8 @@ export function App() {
                     </button>
                   </div>
                 </label>
+
+                {renderRecentPaths()}
 
                 <label className="field" style={{ marginTop: 12 }}>
                   Test root
@@ -526,6 +652,8 @@ export function App() {
                         </button>
                       </div>
                     </label>
+
+                    {renderRecentPaths()}
                     <label className="field">
                       Test root
                       <input

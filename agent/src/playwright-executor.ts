@@ -80,7 +80,10 @@ export async function preparePlaywrightExecution(
   }
 
   // Validate browsers
-  const allowedBrowsers = pw.allowedBrowsers || ["chromium"];
+  const allowedBrowsers =
+    pw.allowedBrowsers && pw.allowedBrowsers.length > 0
+      ? pw.allowedBrowsers
+      : ["chromium", "firefox", "webkit", "msedge"];
   for (const b of job.browsers) {
     if (!allowedBrowsers.includes(b)) {
       throw new Error(`Browser '${b}' is not allowed for project '${job.projectId}' on this agent.`);

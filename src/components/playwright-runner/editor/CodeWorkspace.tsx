@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { getAllFunctionTemplates } from "@/lib/playwright-runner/function-templates";
 
 interface CodeWorkspaceProps {
   code: string;
@@ -13,7 +14,13 @@ interface CodeWorkspaceProps {
   isLoading?: boolean;
 }
 
-const TEMPLATES = [
+const STS_TEMPLATES = getAllFunctionTemplates().map((tpl) => ({
+  name: `${tpl.id} · ${tpl.shortName}`,
+  fullName: tpl.name,
+  code: tpl.code,
+}));
+
+const GENERIC_TEMPLATES = [
   {
     name: "Basic Navigation",
     code: `// ==============================================================
@@ -85,6 +92,8 @@ test("Health check endpoint", async ({ request }) => {
 `,
   },
 ];
+
+const ALL_TEMPLATES = [...STS_TEMPLATES, ...GENERIC_TEMPLATES];
 
 export function CodeWorkspace({
   code,
@@ -159,22 +168,31 @@ export function CodeWorkspace({
             aria-label="Insert template"
             disabled={disabled}
             onChange={(e) => {
-              const selectedTpl = TEMPLATES.find((t) => t.name === e.target.value);
+              const selectedTpl = ALL_TEMPLATES.find((t) => t.name === e.target.value);
               if (selectedTpl) {
                 onChange(selectedTpl.code);
               }
             }}
             defaultValue=""
-            className="rounded border border-slate-700 bg-slate-800 px-2 py-1 text-[11px] font-mono text-slate-300 focus:outline-none"
+            className="rounded border border-slate-700 bg-slate-800 px-2 py-1 text-[11px] font-mono text-slate-300 focus:outline-none cursor-pointer"
           >
             <option value="" disabled>
-              + Template
+              + เลือกเทมเพลตฟังก์ชั่น
             </option>
-            {TEMPLATES.map((t) => (
-              <option key={t.name} value={t.name}>
-                {t.name}
-              </option>
-            ))}
+            <optgroup label="📋 ProjectSTS Functions (FN-01 ถึง FN-11)">
+              {STS_TEMPLATES.map((t) => (
+                <option key={t.name} value={t.name}>
+                  {t.name}
+                </option>
+              ))}
+            </optgroup>
+            <optgroup label="🌐 เทมเพลตพื้นฐานทั่วไป">
+              {GENERIC_TEMPLATES.map((t) => (
+                <option key={t.name} value={t.name}>
+                  {t.name}
+                </option>
+              ))}
+            </optgroup>
           </select>
 
           {onCreateDraft && (

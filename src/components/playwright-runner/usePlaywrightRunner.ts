@@ -14,6 +14,7 @@ import type { TestLogLine, AgentPresence } from "@/lib/test-runner/types";
 import type { RecipeDraft, ReusableFlow, RecipeAction } from "@/lib/playwright-runner/recipe-types";
 import { renderRecipeToPlaywrightCode } from "@/lib/playwright-runner/recipe-renderer";
 import { analyzeSourceForPlaywrightDraft } from "@/lib/playwright-runner/source-analyzer";
+import { getFunctionTemplate, STS_FUNCTION_TEMPLATES } from "@/lib/playwright-runner/function-templates";
 
 export function getDefaultWorkspaceCode(projectId?: string | null): string {
   if (projectId?.toLowerCase().includes("sts")) {
@@ -128,6 +129,7 @@ export interface UsePlaywrightRunnerResult {
   setEditorCode: (code: string) => void;
   resetEditorCode: () => void;
   loadTestSource: (testId: string) => Promise<void>;
+  loadFunctionSource: (functionIdOrGroupId: string) => Promise<void>;
   loadingSourceTestId: string | null;
   prefetchTestSource: (testId: string) => void;
   openRecipeBuilder: (seed?: { testId?: string; relativePath?: string; title?: string; functionId?: string }) => void;
@@ -192,7 +194,10 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
   const activeTestTitle = useMemo(() => {
     if (!activeSourceTestId) return undefined;
     const item = findTestItem(activeSourceTestId);
-    return item ? `${item.title} (${item.relativePath})` : undefined;
+    if (item) return `${item.title} (${item.relativePath})`;
+    const tpl = getFunctionTemplate(activeSourceTestId);
+    if (tpl) return `${tpl.name} (${tpl.relativePath})`;
+    return undefined;
   }, [activeSourceTestId, findTestItem]);
 
   const reusableFlows = useMemo<ReusableFlow[]>(() => {
@@ -225,15 +230,14 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
   }, []);
 
   const browserCapabilities = useMemo(() => {
-    return (
-      currentProject?.capabilities?.browsers ?? {
-        chromium: true,
-        firefox: true,
-        webkit: true,
-        msedge: true,
-      }
-    );
-  }, [currentProject]);
+    // Standard Playwright browsers (Chromium, Firefox, WebKit, Edge) are always supported and selectable
+    return {
+      chromium: true,
+      firefox: true,
+      webkit: true,
+      msedge: true,
+    };
+  }, []);
 
   const headedAvailable = currentProject?.capabilities?.headed !== false;
   const workspaceAvailable = currentProject?.capabilities?.workspaceExecution !== false;
@@ -471,9 +475,24 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
             setEditorDirty(false);
             setSource("workspace");
           }
+        } else {
+          // Graceful fallback to function template if source API returns 404
+          const fallbackTpl = getFunctionTemplate(testItem?.title || testId);
+          if (fallbackTpl && requestId === sourceRequestRef.current) {
+            sourceCacheRef.current.set(testId, fallbackTpl.code);
+            setEditorCodeState(fallbackTpl.code);
+            setEditorDirty(false);
+            setSource("workspace");
+          }
         }
       } catch {
-        // ignore
+        const fallbackTpl = getFunctionTemplate(testItem?.title || testId);
+        if (fallbackTpl && requestId === sourceRequestRef.current) {
+          sourceCacheRef.current.set(testId, fallbackTpl.code);
+          setEditorCodeState(fallbackTpl.code);
+          setEditorDirty(false);
+          setSource("workspace");
+        }
       } finally {
         if (requestId === sourceRequestRef.current) {
           setLoadingSourceTestId(null);
@@ -481,6 +500,88 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
       }
     },
     [selectedProjectId, findTestItem, editorDirty, currentProject],
+  );
+
+  // Load full function test suite or template into workspace editor
+  const loadFunctionSource = useCallback(
+    async (functionIdOrGroupId: string) => {
+      setActiveSourceTestId(functionIdOrGroupId);
+
+      const template = getFunctionTemplate(functionIdOrGroupId);
+      const cached =
+        sourceCacheRef.current.get(functionIdOrGroupId) ||
+        (template?.relativePath ? sourceCacheRef.current.get(template.relativePath) : undefined);
+
+      if (cached) {
+        if (editorDirty && typeof window !== "undefined") {
+          const proceed = window.confirm(
+            "คุณมีโค้ดที่แก้ไขค้างอยู่ ต้องการละทิ้งการแก้ไขแล้วเปิดโค้ดใหม่หรือไม่?",
+          );
+          if (!proceed) return;
+        }
+        setEditorCodeState(cached);
+        setEditorDirty(false);
+        setSource("workspace");
+        return;
+      }
+
+      if (editorDirty && typeof window !== "undefined") {
+        const proceed = window.confirm(
+          "คุณมีโค้ดที่แก้ไขค้างอยู่ ต้องการละทิ้งการแก้ไขแล้วเปิดโค้ดใหม่หรือไม่?",
+        );
+        if (!proceed) return;
+      }
+
+      // 1. If project has sourceByPath for this template's spec file, use it
+      if (template?.relativePath && currentProject?.sourceByPath?.[template.relativePath]) {
+        const specContent = currentProject.sourceByPath[template.relativePath];
+        sourceCacheRef.current.set(functionIdOrGroupId, specContent);
+        sourceCacheRef.current.set(template.relativePath, specContent);
+        setEditorCodeState(specContent);
+        setEditorDirty(false);
+        setSource("workspace");
+        return;
+      }
+
+      // 2. Search for any test belonging to this function in currentProject
+      if (currentProject) {
+        const allTests = [
+          ...(currentProject.tests || []),
+          ...(currentProject.testGroups?.flatMap((g) => g.tests) || []),
+          ...(currentProject.coverageGroups?.flatMap((g) => g.tests) || []),
+        ];
+        const match = allTests.find(
+          (t) =>
+            t.relativePath === template?.relativePath ||
+            ("functionId" in t && (t as { functionId?: string }).functionId === functionIdOrGroupId) ||
+            t.title.toUpperCase().includes(functionIdOrGroupId.toUpperCase()),
+        );
+        if (match) {
+          const matchContent =
+            sourceCacheRef.current.get(match.id) ||
+            sourceCacheRef.current.get(match.relativePath) ||
+            currentProject.sourceByPath?.[match.relativePath];
+          if (matchContent) {
+            sourceCacheRef.current.set(functionIdOrGroupId, matchContent);
+            setEditorCodeState(matchContent);
+            setEditorDirty(false);
+            setSource("workspace");
+            return;
+          }
+          await loadTestSource(match.id);
+          return;
+        }
+      }
+
+      // 3. Fallback to standalone function template code
+      if (template) {
+        sourceCacheRef.current.set(functionIdOrGroupId, template.code);
+        setEditorCodeState(template.code);
+        setEditorDirty(false);
+        setSource("workspace");
+      }
+    },
+    [editorDirty, currentProject, loadTestSource],
   );
 
   // Background prefetch
@@ -606,9 +707,23 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
   }, []);
 
   const resetEditorCode = useCallback(() => {
+    if (activeSourceTestId) {
+      const cached = sourceCacheRef.current.get(activeSourceTestId);
+      if (cached) {
+        setEditorCodeState(cached);
+        setEditorDirty(false);
+        return;
+      }
+      const tpl = getFunctionTemplate(activeSourceTestId);
+      if (tpl) {
+        setEditorCodeState(tpl.code);
+        setEditorDirty(false);
+        return;
+      }
+    }
     setEditorCodeState(getDefaultWorkspaceCode(selectedProjectId));
     setEditorDirty(false);
-  }, [selectedProjectId]);
+  }, [selectedProjectId, activeSourceTestId]);
 
   // Recipe Builder Handlers
   const updateRecipeDraft = useCallback(
@@ -1132,6 +1247,7 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
     setEditorCode,
     resetEditorCode,
     loadTestSource,
+    loadFunctionSource,
     loadingSourceTestId,
     prefetchTestSource,
     openRecipeBuilder,
