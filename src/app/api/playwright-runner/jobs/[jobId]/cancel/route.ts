@@ -28,9 +28,11 @@ export async function POST(
   }
 
   const { jobId } = await context.params;
+  const body = await req.json().catch(() => ({}));
+  const force = Boolean(body?.force);
 
   try {
-    const job = await requestCancelPlaywrightJob(jobId);
+    const job = await requestCancelPlaywrightJob(jobId, undefined, undefined, force);
     return NextResponse.json({ job });
   } catch (err) {
     if (err instanceof PlaywrightJobNotFoundError) {

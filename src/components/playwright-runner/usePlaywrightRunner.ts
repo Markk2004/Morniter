@@ -1057,6 +1057,12 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
           data.job.status === "timed_out";
 
         if (isTerminal) {
+          if (data.job.status === "cancelled") {
+            terminalReconciled = true;
+            void refreshHistory();
+            return;
+          }
+
           if (data.hasMore) {
             scheduleNext(0);
             return;
@@ -1080,7 +1086,7 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
         }
 
         const isCancelRequested = data.job.status === "cancel_requested";
-        scheduleNext(isCancelRequested ? 500 : 1000);
+        scheduleNext(isCancelRequested ? 150 : 1000);
       } catch {
         scheduleNext(1000);
       }
@@ -1208,8 +1214,9 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
   const cancelActiveJob = useCallback(async (): Promise<boolean> => {
     if (!activeJob) return false;
     try {
+      const isAlreadyRequested = activeJob.status === "cancel_requested";
       setActiveJob((prev) =>
-        prev ? { ...prev, status: "cancel_requested" } : null,
+        prev ? { ...prev, status: isAlreadyRequested ? "cancelled" : "cancel_requested" } : null,
       );
       setTerminalLines((prev) => [
         ...prev,
@@ -1217,15 +1224,21 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
           sequence: (nextSequenceRef.current += 1),
           timestamp: new Date().toISOString(),
           stream: "system",
-          message: "[system] Cancellation requested...",
+          message: isAlreadyRequested
+            ? "[system] Forcing instant cancellation..."
+            : "[system] Cancellation requested...",
         },
       ]);
       const res = await fetch(`/api/playwright-runner/jobs/${activeJob.id}/cancel`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ force: isAlreadyRequested }),
       });
       if (res.ok) {
+        const data = await res.json().catch(() => ({}));
+        if (data.job?.status === "cancelled") {
+          setActiveJob(data.job);
+        }
         return true;
       }
       return false;

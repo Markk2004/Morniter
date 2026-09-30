@@ -184,7 +184,7 @@ export class AgentClient {
     sequenceStart: number,
     entries: LogBatchPayloadEntry[],
     browserResults?: BrowserExecutionResult[],
-  ): Promise<{ sequenceStart: number; nextSequence: number; truncated: boolean }> {
+  ): Promise<{ sequenceStart: number; nextSequence: number; truncated: boolean; cancelRequested?: boolean }> {
     const url = `${this.serverUrl}/api/playwright-runner/agent/jobs/${jobId}/logs`;
     const res = await fetch(url, {
       method: "POST",
@@ -209,7 +209,7 @@ export class AgentClient {
       throw new Error(`Failed to append Playwright logs: HTTP ${res.status}${errorReason}`);
     }
 
-    return (await res.json()) as { sequenceStart: number; nextSequence: number; truncated: boolean };
+    return (await res.json()) as { sequenceStart: number; nextSequence: number; truncated: boolean; cancelRequested?: boolean };
   }
 
   async completePlaywright(jobId: string, result: PlaywrightExecutionResult): Promise<void> {

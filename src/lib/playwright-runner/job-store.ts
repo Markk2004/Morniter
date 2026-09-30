@@ -339,7 +339,7 @@ export async function appendPlaywrightLogBatch(
   browserResults?: BrowserExecutionResult[],
   now: Date = new Date(),
   redisClient?: Redis,
-): Promise<{ sequenceStart: number; nextSequence: number; truncated: boolean }> {
+): Promise<{ sequenceStart: number; nextSequence: number; truncated: boolean; cancelRequested?: boolean }> {
   const redis = redisClient ?? getRunnerRedis();
   const jobKey = playwrightKeys.job(jobId);
   const logsKey = playwrightKeys.logs(jobId);
@@ -383,6 +383,7 @@ export async function appendPlaywrightLogBatch(
     sequenceStart,
     nextSequence: seqCounter,
     truncated: false,
+    cancelRequested: job.status === "cancel_requested",
   };
 }
 
@@ -484,6 +485,7 @@ export async function requestCancelPlaywrightJob(
   jobId: string,
   redisClient?: Redis,
   now: Date = new Date(),
+  force = false,
 ): Promise<PlaywrightJob> {
   const redis = redisClient ?? getRunnerRedis();
   const jobKey = playwrightKeys.job(jobId);
@@ -504,12 +506,18 @@ export async function requestCancelPlaywrightJob(
   const executionHeartbeatExpired =
     executionStatus &&
     lastHeartbeatMs > 0 &&
-    now.getTime() - lastHeartbeatMs > LEASE_SECONDS * 2000;
+    now.getTime() - lastHeartbeatMs > 5000;
 
   let newStatus: PlaywrightJobStatus = job.status;
-  if (job.status === "queued" || executionHeartbeatExpired) {
+  if (
+    job.status === "queued" ||
+    job.status === "claimed" ||
+    job.status === "cancel_requested" ||
+    executionHeartbeatExpired ||
+    force
+  ) {
     newStatus = "cancelled";
-  } else if (job.status === "claimed" || job.status === "preparing" || job.status === "running") {
+  } else if (job.status === "preparing" || job.status === "running") {
     newStatus = "cancel_requested";
   }
 

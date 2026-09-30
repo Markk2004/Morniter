@@ -144,7 +144,10 @@ export async function executeClaimedPlaywrightJob(
 ): Promise<void> {
   const project = config.projects.find((p) => p.id === job.projectId);
   const logBatcher = new LogBatcher(async (seqStart, entries) => {
-    await client.appendPlaywrightLogs(job.id, seqStart, entries);
+    const res = await client.appendPlaywrightLogs(job.id, seqStart, entries);
+    if (res?.cancelRequested) {
+      abortController.abort();
+    }
   });
 
   // Emit immediate safe run summary so terminal displays structured project, test, browser & mode metadata
@@ -168,7 +171,7 @@ export async function executeClaimedPlaywrightJob(
       } finally {
         scheduleHeartbeat();
       }
-    }, 1000);
+    }, 300);
   };
 
   scheduleHeartbeat();

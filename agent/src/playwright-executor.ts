@@ -345,11 +345,15 @@ export async function runPlaywrightExecution(
       if (shouldKill && child.pid) {
         const pid = child.pid;
         try {
+          terminateProcessTree(pid);
+        } catch {
+          // ignore
+        }
+        try {
           child.kill();
         } catch {
           // ignore
         }
-        setImmediate(() => terminateProcessTree(pid));
       }
 
       await prepared.cleanup();
@@ -394,7 +398,7 @@ export async function runPlaywrightExecution(
         br.durationMs = durationMs;
       });
 
-      const artifacts = await harvestArtifacts(prepared.cwd, job.id);
+      const artifacts = finalStatus === "cancelled" ? [] : await harvestArtifacts(prepared.cwd, job.id);
 
       resolve({
         status: finalStatus,
