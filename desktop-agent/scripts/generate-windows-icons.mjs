@@ -1,9 +1,12 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 
-const source = path.resolve("..", "public", "icons", "icon-512.png");
-const outputDir = path.resolve("build");
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const projectRoot = path.resolve(__dirname, "..", "..");
+const source = path.join(projectRoot, "public", "icons", "icon-512.png");
+const outputDir = path.resolve(__dirname, "..", "build");
 await fs.mkdir(outputDir, { recursive: true });
 
 const sourceLiteral = source.replaceAll("'", "''");
