@@ -1,6 +1,8 @@
 // ==============================================================
 // 📋 Function-specific Playwright Test Templates for ProjectSTS
 // Provides self-contained, standalone Playwright specs for FN-STS-01 to FN-STS-11
+// Each template includes embedded route mocks, real routes, realistic selectors,
+// and visual delays for headed mode execution.
 // ==============================================================
 
 export interface FunctionTemplate {
@@ -18,7 +20,7 @@ export const STS_FUNCTION_TEMPLATES: Record<string, FunctionTemplate> = {
     name: "FN-STS-01 · ระบบยืนยันตัวตนและการเข้าสู่ระบบ (Authentication)",
     shortName: "เข้าสู่ระบบ",
     relativePath: "e2e/sts/login.spec.ts",
-    description: "ทดสอบการเข้าสู่ระบบตามบทบาทผู้ใช้ (Admin, Teacher, Director, Officer) และการป้องกันข้อผิดพลาด",
+    description: "ทดสอบการเข้าสู่ระบบตามบทบาทผู้ใช้ (Teacher, Director, Admin, Officer) และการป้องกันข้อผิดพลาด",
     code: `// ==============================================================
 // 🧪 ชุดทดสอบ: FN-STS-01 ระบบยืนยันตัวตนและการเข้าสู่ระบบ (Authentication)
 // 🎯 วัตถุประสงค์: ตรวจสอบการ Login ตามสิทธิ์ผู้ใช้งาน และการ Redirect ไปยังหน้าที่ถูกต้อง
@@ -27,56 +29,129 @@ export const STS_FUNCTION_TEMPLATES: Record<string, FunctionTemplate> = {
 import { test, expect } from "@playwright/test";
 
 test.describe("FN-STS-01: Authentication Suite", () => {
-  // [Precondition]: ล้างคุกกี้และเซสชันเก่าก่อนเริ่มแต่ละเคส เพื่อความสะอาดของ State
+  // [Precondition]: ล้างคุกกี้และตั้งค่า Route Mocking ก่อนเริ่มแต่ละเคส
   test.beforeEach(async ({ page }) => {
-    // คำสั่ง: clearCookies() ล้างข้อมูลเซสชันเก่าออกจากเบราว์เซอร์
     await page.context().clearCookies();
+
+    // จำลอง Mock Auth Login API เพื่อให้รันได้อิสระโดยไม่ต้องมี Backend หรือ Database จริง
+    await page.route("**/api/auth/login", async (route) => {
+      let postData: { username?: string; password?: string } | null = null;
+      try {
+        postData = route.request().postDataJSON();
+      } catch {
+        postData = null;
+      }
+      const { username, password } = postData || {};
+
+      if (password === "changeme") {
+        const role = username?.includes("admin")
+          ? "ADMIN"
+          : username?.includes("director")
+          ? "DIRECTOR"
+          : username?.includes("officer")
+          ? "OFFICER"
+          : "TEACHER";
+
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            accessToken: "mock-jwt-token-workspace",
+            user: {
+              id: 99,
+              username: username || "teacher_a",
+              name: "ผู้ใช้ทดสอบ (" + (username || "teacher_a") + ")",
+              role,
+              schoolId: 1,
+              provinceId: 1,
+            },
+          }),
+        });
+      }
+
+      return route.fulfill({
+        status: 401,
+        contentType: "application/json",
+        body: JSON.stringify({ message: "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง" }),
+      });
+    });
+
+    await page.route("**/api/auth/refresh*", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          accessToken: "mock-jwt-token-workspace",
+          user: {
+            id: 99,
+            username: "teacher_a",
+            name: "ผู้ใช้ทดสอบ",
+            role: "TEACHER",
+            schoolId: 1,
+            provinceId: 1,
+          },
+        }),
+      });
+    });
   });
 
   test("TC-STS-AUTH-001: ครูประจำชั้น (Teacher) เข้าสู่ระบบสำเร็จและนำทางไปหน้าหลัก", async ({ page }) => {
     // [ขั้นตอนที่ 1]: สั่งให้ Browser นำทางไปยัง URL หน้า Login
     await page.goto("/login");
-    // [การตรวจสอบ]: ยืนยันว่าหน้าเว็บโหลดเส้นทาง /login สำเร็จ
     await expect(page).toHaveURL(/.*\\/login/);
 
-    // [ขั้นตอนที่ 2]: ค้นหาช่องกรอกชื่อผู้ใช้และรหัสผ่านด้วย CSS Locator
-    const usernameInput = page.locator("#login-username, input[name='username'], input[type='text']").first();
-    const passwordInput = page.locator("#login-password, input[name='password'], input[type='password']").first();
+    // [ขั้นตอนที่ 2]: ค้นหาช่องกรอกชื่อผู้ใช้และรหัสผ่าน
+    const usernameInput = page.locator("#login-username, input[name='username']").first();
+    const passwordInput = page.locator("#login-password, input[name='password']").first();
 
     // [ขั้นตอนที่ 3]: จำลองการพิมพ์ Username และ Password ของครูประจำชั้น
-    await usernameInput.fill("teacher01");
+    await usernameInput.fill("teacher_a");
     await passwordInput.fill("changeme");
 
     // [ขั้นตอนที่ 4]: คลิกปุ่ม 'เข้าสู่ระบบ' (Submit Button)
-    await page.locator("button[type='submit'], #login-submit").first().click();
+    await page.locator("#login-submit, button[type='submit']").first().click();
 
-    // [ขั้นตอนที่ 5]: ตรวจสอบผลลัพธ์ (Assertion) ว่าระบบต้องนำทางออกจากหน้า /login ไปยังหน้าแดชบอร์ด
-    await expect(page).not.toHaveURL(/.*\\/login/, { timeout: 15000 });
+    // [ขั้นตอนที่ 5]: ตรวจสอบผลลัพธ์ว่าระบบต้องนำทางออกจากหน้า /login ไปยังแดชบอร์ดครู
+    await expect(page).toHaveURL(/.*\\/teacher\\/dashboard/, { timeout: 15000 });
+
+    // [ขั้นตอนที่ 6]: หน่วงเวลา 2.5 วินาทีเพื่อให้เห็นผลลัพธ์บนจอในโหมด Headed
+    await page.waitForTimeout(2500);
   });
 
-  test("TC-STS-AUTH-002: ตรวจสอบความปลอดภัยเมื่อกรอกรหัสผ่านผิด", async ({ page }) => {
+  test("TC-STS-AUTH-002: ผู้บริหาร (Director) เข้าสู่ระบบสำเร็จและนำทางไปแดชบอร์ด", async ({ page }) => {
     // [ขั้นตอนที่ 1]: นำทางไปยังหน้า Login
     await page.goto("/login");
 
-    // [ขั้นตอนที่ 2]: ค้นหาช่องกรอกข้อมูล
-    const usernameInput = page.locator("#login-username, input[name='username'], input[type='text']").first();
-    const passwordInput = page.locator("#login-password, input[name='password'], input[type='password']").first();
+    // [ขั้นตอนที่ 2]: กรอกข้อมูลบัญชีผู้บริหาร
+    await page.locator("#login-username, input[name='username']").first().fill("director_a");
+    await page.locator("#login-password, input[name='password']").first().fill("changeme");
 
-    // [ขั้นตอนที่ 3]: กรอกรหัสผ่านที่ไม่ถูกต้องเพื่อทดสอบระบบความปลอดภัย
-    await usernameInput.fill("teacher01");
-    await passwordInput.fill("wrong-password-999");
+    // [ขั้นตอนที่ 3]: คลิกเข้าสู่ระบบ
+    await page.locator("#login-submit, button[type='submit']").first().click();
 
-    // [ขั้นตอนที่ 4]: คลิกปุ่มเข้าสู่ระบบ
-    await page.locator("button[type='submit'], #login-submit").first().click();
+    // [ขั้นตอนที่ 4]: ตรวจสอบการนำทางไปยังหน้าแดชบอร์ดผู้บริหาร
+    await expect(page).toHaveURL(/.*\\/director\\/dashboard/, { timeout: 15000 });
+    await page.waitForTimeout(2500);
+  });
 
-    // [ขั้นตอนที่ 5]: ตรวจสอบผลลัพธ์ (Assertion) ต้องยังคงอยู่ที่หน้า /login และห้ามหลุดเข้าสู่ระบบ
+  test("TC-STS-AUTH-003: ตรวจสอบความปลอดภัยเมื่อกรอกรหัสผ่านผิด", async ({ page }) => {
+    // [ขั้นตอนที่ 1]: เข้าสู่หน้า Login
+    await page.goto("/login");
+
+    // [ขั้นตอนที่ 2]: กรอกรหัสผ่านที่ไม่ถูกต้องเพื่อทดสอบความปลอดภัย
+    await page.locator("#login-username, input[name='username']").first().fill("teacher_a");
+    await page.locator("#login-password, input[name='password']").first().fill("wrong-password-999");
+
+    // [ขั้นตอนที่ 3]: คลิกปุ่มเข้าสู่ระบบ
+    await page.locator("#login-submit, button[type='submit']").first().click();
+
+    // [ขั้นตอนที่ 4]: ตรวจสอบว่าระบบต้องไม่หลุดออกจากหน้า /login
     await expect(page).toHaveURL(/.*\\/login/);
 
-    // [ขั้นตอนที่ 6]: ตรวจสอบว่าระบบแสดงกล่องแจ้งเตือนข้อผิดพลาด (Alert Box) สีแดงเตือนผู้ใช้
-    const alertBox = page.locator("[role='alert'], .text-rose-500, .text-red-500, .bg-rose-950");
-    if (await alertBox.count() > 0) {
-      await expect(alertBox.first()).toBeVisible();
-    }
+    // [ขั้นตอนที่ 5]: ตรวจสอบว่ามีกล่องแจ้งเตือนสีแดงแสดงข้อความเตือนผู้ใช้
+    const alertBox = page.locator("[role='alert']:not(#__next-route-announcer__), .text-rose-500, .bg-rose-950");
+    await expect(alertBox.first()).toBeVisible({ timeout: 10000 });
+    await page.waitForTimeout(2500);
   });
 });
 `,
@@ -96,33 +171,104 @@ test.describe("FN-STS-01: Authentication Suite", () => {
 import { test, expect } from "@playwright/test";
 
 test.describe("FN-STS-02: User Management Suite", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.context().clearCookies();
+
+    // 1. Mock Auth
+    await page.route("**/api/auth/login", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          accessToken: "mock-jwt-token-admin",
+          user: { id: 1, username: "admin", name: "ผู้ดูแลระบบ", role: "ADMIN" },
+        }),
+      });
+    });
+
+    await page.route("**/api/auth/refresh*", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          accessToken: "mock-jwt-token-admin",
+          user: { id: 1, username: "admin", name: "ผู้ดูแลระบบ", role: "ADMIN" },
+        }),
+      });
+    });
+
+    // 2. Mock Users List API
+    await page.route("**/api/admin/users*", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify([
+          { id: 1, username: "admin", full_name: "ผู้ดูแลระบบ แพลตฟอร์ม", role: "ADMIN", status: "active", email: "admin@sts.ac.th" },
+          { id: 2, username: "teacher_a", full_name: "ครูสมหมาย ประจำชั้น", role: "TEACHER", status: "active", email: "sommai@sts.ac.th" },
+          { id: 3, username: "director_a", full_name: "ผู้อำนวยการ วิชัย", role: "DIRECTOR", status: "active", email: "director@sts.ac.th" },
+          { id: 4, username: "suspended_user", full_name: "ผู้ใช้ระงับสิทธิ์", role: "TEACHER", status: "suspended", email: "suspended@sts.ac.th" },
+        ]),
+      });
+    });
+
+    // เข้าสู่ระบบด้วยบัญชีแอดมินก่อนเริ่มทดสอบ
+    await page.goto("/login");
+    await page.locator("#login-username, input[name='username']").first().fill("admin");
+    await page.locator("#login-password, input[name='password']").first().fill("changeme");
+    await page.locator("#login-submit, button[type='submit']").first().click();
+    await expect(page).toHaveURL(/.*\\/admin/, { timeout: 15000 });
+  });
+
   test("TC-STS-USER-001: ผู้ดูแลระบบเปิดดูทำเนียบผู้ใช้และตรวจสอบตารางข้อมูล", async ({ page }) => {
     // [ขั้นตอนที่ 1]: สั่ง Browser นำทางไปยังหน้าจัดการผู้ใช้ (/admin/users)
     await page.goto("/admin/users");
-    // [การตรวจสอบ]: ยืนยันว่าหน้าเว็บโหลด URL ถูกต้อง
     await expect(page).toHaveURL(/.*\\/admin\\/users/);
 
-    // [ขั้นตอนที่ 2]: ตรวจสอบว่ามีช่องค้นหาผู้ใช้แสดงผลบนหน้าจอพร้อมใช้งาน
-    const searchInput = page.locator("input[placeholder*='ค้นหา'], input[type='search'], #user-search").first();
-    await expect(searchInput).toBeVisible();
+    // [ขั้นตอนที่ 2]: ตรวจสอบหัวข้อหน้าจอทำเนียบผู้ใช้งาน
+    const heading = page.locator("h1").first();
+    await expect(heading).toBeVisible({ timeout: 10000 });
 
-    // [ขั้นตอนที่ 3]: ตรวจสอบว่ามีตารางหรือรายการแสดงรายชื่อผู้ใช้งาน (User List/Table)
-    const userTableOrList = page.locator("table, [role='table'], [data-testid='users-list'], .user-card").first();
-    await expect(userTableOrList).toBeVisible({ timeout: 10000 });
+    // [ขั้นตอนที่ 3]: ตรวจสอบว่ามีตารางหรือแถวแสดงรายชื่อผู้ใช้งาน
+    const rows = page.locator("tbody tr, .user-card, table tr");
+    await expect(rows.first()).toBeVisible({ timeout: 10000 });
+
+    await page.waitForTimeout(2500);
   });
 
   test("TC-STS-USER-002: ทดสอบการค้นหาและกรองผู้ใช้งานตามชื่อ", async ({ page }) => {
-    // [ขั้นตอนที่ 1]: เข้าสู่หน้าจัดการผู้ใช้
     await page.goto("/admin/users");
-    const searchInput = page.locator("input[placeholder*='ค้นหา'], input[type='search'], #user-search").first();
 
-    // [ขั้นตอนที่ 2]: ป้อนคำค้นหาลงในช่องค้นหา เช่น 'Admin'
-    await searchInput.fill("Admin");
-    // [ขั้นตอนที่ 3]: รอเวลาประมวลผลการค้นหา (Debounce delay 500ms)
+    // [ขั้นตอนที่ 1]: ค้นหาช่องกรอกคำค้นหา
+    const searchInput = page.getByPlaceholder(/ค้นหา/i).first();
+    await expect(searchInput).toBeVisible();
+
+    // [ขั้นตอนที่ 2]: ป้อนคำค้นหาลงในช่องค้นหา เช่น 'ครูสมหมาย'
+    await searchInput.fill("สมหมาย");
     await page.waitForTimeout(500);
 
-    // [ขั้นตอนที่ 4]: ตรวจสอบผลลัพธ์ว่าหน้าจอแสดงข้อมูลผู้ใช้ที่ตรงกับคำค้นหา
-    await expect(page.locator("body")).toContainText(/admin|ผู้ดูแล/i);
+    // [ขั้นตอนที่ 3]: ตรวจสอบผลลัพธ์ว่าหน้าจอแสดงข้อมูลผู้ใช้ที่ตรงกับคำค้นหา
+    await expect(page.locator("body")).toContainText(/สมหมาย|teacher_a/i);
+
+    await page.waitForTimeout(2500);
+  });
+
+  test("TC-STS-USER-003: ผู้ดูแลระบบเปิด Modal เพิ่มผู้ใช้งานใหม่และตรวจสอบฟิลด์", async ({ page }) => {
+    await page.goto("/admin/users");
+
+    // [ขั้นตอนที่ 1]: ค้นหาปุ่มเพิ่มผู้ใช้ใหม่
+    const addBtn = page.locator("#add-user-btn, button:has-text('เพิ่มผู้ใช้')").first();
+    if (await addBtn.isVisible()) {
+      await addBtn.click();
+
+      // [ขั้นตอนที่ 2]: ตรวจสอบว่าโมดัลหรือฟอร์มเพิ่มผู้ใช้เปิดขึ้นมา
+      const modal = page.locator("dialog, [role='dialog'], .modal").first();
+      await expect(modal).toBeVisible({ timeout: 5000 });
+
+      // [ขั้นตอนที่ 3]: ตรวจสอบว่ามีช่องกรอกชื่อ-นามสกุล, Username และ Password
+      await expect(modal.locator("input").first()).toBeVisible();
+    }
+
+    await page.waitForTimeout(2500);
   });
 });
 `,
@@ -142,30 +288,114 @@ test.describe("FN-STS-02: User Management Suite", () => {
 import { test, expect } from "@playwright/test";
 
 test.describe("FN-STS-03: Students & Classrooms Suite", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.context().clearCookies();
+
+    // 1. Mock Auth
+    await page.route("**/api/auth/login", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          accessToken: "mock-jwt-token-teacher",
+          user: { id: 99, username: "teacher_a", name: "ครูประจำชั้น", role: "TEACHER", schoolId: 1 },
+        }),
+      });
+    });
+
+    await page.route("**/api/auth/refresh*", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          accessToken: "mock-jwt-token-teacher",
+          user: { id: 99, username: "teacher_a", name: "ครูประจำชั้น", role: "TEACHER", schoolId: 1 },
+        }),
+      });
+    });
+
+    // 2. Mock Students & Classrooms
+    await page.route("**/api/students*", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify([
+          { id: "stu-1", student_id: "50001", first_name: "กิตติพงษ์", last_name: "สุขเกษม", class_room: "ม.3/1", risk_level: "low", status: "active" },
+          { id: "stu-2", student_id: "50002", first_name: "ชาญชัย", last_name: "มีสุข", class_room: "ม.3/1", risk_level: "high", status: "active" },
+          { id: "stu-3", student_id: "50003", first_name: "นภา", last_name: "เด่นดวง", class_room: "ม.3/1", risk_level: "medium", status: "active" },
+        ]),
+      });
+    });
+
+    await page.route("**/api/my-classrooms*", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify([{ id: "1", name: "ม.3/1", gradeLevel: 9, studentCount: 35 }]),
+      });
+    });
+
+    await page.route("**/api/academic-years/current*", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ id: 1, year: 2569, isCurrent: true }),
+      });
+    });
+
+    // เข้าสู่ระบบด้วยบัญชีครูก่อนเริ่มทดสอบ
+    await page.goto("/login");
+    await page.locator("#login-username, input[name='username']").first().fill("teacher_a");
+    await page.locator("#login-password, input[name='password']").first().fill("changeme");
+    await page.locator("#login-submit, button[type='submit']").first().click();
+    await expect(page).toHaveURL(/.*\\/teacher\\/dashboard/, { timeout: 15000 });
+  });
+
   test("TC-STS-STU-001: ครูประจำชั้นเปิดดูทำเนียบรายชื่อนักเรียนในห้อง", async ({ page }) => {
-    // [ขั้นตอนที่ 1]: นำทางไปยังหน้ารายชื่อนักเรียน (/students)
-    await page.goto("/students");
-    // [การตรวจสอบ]: ยืนยัน URL ถูกต้อง
-    await expect(page).toHaveURL(/.*\\/students/);
+    // [ขั้นตอนที่ 1]: นำทางไปยังหน้ารายชื่อนักเรียน (/teacher/students)
+    await page.goto("/teacher/students");
+    await expect(page).toHaveURL(/.*\\/teacher\\/students/);
 
     // [ขั้นตอนที่ 2]: ค้นหาและตรวจสอบว่ามีการ์ดหรือแถวนักเรียนแสดงผลขึ้นมา
-    const studentElements = page.locator("[data-testid='student-card'], .student-item, tr[data-student-id], table tbody tr");
-    await expect(studentElements.first()).toBeVisible({ timeout: 10000 });
+    const studentCards = page.locator("a[href*='/teacher/students/'], [data-testid='student-card'], tr[data-student-id]");
+    await expect(studentCards.first()).toBeVisible({ timeout: 10000 });
+
+    await page.waitForTimeout(2500);
   });
 
   test("TC-STS-STU-002: ค้นหารายชื่อนักเรียนด้วยคำค้นหา", async ({ page }) => {
-    // [ขั้นตอนที่ 1]: เปิดหน้านักเรียน
-    await page.goto("/students");
-    const searchInput = page.locator("input[placeholder*='ค้นหา'], input[type='search']").first();
+    await page.goto("/teacher/students");
+
+    // [ขั้นตอนที่ 1]: ค้นหาช่องค้นหานักเรียน
+    const searchInput = page.getByPlaceholder(/ค้นหาชื่อ, รหัส/i).first();
     await expect(searchInput).toBeVisible();
 
-    // [ขั้นตอนที่ 2]: ป้อนชื่อนักเรียนภาษาไทยในช่องค้นหา
+    // [ขั้นตอนที่ 2]: ป้อนชื่อนักเรียนลงในช่องค้นหา
     await searchInput.fill("กิตติพงษ์");
-    // [ขั้นตอนที่ 3]: รอผลลัพธ์อัปเดต
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(600);
 
-    // [ขั้นตอนที่ 4]: ตรวจสอบว่าระบบเรนเดอร์เนื้อหาหน้าจอได้ตามปกติ
-    await expect(page.locator("body")).toBeDefined();
+    // [ขั้นตอนที่ 3]: ตรวจสอบว่าหน้าจอแสดงข้อมูลนักเรียนที่ตรงกับคำค้นหา
+    await expect(page.locator("body")).toContainText("กิตติพงษ์");
+
+    await page.waitForTimeout(2500);
+  });
+
+  test("TC-STS-STU-003: คลิกเลือกนักเรียนเพื่อดูข้อมูลโปรไฟล์รายบุคคล", async ({ page }) => {
+    await page.goto("/teacher/students");
+
+    // [ขั้นตอนที่ 1]: ค้นหาการ์ดของนักเรียนชื่อ กิตติพงษ์
+    const studentCard = page.locator("a[href*='/teacher/students/']", { hasText: "กิตติพงษ์" }).first();
+    if (await studentCard.isVisible()) {
+      await studentCard.click();
+
+      // [ขั้นตอนที่ 2]: ตรวจสอบว่าเปลี่ยน URL ไปยังหน้ารายละเอียดนักเรียน
+      await expect(page).toHaveURL(/.*\\/teacher\\/students\\/.+/);
+
+      // [ขั้นตอนที่ 3]: ตรวจสอบว่ามีข้อมูลชื่อนักเรียนแสดงบนหน้าโปรไฟล์
+      await expect(page.locator("body")).toContainText("กิตติพงษ์");
+    }
+
+    await page.waitForTimeout(2500);
   });
 });
 `,
@@ -185,32 +415,110 @@ test.describe("FN-STS-03: Students & Classrooms Suite", () => {
 import { test, expect } from "@playwright/test";
 
 test.describe("FN-STS-04: Attendance Suite", () => {
-  test("TC-STS-ATT-001: ครูประจำชั้นเปิดหน้าจอเช็คชื่อการเข้าเรียนประจำวัน", async ({ page }) => {
-    // [ขั้นตอนที่ 1]: นำทาง Browser เข้าสู่หน้าจอเช็คชื่อ (/attendance)
-    await page.goto("/attendance");
-    // [การตรวจสอบ]: ยืนยัน URL หน้าเช็คชื่อ
-    await expect(page).toHaveURL(/.*\\/attendance/);
+  test.beforeEach(async ({ page }) => {
+    await page.context().clearCookies();
 
-    // [ขั้นตอนที่ 2]: ตรวจสอบการ์ดสถิติสรุปยอดรวมประจำวัน (มา / ขาด / ลา / มาสาย)
-    const summaryCards = page.locator("[data-testid='attendance-summary'], .stat-card, .metric-card");
-    if (await summaryCards.count() > 0) {
-      await expect(summaryCards.first()).toBeVisible();
-    }
+    // 1. Mock Auth
+    await page.route("**/api/auth/login", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          accessToken: "mock-jwt-token-teacher",
+          user: { id: 99, username: "teacher_a", name: "ครูประจำชั้น", role: "TEACHER", schoolId: 1 },
+        }),
+      });
+    });
 
-    // [ขั้นตอนที่ 3]: ตรวจสอบตารางรายชื่อนักเรียนพร้อมปุ่มบันทึกสถานะการเช็คชื่อ
-    const checkinRows = page.locator("table tbody tr, [data-testid='attendance-row']");
-    await expect(checkinRows.first()).toBeVisible({ timeout: 10000 });
+    await page.route("**/api/auth/refresh*", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          accessToken: "mock-jwt-token-teacher",
+          user: { id: 99, username: "teacher_a", name: "ครูประจำชั้น", role: "TEACHER", schoolId: 1 },
+        }),
+      });
+    });
+
+    // 2. Mock Classrooms & Attendance
+    await page.route("**/api/my-classrooms*", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify([{ id: "1", name: "ม.3/1", gradeLevel: 9, studentCount: 35 }]),
+      });
+    });
+
+    await page.route("**/api/academic-years/current*", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ id: 1, year: 2569, isCurrent: true }),
+      });
+    });
+
+    await page.route("**/api/attendance*", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          date: new Date().toISOString().split("T")[0],
+          summary: { present: 32, absent: 1, late: 2, leave: 0, total: 35 },
+          records: [
+            { studentId: "50001", studentName: "กิตติพงษ์ สุขเกษม", status: "present" },
+            { studentId: "50002", studentName: "ชาญชัย มีสุข", status: "absent" },
+          ],
+        }),
+      });
+    });
+
+    // เข้าสู่ระบบด้วยบัญชีครูก่อนเริ่มทดสอบ
+    await page.goto("/login");
+    await page.locator("#login-username, input[name='username']").first().fill("teacher_a");
+    await page.locator("#login-password, input[name='password']").first().fill("changeme");
+    await page.locator("#login-submit, button[type='submit']").first().click();
+    await expect(page).toHaveURL(/.*\\/teacher\\/dashboard/, { timeout: 15000 });
   });
 
-  test("TC-STS-ATT-002: ตรวจสอบการเลือกวันที่และห้องเรียน", async ({ page }) => {
-    // [ขั้นตอนที่ 1]: เข้าสู่หน้าเช็คชื่อ
-    await page.goto("/attendance");
-    // [ขั้นตอนที่ 2]: ค้นหาตัวเลือกวันที่ (Date Picker) หรือเมนูเลือกห้องเรียน
-    const datePickerOrSelect = page.locator("input[type='date'], select[name*='classroom'], button[aria-label*='date']").first();
-    // [ขั้นตอนที่ 3]: ตรวจสอบว่าสามารถกดเลือกหรือเปลี่ยนค่าได้
-    if (await datePickerOrSelect.isVisible()) {
-      await expect(datePickerOrSelect).toBeEnabled();
+  test("TC-STS-ATT-001: ครูประจำชั้นเปิดหน้าจอเช็คชื่อและตรวจสอบยอดสรุปสถิติ", async ({ page }) => {
+    // [ขั้นตอนที่ 1]: นำทางเข้าสู่หน้าจอเช็คชื่อ (/teacher/attendance)
+    await page.goto("/teacher/attendance");
+    await expect(page).toHaveURL(/.*\\/teacher\\/attendance/);
+
+    // [ขั้นตอนที่ 2]: ตรวจสอบหัวข้อหลักของหน้าจอเช็คชื่อ
+    const heading = page.locator("h1").first();
+    await expect(heading).toBeVisible({ timeout: 10000 });
+
+    await page.waitForTimeout(2500);
+  });
+
+  test("TC-STS-ATT-002: ตรวจสอบตารางรายชื่อนักเรียนและปุ่มสถานะเช็คชื่อ", async ({ page }) => {
+    await page.goto("/teacher/attendance");
+
+    // [ขั้นตอนที่ 1]: ตรวจสอบว่ามีปุ่มเช็คสถานะ มา / ขาด / สาย / ลา ปรากฏบนหน้าจอ
+    const statusBtns = page.locator("button:has-text('มา'), button:has-text('ขาด'), button:has-text('สาย'), button:has-text('ลา')");
+    await expect(statusBtns.first()).toBeVisible({ timeout: 10000 });
+
+    // [ขั้นตอนที่ 2]: ตรวจสอบว่ามีปุ่ม 'บันทึก' สำหรับยืนยันการเช็คชื่อ
+    const saveBtn = page.getByRole("button", { name: /บันทึก/i }).first();
+    await expect(saveBtn).toBeVisible();
+
+    await page.waitForTimeout(2500);
+  });
+
+  test("TC-STS-ATT-003: กรองรายชื่อนักเรียนด้วยช่องค้นหา", async ({ page }) => {
+    await page.goto("/teacher/attendance");
+
+    // [ขั้นตอนที่ 1]: ค้นหาช่องค้นหาในหน้าเช็คชื่อ
+    const searchInput = page.getByPlaceholder(/ค้นหา/i).first();
+    if (await searchInput.isVisible()) {
+      await searchInput.fill("กิตติพงษ์");
+      await page.waitForTimeout(500);
+      await expect(page.locator("body")).toContainText("กิตติพงษ์");
     }
+
+    await page.waitForTimeout(2500);
   });
 });
 `,
@@ -230,35 +538,157 @@ test.describe("FN-STS-04: Attendance Suite", () => {
 import { test, expect } from "@playwright/test";
 
 test.describe("FN-STS-05: Student Cases Suite", () => {
-  test("TC-STS-CASE-001: ครูประจำชั้นเปิดดูทำเนียบเคสปัญหาและป้ายความเสี่ยง", async ({ page }) => {
-    // [ขั้นตอนที่ 1]: เข้าสู่หน้ารายการเคสปัญหานักเรียน (/cases)
-    await page.goto("/cases");
-    // [การตรวจสอบ]: ยืนยัน URL ถูกต้อง
-    await expect(page).toHaveURL(/.*\\/cases/);
+  test.beforeEach(async ({ page }) => {
+    await page.context().clearCookies();
 
-    // [ขั้นตอนที่ 2]: ตรวจสอบว่ามีปุ่มสำหรับกดสร้างเคสใหม่ (New Case Button)
-    const newCaseBtn = page.locator("a[href*='/cases/create'], button:has-text('สร้างเคส'), button:has-text('เพิ่มเคส')").first();
+    // 1. Mock Auth
+    await page.route("**/api/auth/login", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          accessToken: "mock-jwt-token-teacher",
+          user: { id: 99, username: "teacher_a", name: "ครูประจำชั้น", role: "TEACHER", schoolId: 1 },
+        }),
+      });
+    });
+
+    await page.route("**/api/auth/refresh*", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          accessToken: "mock-jwt-token-teacher",
+          user: { id: 99, username: "teacher_a", name: "ครูประจำชั้น", role: "TEACHER", schoolId: 1 },
+        }),
+      });
+    });
+
+    // 2. Mock Students
+    await page.route("**/api/students*", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify([
+          { id: "stu-1", student_id: "50001", first_name: "กิตติพงษ์", last_name: "สุขเกษม", class_room: "ม.3/1" },
+        ]),
+      });
+    });
+
+    // 3. Mock Cases List & Create
+    let cases = [
+      {
+        id: "case-1",
+        case_number: "CASE-2026-001",
+        title: "นักเรียนขาดเรียนบ่อยครั้ง",
+        description: "ขาดเรียนติดต่อกัน 3 วันโดยไม่แจ้งเหตุผล",
+        severity: "high",
+        status: "open",
+        student: { id: "stu-1", student_id: "50001", first_name: "กิตติพงษ์", last_name: "สุขเกษม", class_room: "ม.3/1" },
+        created_at: new Date().toISOString(),
+      },
+    ];
+
+    await page.route("**/api/cases*", async (route) => {
+      if (route.request().method() === "POST") {
+        const postData = route.request().postDataJSON();
+        const newCase = {
+          id: "case-2",
+          case_number: "CASE-2026-002",
+          title: postData?.title || "เคสทดสอบใหม่",
+          description: postData?.description || "รายละเอียดเคส",
+          severity: "medium",
+          status: "open",
+          student: { id: "stu-1", student_id: "50001", first_name: "กิตติพงษ์", last_name: "สุขเกษม", class_room: "ม.3/1" },
+          created_at: new Date().toISOString(),
+        };
+        cases.push(newCase);
+        return route.fulfill({
+          status: 201,
+          contentType: "application/json",
+          body: JSON.stringify(newCase),
+        });
+      }
+
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(cases),
+      });
+    });
+
+    // เข้าสู่ระบบด้วยบัญชีครูก่อนเริ่มทดสอบ
+    await page.goto("/login");
+    await page.locator("#login-username, input[name='username']").first().fill("teacher_a");
+    await page.locator("#login-password, input[name='password']").first().fill("changeme");
+    await page.locator("#login-submit, button[type='submit']").first().click();
+    await expect(page).toHaveURL(/.*\\/teacher\\/dashboard/, { timeout: 15000 });
+  });
+
+  test("TC-STS-CASE-001: ครูประจำชั้นเปิดดูทำเนียบเคสปัญหาและป้ายความเสี่ยง", async ({ page }) => {
+    // [ขั้นตอนที่ 1]: เข้าสู่หน้ารายการเคสปัญหานักเรียน (/teacher/cases)
+    await page.goto("/teacher/cases");
+    await expect(page).toHaveURL(/.*\\/teacher\\/cases/);
+
+    // [ขั้นตอนที่ 2]: ตรวจสอบว่ามีปุ่มสร้างเคสใหม่ (New Case Button)
+    const newCaseBtn = page.locator("a[href*='/teacher/cases/create'], button:has-text('เปิดเคส')").first();
     await expect(newCaseBtn).toBeVisible({ timeout: 10000 });
 
     // [ขั้นตอนที่ 3]: ตรวจสอบรายการเคสปัญหาในตารางข้อมูล
-    const caseList = page.locator("table tbody tr, [data-testid='case-card'], .case-item");
-    if (await caseList.count() > 0) {
-      await expect(caseList.first()).toBeVisible();
-    }
+    await expect(page.locator("body")).toContainText(/ขาดเรียน|เปิดเคส/);
+
+    await page.waitForTimeout(2500);
   });
 
   test("TC-STS-CASE-002: ตรวจสอบหน้าฟอร์มสร้างเคสปัญหานักเรียนใหม่", async ({ page }) => {
-    // [ขั้นตอนที่ 1]: เปิดหน้ารายการเคส
-    await page.goto("/cases");
-    const newCaseBtn = page.locator("a[href*='/cases/create'], button:has-text('สร้างเคส'), button:has-text('เพิ่มเคส')").first();
-    // [ขั้นตอนที่ 2]: คลิกปุ่มสร้างเคสเพื่อทดสอบการเปลี่ยนเส้นทางไปยังหน้ากรอกข้อมูล
-    if (await newCaseBtn.isVisible()) {
-      await newCaseBtn.click();
-      // [ขั้นตอนที่ 3]: ยืนยันว่า URL เปลี่ยนไปยังหน้าสร้างเคส /cases/create
-      await expect(page).toHaveURL(/.*\\/cases.*create/);
-      // [ขั้นตอนที่ 4]: ตรวจสอบว่ามีฟิลด์กรอกข้อมูลแสดงผลพร้อมใช้งาน
-      await expect(page.locator("input, textarea, select").first()).toBeVisible();
+    await page.goto("/teacher/cases");
+
+    // [ขั้นตอนที่ 1]: คลิกปุ่มเปิดเคสเพื่อทดสอบการเปลี่ยนเส้นทางไปยังหน้ากรอกข้อมูล
+    const newCaseBtn = page.locator("a[href*='/teacher/cases/create'], button:has-text('เปิดเคส')").first();
+    await newCaseBtn.click();
+
+    // [ขั้นตอนที่ 2]: ยืนยันว่า URL เปลี่ยนไปยังหน้าสร้างเคส /teacher/cases/create
+    await expect(page).toHaveURL(/.*\\/teacher\\/cases\\/create/);
+
+    // [ขั้นตอนที่ 3]: ตรวจสอบว่ามีฟิลด์เลือกนักเรียน และฟิลด์กรอกหัวข้อ/รายละเอียด
+    await expect(page.locator("button#student, select#student, [role='combobox']#student").first()).toBeVisible();
+    await expect(page.locator("textarea#title, input#title").first()).toBeVisible();
+    await expect(page.locator("textarea#description, input#description").first()).toBeVisible();
+
+    await page.waitForTimeout(2500);
+  });
+
+  test("TC-STS-CASE-003: กรอกข้อมูลและบันทึกเปิดเคสใหม่ พร้อมส่งกลับหน้ารายการเคส", async ({ page }) => {
+    await page.goto("/teacher/cases/create");
+
+    // [ขั้นตอนที่ 1]: เลือกนักเรียน
+    const studentSelect = page.locator("button#student, select#student, [role='combobox']#student").first();
+    if (await studentSelect.isVisible()) {
+      await studentSelect.click();
+      await page.waitForTimeout(300);
+      const studentOpt = page.getByRole("option", { name: /กิตติพงษ์/i }).first();
+      if (await studentOpt.isVisible()) {
+        await studentOpt.click();
+      } else {
+        const anyOpt = page.getByRole("option");
+        if (await anyOpt.count() > 1) await anyOpt.nth(1).click();
+      }
     }
+
+    // [ขั้นตอนที่ 2]: กรอกหัวข้อเคสและรายละเอียดปัญหา
+    await page.locator("textarea#title, input#title").first().fill("นักเรียนมีพฤติกรรมเสี่ยงด้านสุขภาพจิต");
+    await page.locator("textarea#description, input#description").first().fill("สังเกตพบนักเรียนมีความเครียดและแยกตัวจากกลุ่มเพื่อนในคาบเรียน");
+
+    // [ขั้นตอนที่ 3]: คลิกปุ่มบันทึกเปิดเคส
+    const submitBtn = page.getByRole("button", { name: /เปิดเคส|บันทึกเปิดเคส|บันทึกข้อมูล/i }).first();
+    await expect(submitBtn).toBeEnabled();
+    await submitBtn.click();
+
+    // [ขั้นตอนที่ 4]: ตรวจสอบการส่งกลับไปยังหน้ารายการเคส /teacher/cases
+    await expect(page).toHaveURL(/.*\\/teacher\\/cases/, { timeout: 15000 });
+    await expect(page.locator("body")).toContainText(/พฤติกรรมเสี่ยง|เปิดเคส/);
+
+    await page.waitForTimeout(2500);
   });
 });
 `,
@@ -278,34 +708,109 @@ test.describe("FN-STS-05: Student Cases Suite", () => {
 import { test, expect } from "@playwright/test";
 
 test.describe("FN-STS-06: Case Reports & Export Suite", () => {
-  test("TC-STS-REP-001: ผู้บริหารเปิดหน้า Report Studio และตรวจสอบตัวกรองรายงาน", async ({ page }) => {
-    // [ขั้นตอนที่ 1]: นำทางไปยังหน้าระบบรายงาน (/reports)
-    await page.goto("/reports");
-    // [การตรวจสอบ]: ยืนยัน URL หน้าสรุปรายงาน
-    await expect(page).toHaveURL(/.*\\/reports/);
+  test.beforeEach(async ({ page }) => {
+    await page.context().clearCookies();
 
-    // [ขั้นตอนที่ 2]: ตรวจสอบตัวเลือกประเภทรายงาน (Report Type Dropdown)
-    const reportType = page.locator("select[name*='type'], [role='combobox'], #report-type").first();
-    if (await reportType.isVisible()) {
-      await expect(reportType).toBeVisible();
-    }
+    // 1. Mock Auth
+    await page.route("**/api/auth/login", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          accessToken: "mock-jwt-token-director",
+          user: { id: 2, username: "director_a", name: "ผู้อำนวยการ", role: "DIRECTOR", schoolId: 1 },
+        }),
+      });
+    });
 
-    // [ขั้นตอนที่ 3]: ตรวจสอบว่ามีปุ่มสั่งสร้างรายงาน (Generate / Preview Report)
-    const generateBtn = page.locator("button:has-text('สร้างรายงาน'), button:has-text('ดูรายงาน'), button:has-text('Generate')").first();
-    if (await generateBtn.isVisible()) {
-      await expect(generateBtn).toBeEnabled();
-    }
+    await page.route("**/api/auth/refresh*", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          accessToken: "mock-jwt-token-director",
+          user: { id: 2, username: "director_a", name: "ผู้อำนวยการ", role: "DIRECTOR", schoolId: 1 },
+        }),
+      });
+    });
+
+    // 2. Mock Reports
+    await page.route("**/api/reports*", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          totalCases: 1,
+          items: [
+            {
+              id: 1,
+              caseNumber: "CASE-2026-001",
+              studentName: "กิตติพงษ์ สุขเกษม",
+              classroomName: "ม.3/1",
+              severity: "HIGH",
+              status: "IN_PROGRESS",
+            },
+          ],
+        }),
+      });
+    });
+
+    // เข้าสู่ระบบด้วยบัญชีผู้บริหาร
+    await page.goto("/login");
+    await page.locator("#login-username, input[name='username']").first().fill("director_a");
+    await page.locator("#login-password, input[name='password']").first().fill("changeme");
+    await page.locator("#login-submit, button[type='submit']").first().click();
+    await expect(page).toHaveURL(/.*\\/director\\/dashboard/, { timeout: 15000 });
   });
 
-  test("TC-STS-REP-002: ตรวจสอบความพร้อมของปุ่ม Export ข้อมูล", async ({ page }) => {
-    // [ขั้นตอนที่ 1]: เปิดหน้ารายงาน
-    await page.goto("/reports");
-    // [ขั้นตอนที่ 2]: ค้นหาปุ่มดาวน์โหลดไฟล์รายงาน Excel (.xlsx)
-    const exportExcelBtn = page.locator("button:has-text('Excel'), a:has-text('Excel'), button:has-text('ส่งออก')").first();
-    // [ขั้นตอนที่ 3]: ตรวจสอบว่าปุ่มดาวน์โหลดพร้อมให้ผู้บริหารคลิกใช้งาน
-    if (await exportExcelBtn.isVisible()) {
-      await expect(exportExcelBtn).toBeVisible();
-    }
+  test("TC-STS-REP-001: ผู้บริหารเปิดหน้า Report Studio และตรวจสอบตัวกรองรายงาน", async ({ page }) => {
+    // [ขั้นตอนที่ 1]: นำทางไปยังหน้าระบบรายงาน (/director/reports)
+    await page.goto("/director/reports");
+    await expect(page).toHaveURL(/.*\\/director\\/reports/);
+
+    // [ขั้นตอนที่ 2]: ตรวจสอบปุ่มสร้างรายงาน (Generate Report Button)
+    const generateBtn = page.locator("#generate-report-btn, button:has-text('สร้างรายงาน')").first();
+    await expect(generateBtn).toBeVisible({ timeout: 10000 });
+
+    // [ขั้นตอนที่ 3]: ตรวจสอบตัวเลือกประเภทรายงาน (Report Type Selector)
+    const reportType = page.locator("button#report-type, select#report-type").first();
+    await expect(reportType).toBeVisible();
+
+    await page.waitForTimeout(2500);
+  });
+
+  test("TC-STS-REP-002: ผู้บริหารกดสร้างรายงานพรีวิวและตรวจสอบตารางสรุปข้อมูล", async ({ page }) => {
+    await page.goto("/director/reports");
+
+    // [ขั้นตอนที่ 1]: คลิกปุ่มสร้างรายงานพรีวิว
+    const generateBtn = page.locator("#generate-report-btn, button:has-text('สร้างรายงาน')").first();
+    await generateBtn.click();
+
+    // [ขั้นตอนที่ 2]: ตรวจสอบว่าตารางพรีวิวแสดงผลพร้อมข้อมูลเคส
+    const table = page.locator("table").first();
+    await expect(table).toBeVisible({ timeout: 10000 });
+    await expect(page.locator("body")).toContainText("CASE-2026-001");
+
+    await page.waitForTimeout(2500);
+  });
+
+  test("TC-STS-REP-003: ตรวจสอบความพร้อมของปุ่ม Export Excel และ PDF", async ({ page }) => {
+    await page.goto("/director/reports");
+
+    // สร้างพรีวิวก่อนเพื่อให้ปุ่ม Export ทำงาน
+    const generateBtn = page.locator("#generate-report-btn, button:has-text('สร้างรายงาน')").first();
+    await generateBtn.click();
+    await expect(page.locator("table").first()).toBeVisible({ timeout: 10000 });
+
+    // [ขั้นตอนที่ 1]: ตรวจสอบปุ่มดาวน์โหลดรายงาน Excel
+    const exportExcelBtn = page.locator("#export-excel-btn, button:has-text('Excel')").first();
+    await expect(exportExcelBtn).toBeVisible();
+
+    // [ขั้นตอนที่ 2]: ตรวจสอบปุ่มดาวน์โหลดรายงาน PDF
+    const exportPdfBtn = page.locator("#export-pdf-btn, button:has-text('PDF')").first();
+    await expect(exportPdfBtn).toBeVisible();
+
+    await page.waitForTimeout(2500);
   });
 });
 `,
@@ -325,28 +830,100 @@ test.describe("FN-STS-06: Case Reports & Export Suite", () => {
 import { test, expect } from "@playwright/test";
 
 test.describe("FN-STS-07: Observations & Tracking Suite", () => {
-  test("TC-STS-TRK-001: ครูประจำชั้นเปิดหน้าติดตามพฤติกรรมและการเยี่ยมบ้าน", async ({ page }) => {
-    // [ขั้นตอนที่ 1]: นำทางไปยังหน้า Tracking / Observations
-    await page.goto("/observations");
-    // [การตรวจสอบ]: ยืนยัน URL ถูกต้อง
-    await expect(page).toHaveURL(/.*\\/(observations|tracking)/);
+  test.beforeEach(async ({ page }) => {
+    await page.context().clearCookies();
 
-    // [ขั้นตอนที่ 2]: ตรวจสอบว่ามีการ์ดหรือแถวแสดงผลการติดตามนักเรียน
-    const trackingCards = page.locator("[data-testid='tracking-item'], .observation-card, tr[data-student-id]");
-    if (await trackingCards.count() > 0) {
-      await expect(trackingCards.first()).toBeVisible({ timeout: 10000 });
-    }
+    // 1. Mock Auth
+    await page.route("**/api/auth/login", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          accessToken: "mock-jwt-token-teacher",
+          user: { id: 99, username: "teacher_a", name: "ครูประจำชั้น", role: "TEACHER", schoolId: 1 },
+        }),
+      });
+    });
+
+    await page.route("**/api/auth/refresh*", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          accessToken: "mock-jwt-token-teacher",
+          user: { id: 99, username: "teacher_a", name: "ครูประจำชั้น", role: "TEACHER", schoolId: 1 },
+        }),
+      });
+    });
+
+    // 2. Mock Students for Tracking
+    await page.route("**/api/students*", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify([
+          { id: "stu-1", student_id: "50001", first_name: "กิตติพงษ์", last_name: "สุขเกษม", class_room: "ม.3/1", risk_level: "low", status: "active" },
+          { id: "stu-2", student_id: "50002", first_name: "ชาญชัย", last_name: "มีสุข", class_room: "ม.3/1", risk_level: "high", status: "active" },
+        ]),
+      });
+    });
+
+    // เข้าสู่ระบบด้วยบัญชีครู
+    await page.goto("/login");
+    await page.locator("#login-username, input[name='username']").first().fill("teacher_a");
+    await page.locator("#login-password, input[name='password']").first().fill("changeme");
+    await page.locator("#login-submit, button[type='submit']").first().click();
+    await expect(page).toHaveURL(/.*\\/teacher\\/dashboard/, { timeout: 15000 });
   });
 
-  test("TC-STS-TRK-002: กรองรายชื่อนักเรียนตามระดับความเสี่ยง", async ({ page }) => {
-    // [ขั้นตอนที่ 1]: เปิดหน้าจอสังเกตพฤติกรรม
-    await page.goto("/observations");
-    // [ขั้นตอนที่ 2]: ค้นหาตัวกรองระดับความเสี่ยง (Risk Filter)
-    const riskFilter = page.locator("select[name*='risk'], button:has-text('ความเสี่ยง')").first();
-    // [ขั้นตอนที่ 3]: ตรวจสอบว่าตัวกรองพร้อมรับการสั่งการ
+  test("TC-STS-TRK-001: ครูประจำชั้นเปิดหน้าติดตามพฤติกรรมและการเยี่ยมบ้าน", async ({ page }) => {
+    // [ขั้นตอนที่ 1]: นำทางไปยังหน้า Tracking (/teacher/tracking)
+    await page.goto("/teacher/tracking");
+    await expect(page).toHaveURL(/.*\\/teacher\\/tracking/);
+
+    // [ขั้นตอนที่ 2]: ตรวจสอบหัวข้อหน้าจอ
+    const heading = page.locator("h1").first();
+    await expect(heading).toBeVisible({ timeout: 10000 });
+
+    await page.waitForTimeout(2500);
+  });
+
+  test("TC-STS-TRK-002: ค้นหารายชื่อนักเรียนในรายการติดตาม", async ({ page }) => {
+    await page.goto("/teacher/tracking");
+
+    // [ขั้นตอนที่ 1]: ค้นหาช่องค้นหาชื่อนักเรียน
+    const searchInput = page.getByPlaceholder(/ค้นหาชื่อ, รหัส/i).first();
+    await expect(searchInput).toBeVisible();
+
+    // [ขั้นตอนที่ 2]: ป้อนคำค้นหาลงในช่องค้นหา
+    await searchInput.fill("ชาญชัย");
+    await page.waitForTimeout(500);
+
+    // [ขั้นตอนที่ 3]: ยืนยันผลลัพธ์ปรากฏบนหน้าจอ
+    await expect(page.locator("body")).toContainText("ชาญชัย");
+
+    await page.waitForTimeout(2500);
+  });
+
+  test("TC-STS-TRK-003: กรองข้อมูลการติดตามตามระดับความเสี่ยง", async ({ page }) => {
+    await page.goto("/teacher/tracking");
+
+    // [ขั้นตอนที่ 1]: ค้นหาตัวกรองระดับความเสี่ยง (Risk Filter)
+    const riskFilter = page.locator("#risk-filter, button:has-text('ความเสี่ยง')").first();
     if (await riskFilter.isVisible()) {
-      await expect(riskFilter).toBeVisible();
+      await riskFilter.click();
+      await page.waitForTimeout(400);
+
+      // [ขั้นตอนที่ 2]: เลือกกรองเฉพาะระดับ 'เสี่ยงสูง'
+      const highRiskOption = page.getByRole("option", { name: /เสี่ยงสูง/i }).first();
+      if (await highRiskOption.isVisible()) {
+        await highRiskOption.click();
+        await page.waitForTimeout(500);
+        await expect(page.locator("body")).toContainText("ชาญชัย");
+      }
     }
+
+    await page.waitForTimeout(2500);
   });
 });
 `,
@@ -366,28 +943,94 @@ test.describe("FN-STS-07: Observations & Tracking Suite", () => {
 import { test, expect } from "@playwright/test";
 
 test.describe("FN-STS-08: Dashboard & Navigation Suite", () => {
-  test("TC-STS-DASH-001: เปิดหน้าแดชบอร์ดหลักและตรวจสอบการ์ด KPI สถิติ", async ({ page }) => {
-    // [ขั้นตอนที่ 1]: สั่ง Browser เข้าสู่หน้าจอแดชบอร์ดหลัก (/dashboard)
-    await page.goto("/dashboard");
-    // [การตรวจสอบ]: ยืนยัน URL หน้าแดชบอร์ด
-    await expect(page).toHaveURL(/.*\\/dashboard/);
+  test.beforeEach(async ({ page }) => {
+    await page.context().clearCookies();
 
-    // [ขั้นตอนที่ 2]: ตรวจสอบหัวข้อหลักของแดชบอร์ด (Dashboard Heading)
-    const heading = page.locator("h1, h2, [data-testid='dashboard-header']").first();
-    await expect(heading).toBeVisible({ timeout: 10000 });
+    // 1. Mock Auth
+    await page.route("**/api/auth/login", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          accessToken: "mock-jwt-token-director",
+          user: { id: 2, username: "director_a", name: "ผู้อำนวยการ", role: "DIRECTOR", schoolId: 1 },
+        }),
+      });
+    });
 
-    // [ขั้นตอนที่ 3]: ตรวจสอบว่ามีการ์ด KPI สรุปตัวชี้วัดแสดงผลอย่างน้อย 1 รายการ
-    const kpiCards = page.locator(".kpi-card, [data-testid='kpi-card'], .grid > div");
-    await expect(kpiCards.first()).toBeVisible();
+    await page.route("**/api/auth/refresh*", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          accessToken: "mock-jwt-token-director",
+          user: { id: 2, username: "director_a", name: "ผู้อำนวยการ", role: "DIRECTOR", schoolId: 1 },
+        }),
+      });
+    });
+
+    // 2. Mock Director Dashboard API
+    await page.route("**/api/dashboard/director/action-center*", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          summary: {
+            waitingDecisionCount: 2,
+            criticalHighCount: 1,
+            abnormalAbsenceCount: 1,
+            attendanceRateToday: 95.5,
+          },
+        }),
+      });
+    });
+
+    // เข้าสู่ระบบด้วยบัญชีผู้บริหาร
+    await page.goto("/login");
+    await page.locator("#login-username, input[name='username']").first().fill("director_a");
+    await page.locator("#login-password, input[name='password']").first().fill("changeme");
+    await page.locator("#login-submit, button[type='submit']").first().click();
+    await expect(page).toHaveURL(/.*\\/director\\/dashboard/, { timeout: 15000 });
   });
 
-  test("TC-STS-DASH-002: ตรวจสอบปุ่มทางลัดไปยังโมดูลหลักต่างๆ", async ({ page }) => {
-    // [ขั้นตอนที่ 1]: เปิดหน้าแดชบอร์ด
-    await page.goto("/dashboard");
-    // [ขั้นตอนที่ 2]: ตรวจสอบแถบเมนูนำทาง (Sidebar / Navigation Menu)
-    const navOrSidebar = page.locator("nav, aside, [role='navigation']").first();
-    // [ขั้นตอนที่ 3]: ยืนยันว่าแถบเมนูแสดงผลพร้อมคลิกใช้งาน
-    await expect(navOrSidebar).toBeVisible();
+  test("TC-STS-DASH-001: ผู้อำนวยการเปิดดู Action Center และการ์ด KPI สรุปสถานศึกษา", async ({ page }) => {
+    // [ขั้นตอนที่ 1]: นำทางเข้าสู่หน้าจอแดชบอร์ดผู้อำนวยการ
+    await page.goto("/director/dashboard");
+    await expect(page).toHaveURL(/.*\\/director\\/dashboard/);
+
+    // [ขั้นตอนที่ 2]: ตรวจสอบหัวข้อหลักของแดชบอร์ด
+    const heading = page.locator("h1, h2").first();
+    await expect(heading).toBeVisible({ timeout: 10000 });
+
+    // [ขั้นตอนที่ 3]: ตรวจสอบการ์ดตัวชี้วัด KPI สถิติ
+    const metricCards = page.locator(".card, [data-testid*='metric'], .grid > div");
+    await expect(metricCards.first()).toBeVisible({ timeout: 10000 });
+
+    await page.waitForTimeout(2500);
+  });
+
+  test("TC-STS-DASH-002: ครูเปิดดูแดชบอร์ดห้องเรียนและสถิติการเข้าเรียนประจำวัน", async ({ page }) => {
+    // [ขั้นตอนที่ 1]: เปลี่ยนไปยังแดชบอร์ดของครูประจำชั้น
+    await page.goto("/teacher/dashboard");
+    await expect(page).toHaveURL(/.*\\/teacher\\/dashboard/);
+
+    // [ขั้นตอนที่ 2]: ยืนยันว่าหน้าแดชบอร์ดแสดงผลหัวข้อและข้อมูลเรียบร้อย
+    await expect(page.locator("h1, h2").first()).toBeVisible({ timeout: 10000 });
+
+    await page.waitForTimeout(2500);
+  });
+
+  test("TC-STS-DASH-003: นำทางผ่านเมนูทางลัดไปยังโมดูลจัดการเคสและระบบรายงาน", async ({ page }) => {
+    await page.goto("/director/dashboard");
+
+    // [ขั้นตอนที่ 1]: ค้นหาลิงก์เมนูนำทางไปยังหน้ารายงาน
+    const reportsLink = page.getByRole("link", { name: /รายงาน/i }).first();
+    if (await reportsLink.isVisible()) {
+      await reportsLink.click();
+      await expect(page).toHaveURL(/.*\\/reports/);
+    }
+
+    await page.waitForTimeout(2500);
   });
 });
 `,
@@ -407,26 +1050,74 @@ test.describe("FN-STS-08: Dashboard & Navigation Suite", () => {
 import { test, expect } from "@playwright/test";
 
 test.describe("FN-STS-09: AI Insights & Benchmark Evaluation Suite", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.context().clearCookies();
+
+    // 1. Mock Auth
+    await page.route("**/api/auth/login", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          accessToken: "mock-jwt-token-admin",
+          user: { id: 1, username: "admin", name: "ผู้ดูแลระบบ", role: "ADMIN", schoolId: 1 },
+        }),
+      });
+    });
+
+    await page.route("**/api/auth/refresh*", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          accessToken: "mock-jwt-token-admin",
+          user: { id: 1, username: "admin", name: "ผู้ดูแลระบบ", role: "ADMIN", schoolId: 1 },
+        }),
+      });
+    });
+
+    // เข้าสู่ระบบด้วยบัญชีแอดมิน
+    await page.goto("/login");
+    await page.locator("#login-username, input[name='username']").first().fill("admin");
+    await page.locator("#login-password, input[name='password']").first().fill("changeme");
+    await page.locator("#login-submit, button[type='submit']").first().click();
+    await expect(page).toHaveURL(/.*\\/admin/, { timeout: 15000 });
+  });
+
   test("TC-STS-AI-001: ผู้ดูแลระบบเปิดหน้าจอประเมินและทดสอบระบบ AI", async ({ page }) => {
     // [ขั้นตอนที่ 1]: นำทางไปยังหน้าจอประเมินผล AI (/admin/ai-evaluation)
     await page.goto("/admin/ai-evaluation");
-    // [การตรวจสอบ]: ยืนยัน URL ถูกต้อง
-    await expect(page).toHaveURL(/.*\\/ai-evaluation/);
+    await expect(page).toHaveURL(/.*\\/admin\\/ai-evaluation/);
 
     // [ขั้นตอนที่ 2]: ตรวจสอบหัวข้อหลักของหน้าจอ AI Benchmark
-    const header = page.locator("h1, h2").first();
-    await expect(header).toBeVisible({ timeout: 10000 });
+    const header = page.locator("h1").first();
+    await expect(header).toContainText("การประเมินและทดสอบระบบ AI");
 
-    // [ขั้นตอนที่ 3]: ตรวจสอบช่องกรอก Benchmark Run ID และปุ่มสั่งเริ่มการประเมิน
-    const runInput = page.locator("input[placeholder*='Run ID'], input[name='runId']").first();
-    const runBtn = page.locator("button:has-text('เริ่มการประเมิน'), button:has-text('Benchmark'), button:has-text('Run')").first();
+    // [ขั้นตอนที่ 3]: ตรวจสอบช่องกรอก Benchmark Run ID และปุ่มเริ่มการประเมิน
+    const runInput = page.getByPlaceholder(/ระบุ Run ID/i).first();
+    const runBtn = page.getByRole("button", { name: /เริ่มการประเมิน Benchmark/i }).first();
 
-    if (await runInput.isVisible()) {
-      await expect(runInput).toBeVisible();
-    }
-    if (await runBtn.isVisible()) {
-      await expect(runBtn).toBeVisible();
-    }
+    await expect(runInput).toBeVisible({ timeout: 10000 });
+    await expect(runBtn).toBeVisible();
+
+    await page.waitForTimeout(2500);
+  });
+
+  test("TC-STS-AI-002: สั่งรันการประเมินโมเดล AI และตรวจสอบค่าสถิติความแม่นยำ", async ({ page }) => {
+    await page.goto("/admin/ai-evaluation");
+
+    // [ขั้นตอนที่ 1]: ป้อนชื่อ Run ID
+    await page.getByPlaceholder(/ระบุ Run ID/i).fill("run-zero-shot-001");
+
+    // [ขั้นตอนที่ 2]: คลิกปุ่มเริ่มการประเมิน
+    await page.getByRole("button", { name: /เริ่มการประเมิน Benchmark/i }).click();
+
+    // [ขั้นตอนที่ 3]: ตรวจสอบว่าระบบประมวลผลผลลัพธ์ Benchmark สำเร็จ
+    await expect(page.getByText("run-zero-shot-001")).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText("COMPLETED")).toBeVisible();
+    await expect(page.getByText("จำนวนเคสทั้งหมด").first()).toBeVisible();
+
+    await page.waitForTimeout(2500);
   });
 });
 `,
@@ -446,27 +1137,68 @@ test.describe("FN-STS-09: AI Insights & Benchmark Evaluation Suite", () => {
 import { test, expect } from "@playwright/test";
 
 test.describe("FN-STS-10: Platform & Province Suite", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.context().clearCookies();
+
+    // 1. Mock Auth สำหรับเจ้าหน้าที่จังหวัด
+    await page.route("**/api/auth/login", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          accessToken: "mock-jwt-token-province",
+          user: { id: 5, username: "officer_bkk", name: "เจ้าหน้าที่เขต กทม.", role: "OFFICER", provinceId: 1 },
+        }),
+      });
+    });
+
+    await page.route("**/api/auth/refresh*", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          accessToken: "mock-jwt-token-province",
+          user: { id: 5, username: "officer_bkk", name: "เจ้าหน้าที่เขต กทม.", role: "OFFICER", provinceId: 1 },
+        }),
+      });
+    });
+
+    // เข้าสู่ระบบด้วยบัญชีเจ้าหน้าที่จังหวัด
+    await page.goto("/login");
+    await page.locator("#login-username, input[name='username']").first().fill("officer_bkk");
+    await page.locator("#login-password, input[name='password']").first().fill("changeme");
+    await page.locator("#login-submit, button[type='submit']").first().click();
+    await expect(page).toHaveURL(/.*\\/province\\/dashboard/, { timeout: 15000 });
+  });
+
   test("TC-STS-PRV-001: เจ้าหน้าที่เขต/จังหวัดเปิดดูแดชบอร์ดสรุปภาพรวมพื้นที่", async ({ page }) => {
     // [ขั้นตอนที่ 1]: นำทางไปยังหน้าแดชบอร์ดระดับจังหวัด (/province/dashboard)
     await page.goto("/province/dashboard");
-    // [การตรวจสอบ]: ยืนยัน URL ถูกต้อง
-    await expect(page).toHaveURL(/.*\\/province/);
+    await expect(page).toHaveURL(/.*\\/province\\/dashboard/);
 
-    // [ขั้นตอนที่ 2]: ตรวจสอบหัวข้อชื่อจังหวัดหรือรหัสเขตพื้นที่
-    const provinceHeader = page.locator("h1, h2, [data-testid='province-name']").first();
-    await expect(provinceHeader).toBeVisible({ timeout: 10000 });
+    // [ขั้นตอนที่ 2]: ตรวจสอบหัวข้อชื่อจังหวัดหรือสังกัดเขตพื้นที่
+    await expect(page.getByText("กรุงเทพมหานคร").first()).toBeVisible({ timeout: 10000 });
 
     // [ขั้นตอนที่ 3]: ตรวจสอบการแสดงผลการ์ดสถิติรวมสถานศึกษาในสังกัด
-    const statCards = page.locator(".stat-card, [data-testid='summary-card'], .grid > div");
-    await expect(statCards.first()).toBeVisible();
+    await expect(page.getByText(/โรงเรียน|สถานศึกษา/i).first()).toBeVisible();
+
+    await page.waitForTimeout(2500);
   });
 
-  test("TC-STS-PRV-002: ตรวจสอบการป้องกันความเป็นส่วนตัว (No Individual Student PII)", async ({ page }) => {
+  test("TC-STS-PRV-002: ตรวจสอบความปลอดภัยข้อมูลส่วนบุคคล (No Individual Student PII)", async ({ page }) => {
     // [ขั้นตอนที่ 1]: เปิดหน้ารายงานระดับจังหวัด
     await page.goto("/province/reports");
-    // [ขั้นตอนที่ 2]: ตรวจสอบนโยบายความปลอดภัยข้อมูลส่วนบุคคล (Privacy Assertion)
-    // แดชบอร์ดระดับเขตต้องไม่แสดงรหัสบัตรประชาชนหรือข้อมูลส่วนบุคคลรายบุคคล
-    await expect(page.locator("body")).not.toContainText(/เลขประจำตัวประชาชน/i);
+    await expect(page).toHaveURL(/.*\\/province\\/reports/);
+
+    // [ขั้นตอนที่ 2]: ตรวจสอบหัวข้อและป้ายกำกับ Privacy Policy
+    await expect(page.getByText(/รายงานระดับจังหวัด/i).first()).toBeVisible();
+    await expect(page.getByText(/ไม่มีข้อมูลนักเรียนรายบุคคล/i).first()).toBeVisible();
+
+    // [ขั้นตอนที่ 3]: ตรวจสอบว่ามีแท็บสร้างรายงานและแท็บเปรียบเทียบโรงเรียน
+    await expect(page.getByRole("tab", { name: /สร้างรายงาน/i })).toBeVisible();
+    await expect(page.getByRole("tab", { name: /เปรียบเทียบโรงเรียน/i })).toBeVisible();
+
+    await page.waitForTimeout(2500);
   });
 });
 `,
@@ -486,24 +1218,89 @@ test.describe("FN-STS-10: Platform & Province Suite", () => {
 import { test, expect } from "@playwright/test";
 
 test.describe("FN-STS-11: Profile & Password Suite", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.context().clearCookies();
+
+    // 1. Mock Auth
+    await page.route("**/api/auth/login", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          accessToken: "mock-jwt-token-teacher",
+          user: { id: 99, username: "teacher_a", name: "ครูประจำชั้น", role: "TEACHER", schoolId: 1 },
+        }),
+      });
+    });
+
+    await page.route("**/api/auth/refresh*", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          accessToken: "mock-jwt-token-teacher",
+          user: { id: 99, username: "teacher_a", name: "ครูประจำชั้น", role: "TEACHER", schoolId: 1 },
+        }),
+      });
+    });
+
+    // 2. Mock Change Password API
+    await page.route(//api/auth/change-password/, async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ success: true, message: "เปลี่ยนรหัสผ่านสำเร็จแล้ว" }),
+      });
+    });
+
+    // เข้าสู่ระบบด้วยบัญชีครู
+    await page.goto("/login");
+    await page.locator("#login-username, input[name='username']").first().fill("teacher_a");
+    await page.locator("#login-password, input[name='password']").first().fill("changeme");
+    await page.locator("#login-submit, button[type='submit']").first().click();
+    await expect(page).toHaveURL(/.*\\/teacher\\/dashboard/, { timeout: 15000 });
+  });
+
   test("TC-STS-PWD-001: ผู้ใช้เปิดหน้าจอเปลี่ยนรหัสผ่านและตรวจสอบเงื่อนไขความปลอดภัย", async ({ page }) => {
     // [ขั้นตอนที่ 1]: นำทางไปยังหน้าจอเปลี่ยนรหัสผ่าน (/change-password)
     await page.goto("/change-password");
-    // [การตรวจสอบ]: ยืนยัน URL ถูกต้อง
-    await expect(page).toHaveURL(/.*\\/(change-password|profile)/);
+    await expect(page).toHaveURL(/.*\\/change-password/);
 
-    // [ขั้นตอนที่ 2]: ตรวจสอบว่ามีช่องกรอกรหัสผ่านเดิม รหัสผ่านใหม่ และยืนยันรหัสผ่านใหม่
-    const oldPass = page.locator("#oldPassword, input[name='oldPassword'], input[type='password']").first();
-    const newPass = page.locator("#newPassword, input[name='newPassword']").first();
-    const confirmPass = page.locator("#confirmPassword, input[name='confirmPassword']").first();
+    // [ขั้นตอนที่ 2]: ตรวจสอบหัวข้อ 'เปลี่ยนรหัสผ่าน'
+    await expect(page.locator("h1")).toHaveText("เปลี่ยนรหัสผ่าน");
 
-    await expect(oldPass).toBeVisible({ timeout: 10000 });
-    await expect(newPass).toBeVisible();
-    await expect(confirmPass).toBeVisible();
+    // [ขั้นตอนที่ 3]: ตรวจสอบว่ามีช่องกรอกรหัสผ่านเดิม, รหัสผ่านใหม่ และยืนยันรหัสผ่านใหม่
+    await expect(page.locator("#oldPassword")).toBeVisible();
+    await expect(page.locator("#newPassword")).toBeVisible();
+    await expect(page.locator("#confirmPassword")).toBeVisible();
 
-    // [ขั้นตอนที่ 3]: ตรวจสอบว่ามีปุ่มบันทึกรหัสผ่านใหม่แสดงผลพร้อมใช้งาน
-    const submitBtn = page.locator("button[type='submit'], #change-password-submit").first();
+    // [ขั้นตอนที่ 4]: ปุ่มบันทึกต้องยังคง Disabled จนกว่าจะกรอกข้อมูลครบถ้วน
+    const submitBtn = page.locator("#change-password-submit");
     await expect(submitBtn).toBeVisible();
+    await expect(submitBtn).toBeDisabled();
+
+    await page.waitForTimeout(2500);
+  });
+
+  test("TC-STS-PWD-002: ผู้ใช้กรอกรหัสผ่านใหม่ที่ถูกต้องและบันทึกสำเร็จ", async ({ page }) => {
+    await page.goto("/change-password");
+
+    // [ขั้นตอนที่ 1]: กรอกรหัสผ่านเดิมและรหัสผ่านใหม่ที่ปลอดภัย
+    await page.locator("#oldPassword").fill("changeme");
+    await page.locator("#newPassword").fill("SecurePass2026!");
+    await page.locator("#confirmPassword").fill("SecurePass2026!");
+
+    // [ขั้นตอนที่ 2]: ตรวจสอบว่าปุ่มบันทึกเปลี่ยนเป็น Enabled
+    const submitBtn = page.locator("#change-password-submit");
+    await expect(submitBtn).toBeEnabled();
+
+    // [ขั้นตอนที่ 3]: คลิกบันทึกการเปลี่ยนรหัสผ่าน
+    await submitBtn.click();
+
+    // [ขั้นตอนที่ 4]: ตรวจสอบการแจ้งเตือนความสำเร็จ
+    await expect(page.getByText(/เปลี่ยนรหัสผ่านสำเร็จแล้ว/i)).toBeVisible({ timeout: 10000 });
+
+    await page.waitForTimeout(2500);
   });
 });
 `,

@@ -16,15 +16,15 @@ export class StsCasesPage {
   }
 
   createButton() {
-    return this.page.getByRole("link", { name: /บันทึกเคสใหม่|เปิดเคสใหม่/i }).first();
+    return this.page.locator("a[href='/teacher/cases/create'], a:has-text('เปิดเคสใหม่'), a:has-text('บันทึกเคสใหม่')").first();
   }
 
   searchInput() {
     return this.page.getByPlaceholder(/ค้นหา/i);
   }
 
-  studentCombobox() {
-    return this.page.locator("button#student, [role='combobox']").first();
+  studentSelect() {
+    return this.page.locator("select#student, select[name='studentId'], [role='combobox']").first();
   }
 
   async fillForm(opts: {
@@ -34,26 +34,49 @@ export class StsCasesPage {
     severity?: "low" | "medium" | "high";
   }): Promise<void> {
     // 1. Select student
-    await this.studentCombobox().click();
-    await this.page.waitForTimeout(400);
-
-    if (opts.studentName) {
-      await this.page.getByRole("option", { name: new RegExp(opts.studentName, "i") }).first().click();
-    } else {
-      const options = this.page.getByRole("option");
-      const count = await options.count();
-      if (count > 1) {
-        await options.nth(1).click();
+    const studentEl = this.studentSelect();
+    if ((await studentEl.count()) > 0) {
+      const tagName = await studentEl.evaluate((el) => el.tagName.toLowerCase());
+      if (tagName === "select") {
+        const options = await studentEl.locator("option").all();
+        if (options.length > 1) {
+          const val = await options[1].getAttribute("value");
+          if (val) await studentEl.selectOption(val);
+        }
       } else {
-        await options.first().click();
+        await studentEl.click();
+        await this.page.waitForTimeout(300);
+        if (opts.studentName) {
+          const matchOpt = this.page.getByRole("option", { name: new RegExp(opts.studentName, "i") });
+          if ((await matchOpt.count()) > 0) {
+            await matchOpt.first().click();
+          } else {
+            const allOpts = this.page.getByRole("option");
+            if ((await allOpts.count()) > 1) {
+              await allOpts.nth(1).click();
+            } else {
+              await allOpts.first().click();
+            }
+          }
+        } else {
+          const allOpts = this.page.getByRole("option");
+          if ((await allOpts.count()) > 1) {
+            await allOpts.nth(1).click();
+          } else {
+            await allOpts.first().click();
+          }
+        }
       }
     }
 
-    // 2. Fill title and description
-    await this.page.locator("input#title").fill(opts.title);
-    await this.page.locator("textarea#description").fill(opts.description);
+    // 2. Fill title and description (ProjectSTS uses TextareaField for both)
+    const titleEl = this.page.locator("textarea#title, input#title").first();
+    await titleEl.fill(opts.title);
 
-    // 3. Severity if provided
+    const descEl = this.page.locator("textarea#description, input#description").first();
+    await descEl.fill(opts.description);
+
+    // 3. Severity if present in UI
     if (opts.severity) {
       const severityTrigger = this.page.locator("button#severity");
       if (await severityTrigger.isVisible()) {
@@ -71,6 +94,7 @@ export class StsCasesPage {
   }
 
   async submit(): Promise<void> {
-    await this.page.getByRole("button", { name: /บันทึกเปิดเคส|บันทึกข้อมูล/i }).click();
+    await this.page.getByRole("button", { name: /เปิดเคส|บันทึกเปิดเคส|บันทึกข้อมูล/i }).first().click();
   }
 }
+

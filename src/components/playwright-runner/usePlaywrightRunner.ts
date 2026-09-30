@@ -564,12 +564,13 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
         if (!proceed) return;
       }
 
-      // 1. If project has sourceByPath for this template's spec file, use it
-      if (template?.relativePath && currentProject?.sourceByPath?.[template.relativePath]) {
-        const specContent = currentProject.sourceByPath[template.relativePath];
-        sourceCacheRef.current.set(functionIdOrGroupId, specContent);
-        sourceCacheRef.current.set(template.relativePath, specContent);
-        setEditorCodeState(specContent);
+      // 1. If function template exists for STS, use its self-contained template code
+      if (template) {
+        sourceCacheRef.current.set(functionIdOrGroupId, template.code);
+        if (template.relativePath) {
+          sourceCacheRef.current.set(template.relativePath, template.code);
+        }
+        setEditorCodeState(template.code);
         setEditorDirty(false);
         setSource("workspace");
         return;
@@ -584,7 +585,6 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
         ];
         const match = allTests.find(
           (t) =>
-            t.relativePath === template?.relativePath ||
             ("functionId" in t && (t as { functionId?: string }).functionId === functionIdOrGroupId) ||
             t.title.toUpperCase().includes(functionIdOrGroupId.toUpperCase()),
         );
@@ -603,14 +603,6 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
           await loadTestSource(match.id);
           return;
         }
-      }
-
-      // 3. Fallback to standalone function template code
-      if (template) {
-        sourceCacheRef.current.set(functionIdOrGroupId, template.code);
-        setEditorCodeState(template.code);
-        setEditorDirty(false);
-        setSource("workspace");
       }
     },
     [editorDirty, currentProject, loadTestSource],

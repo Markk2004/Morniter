@@ -43,9 +43,9 @@ test.describe("FN-STS-05: Student Cases Suite", () => {
     await expect(page).toHaveURL(/\/teacher\/cases\/create/);
 
     // Form elements should be visible
-    await expect(casesPage.studentCombobox()).toBeVisible();
-    await expect(page.locator("input#title")).toBeVisible();
-    await expect(page.locator("textarea#description")).toBeVisible();
+    await expect(casesPage.studentSelect()).toBeVisible();
+    await expect(page.locator("textarea#title, input#title").first()).toBeVisible();
+    await expect(page.locator("textarea#description, input#description").first()).toBeVisible();
 
     await page.waitForTimeout(3000);
   });
