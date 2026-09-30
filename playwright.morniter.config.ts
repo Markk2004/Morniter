@@ -48,41 +48,22 @@ process.env.E2E_GROUP_PASSWORD_HASH = e2ePasswordHash;
 process.env.PLAYWRIGHT_AUTH_E2E ??= "0";
 
 export default defineConfig({
-  testDir: "./e2e",
-  testMatch: [
-    "sts/**/*.spec.ts",
-    "sts/**/*.test.ts",
-    "__workspace__/**/*.spec.ts",
-    "__workspace__/**/*.test.ts",
-  ],
+  testDir: "./e2e-morniter",
+  globalSetup: "./e2e-morniter/global-setup.ts",
+  globalTeardown: "./e2e-morniter/global-teardown.ts",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: "html",
   use: {
-    baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL || process.env.BASE_URL || process.env.STS_BASE_URL || "http://localhost:3001",
+    baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL || process.env.BASE_URL || "http://localhost:3000",
     trace: "on-first-retry",
   },
   projects: [
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
-    },
-    {
-      name: "firefox",
-      use: { ...devices["Desktop Firefox"] },
-    },
-    {
-      name: "webkit",
-      use: { ...devices["Desktop Safari"] },
-    },
-    {
-      name: "msedge",
-      use: {
-        ...devices["Desktop Edge"],
-        channel: "msedge",
-      },
     },
   ],
 });

@@ -9,7 +9,7 @@ export default defineConfig({
     setupFiles: ["./vitest.setup.ts"],
     passWithNoTests: true,
     testTimeout: 15000,
-    exclude: ["**/node_modules/**", "**/e2e/**", "**/desktop-agent/**"],
+    exclude: ["**/node_modules/**", "**/e2e/**", "**/e2e-morniter/**", "**/desktop-agent/**"],
   },
   resolve: {
     alias: { "@": path.resolve(__dirname, "./src") },

@@ -11,6 +11,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:morniter": "playwright test --config=playwright.morniter.config.ts",
     "test:sts": "playwright test --config=playwright.sts.config.ts",
     "test:sts:headed": "playwright test --config=playwright.sts.config.ts --headed",
     "test:sts:ui": "playwright test --config=playwright.sts.config.ts --ui",
