@@ -29,6 +29,15 @@ export const STS_FUNCTION_TEMPLATES: Record<string, FunctionTemplate> = {
 import { test, expect } from "@playwright/test";
 
 test.describe("FN-STS-01: Authentication Suite", () => {
+  let activeUser = {
+    id: 99,
+    username: "teacher_a",
+    name: "ผู้ใช้ทดสอบ (teacher_a)",
+    role: "TEACHER",
+    schoolId: 1,
+    provinceId: 1,
+  };
+
   // [Precondition]: ล้างคุกกี้และตั้งค่า Route Mocking ก่อนเริ่มแต่ละเคส
   test.beforeEach(async ({ page }) => {
     await page.context().clearCookies();
@@ -44,27 +53,27 @@ test.describe("FN-STS-01: Authentication Suite", () => {
       const { username, password } = postData || {};
 
       if (password === "changeme") {
-        const role = username?.includes("admin")
-          ? "ADMIN"
-          : username?.includes("director")
-          ? "DIRECTOR"
-          : username?.includes("officer")
-          ? "OFFICER"
-          : "TEACHER";
+        let role = "TEACHER";
+        if (username?.includes("director")) role = "SCHOOL_DIRECTOR";
+        else if (username?.includes("admin")) role = "SCHOOL_ADMIN";
+        else if (username?.includes("officer")) role = "PROVINCE_OFFICER";
+        else if (username?.includes("platform")) role = "PLATFORM_ADMIN";
+
+        activeUser = {
+          id: 99,
+          username: username || "teacher_a",
+          name: "ผู้ใช้ทดสอบ (" + (username || "teacher_a") + ")",
+          role,
+          schoolId: 1,
+          provinceId: 1,
+        };
 
         return route.fulfill({
           status: 200,
           contentType: "application/json",
           body: JSON.stringify({
             accessToken: "mock-jwt-token-workspace",
-            user: {
-              id: 99,
-              username: username || "teacher_a",
-              name: "ผู้ใช้ทดสอบ (" + (username || "teacher_a") + ")",
-              role,
-              schoolId: 1,
-              provinceId: 1,
-            },
+            user: activeUser,
           }),
         });
       }
@@ -82,14 +91,22 @@ test.describe("FN-STS-01: Authentication Suite", () => {
         contentType: "application/json",
         body: JSON.stringify({
           accessToken: "mock-jwt-token-workspace",
-          user: {
-            id: 99,
-            username: "teacher_a",
-            name: "ผู้ใช้ทดสอบ",
-            role: "TEACHER",
-            schoolId: 1,
-            provinceId: 1,
-          },
+          user: activeUser,
+        }),
+      });
+    });
+
+    await page.route("**/api/academic-years/**", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          id: 1,
+          year: 2569,
+          startDate: "2026-05-16",
+          endDate: "2027-03-31",
+          isCurrent: true,
+          terms: [{ termNo: 1, isCurrent: true }],
         }),
       });
     });
@@ -181,7 +198,7 @@ test.describe("FN-STS-02: User Management Suite", () => {
         contentType: "application/json",
         body: JSON.stringify({
           accessToken: "mock-jwt-token-admin",
-          user: { id: 1, username: "admin", name: "ผู้ดูแลระบบ", role: "ADMIN" },
+          user: { id: 1, username: "admin", name: "ผู้ดูแลระบบ", role: "PLATFORM_ADMIN" },
         }),
       });
     });
@@ -192,7 +209,22 @@ test.describe("FN-STS-02: User Management Suite", () => {
         contentType: "application/json",
         body: JSON.stringify({
           accessToken: "mock-jwt-token-admin",
-          user: { id: 1, username: "admin", name: "ผู้ดูแลระบบ", role: "ADMIN" },
+          user: { id: 1, username: "admin", name: "ผู้ดูแลระบบ", role: "PLATFORM_ADMIN" },
+        }),
+      });
+    });
+
+    await page.route("**/api/academic-years/**", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          id: 1,
+          year: 2569,
+          startDate: "2026-05-16",
+          endDate: "2027-03-31",
+          isCurrent: true,
+          terms: [{ termNo: 1, isCurrent: true }],
         }),
       });
     });
@@ -718,7 +750,7 @@ test.describe("FN-STS-06: Case Reports & Export Suite", () => {
         contentType: "application/json",
         body: JSON.stringify({
           accessToken: "mock-jwt-token-director",
-          user: { id: 2, username: "director_a", name: "ผู้อำนวยการ", role: "DIRECTOR", schoolId: 1 },
+          user: { id: 2, username: "director_a", name: "ผู้อำนวยการ", role: "SCHOOL_DIRECTOR", schoolId: 1 },
         }),
       });
     });
@@ -729,7 +761,22 @@ test.describe("FN-STS-06: Case Reports & Export Suite", () => {
         contentType: "application/json",
         body: JSON.stringify({
           accessToken: "mock-jwt-token-director",
-          user: { id: 2, username: "director_a", name: "ผู้อำนวยการ", role: "DIRECTOR", schoolId: 1 },
+          user: { id: 2, username: "director_a", name: "ผู้อำนวยการ", role: "SCHOOL_DIRECTOR", schoolId: 1 },
+        }),
+      });
+    });
+
+    await page.route("**/api/academic-years/**", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          id: 1,
+          year: 2569,
+          startDate: "2026-05-16",
+          endDate: "2027-03-31",
+          isCurrent: true,
+          terms: [{ termNo: 1, isCurrent: true }],
         }),
       });
     });
@@ -953,7 +1000,7 @@ test.describe("FN-STS-08: Dashboard & Navigation Suite", () => {
         contentType: "application/json",
         body: JSON.stringify({
           accessToken: "mock-jwt-token-director",
-          user: { id: 2, username: "director_a", name: "ผู้อำนวยการ", role: "DIRECTOR", schoolId: 1 },
+          user: { id: 2, username: "director_a", name: "ผู้อำนวยการ", role: "SCHOOL_DIRECTOR", schoolId: 1 },
         }),
       });
     });
@@ -964,7 +1011,22 @@ test.describe("FN-STS-08: Dashboard & Navigation Suite", () => {
         contentType: "application/json",
         body: JSON.stringify({
           accessToken: "mock-jwt-token-director",
-          user: { id: 2, username: "director_a", name: "ผู้อำนวยการ", role: "DIRECTOR", schoolId: 1 },
+          user: { id: 2, username: "director_a", name: "ผู้อำนวยการ", role: "SCHOOL_DIRECTOR", schoolId: 1 },
+        }),
+      });
+    });
+
+    await page.route("**/api/academic-years/**", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          id: 1,
+          year: 2569,
+          startDate: "2026-05-16",
+          endDate: "2027-03-31",
+          isCurrent: true,
+          terms: [{ termNo: 1, isCurrent: true }],
         }),
       });
     });
@@ -1060,7 +1122,7 @@ test.describe("FN-STS-09: AI Insights & Benchmark Evaluation Suite", () => {
         contentType: "application/json",
         body: JSON.stringify({
           accessToken: "mock-jwt-token-admin",
-          user: { id: 1, username: "admin", name: "ผู้ดูแลระบบ", role: "ADMIN", schoolId: 1 },
+          user: { id: 1, username: "admin", name: "ผู้ดูแลระบบ", role: "SCHOOL_ADMIN", schoolId: 1 },
         }),
       });
     });
@@ -1071,7 +1133,22 @@ test.describe("FN-STS-09: AI Insights & Benchmark Evaluation Suite", () => {
         contentType: "application/json",
         body: JSON.stringify({
           accessToken: "mock-jwt-token-admin",
-          user: { id: 1, username: "admin", name: "ผู้ดูแลระบบ", role: "ADMIN", schoolId: 1 },
+          user: { id: 1, username: "admin", name: "ผู้ดูแลระบบ", role: "SCHOOL_ADMIN", schoolId: 1 },
+        }),
+      });
+    });
+
+    await page.route("**/api/academic-years/**", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          id: 1,
+          year: 2569,
+          startDate: "2026-05-16",
+          endDate: "2027-03-31",
+          isCurrent: true,
+          terms: [{ termNo: 1, isCurrent: true }],
         }),
       });
     });
@@ -1322,6 +1399,15 @@ export const STS_SUB_TEMPLATES: Record<string, FunctionTemplate> = {
 import { test, expect } from "@playwright/test";
 
 test.describe("FN-STS-01 (Part 1): Login as Role Suite", () => {
+  let activeUser = {
+    id: 99,
+    username: "teacher_a",
+    name: "ผู้ใช้ทดสอบ (teacher_a)",
+    role: "TEACHER",
+    schoolId: 1,
+    provinceId: 1,
+  };
+
   // [Precondition]: ล้างคุกกี้และตั้งค่า Route Mocking ก่อนเริ่มทดสอบ
   test.beforeEach(async ({ page }) => {
     // 1. ล้างคุกกี้ทั้งหมดเพื่อจำลองสถานะก่อนเริ่มล็อกอิน
@@ -1335,47 +1421,65 @@ test.describe("FN-STS-01 (Part 1): Login as Role Suite", () => {
       } catch {
         postData = null;
       }
-      const { username } = postData || {};
-      const role = username?.includes("admin")
-        ? "ADMIN"
-        : username?.includes("director")
-        ? "DIRECTOR"
-        : username?.includes("officer")
-        ? "OFFICER"
-        : "TEACHER";
+      const { username, password } = postData || {};
+
+      if (password === "changeme") {
+        let role = "TEACHER";
+        if (username?.includes("director")) role = "SCHOOL_DIRECTOR";
+        else if (username?.includes("admin")) role = "SCHOOL_ADMIN";
+        else if (username?.includes("officer")) role = "PROVINCE_OFFICER";
+        else if (username?.includes("platform")) role = "PLATFORM_ADMIN";
+
+        activeUser = {
+          id: 99,
+          username: username || "teacher_a",
+          name: "ผู้ใช้ทดสอบ (" + (username || "teacher_a") + ")",
+          role,
+          schoolId: 1,
+          provinceId: 1,
+        };
+
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            accessToken: "mock-jwt-token-workspace",
+            user: activeUser,
+          }),
+        });
+      }
 
       return route.fulfill({
-        status: 200,
+        status: 401,
         contentType: "application/json",
-        body: JSON.stringify({
-          accessToken: "mock-jwt-token-workspace",
-          user: {
-            id: 99,
-            username: username || "teacher_a",
-            name: "ผู้ใช้ทดสอบ (" + (username || "teacher_a") + ")",
-            role,
-            schoolId: 1,
-            provinceId: 1,
-          },
-        }),
+        body: JSON.stringify({ message: "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง" }),
       });
     });
 
-    // 3. จำลอง Mock Session Refresh API
+    // 3. จำลอง Mock Session Refresh API ให้สอดคล้องกับบทบาทที่เพิ่ง Login เข้ามา
     await page.route("**/api/auth/refresh*", async (route) => {
       return route.fulfill({
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({
           accessToken: "mock-jwt-token-workspace",
-          user: {
-            id: 99,
-            username: "teacher_a",
-            name: "ผู้ใช้ทดสอบ",
-            role: "TEACHER",
-            schoolId: 1,
-            provinceId: 1,
-          },
+          user: activeUser,
+        }),
+      });
+    });
+
+    // 4. จำลอง Mock ข้อมูลปีการศึกษา เพื่อป้องกันหน้า Dashboard เด้งกลับ
+    await page.route("**/api/academic-years/**", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          id: 1,
+          year: 2569,
+          startDate: "2026-05-16",
+          endDate: "2027-03-31",
+          isCurrent: true,
+          terms: [{ termNo: 1, isCurrent: true }],
         }),
       });
     });

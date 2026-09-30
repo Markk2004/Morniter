@@ -1,50 +1,15 @@
 import { test, expect } from "@playwright/test";
 import { StsLoginPage } from "./page-objects/login.page";
 import { DEMO_CREDENTIALS, STS_ROLES } from "./fixtures/auth-data";
+import { setupStsApiMocks } from "./fixtures/mock-api";
 
 test.describe("ProjectSTS Authentication Suite (Run from project-monitor)", () => {
   test.beforeEach(async ({ page }) => {
     // Clear cookies before each test for fresh session
     await page.context().clearCookies();
 
-    // Route mocking for /api/auth/login to enable autonomous running without database dependencies
-    await page.route("**/api/auth/login", async (route) => {
-      let postData: { username?: string; password?: string } | null = null;
-      try {
-        postData = route.request().postDataJSON();
-      } catch {
-        postData = null;
-      }
-      const { username, password } = postData || {};
-
-      if (password === "changeme") {
-        const roleEntry = Object.values(DEMO_CREDENTIALS).find(
-          (c) => c.username === username,
-        );
-        const roleEnum = roleEntry ? roleEntry.roleEnum : "TEACHER";
-
-        return route.fulfill({
-          status: 200,
-          contentType: "application/json",
-          body: JSON.stringify({
-            accessToken: "mock-jwt-token-from-monitor",
-            user: {
-              id: 99,
-              username,
-              name: `UAT User (${username})`,
-              role: roleEnum,
-              schoolId: 1,
-            },
-          }),
-        });
-      }
-
-      return route.fulfill({
-        status: 401,
-        contentType: "application/json",
-        body: JSON.stringify({ message: "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง" }),
-      });
-    });
+    // Use centralized STS API mocks with proper dynamic activeUser, refresh token, and academic year mocks
+    await setupStsApiMocks(page);
   });
 
   // =========================================================================

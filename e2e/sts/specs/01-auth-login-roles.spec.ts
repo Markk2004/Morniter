@@ -5,6 +5,7 @@
 import { test, expect } from "@playwright/test";
 import { StsLoginPage } from "../page-objects/login.page";
 import { DEMO_CREDENTIALS, STS_ROLES } from "../fixtures/auth-data";
+import { setupStsApiMocks } from "../fixtures/mock-api";
 
 test.describe("FN-STS-01 (Part 1): Authentication - Login Roles Suite", () => {
   // [Precondition]: ล้างคุกกี้และจำลอง API Response สำหรับการ Login สำเร็จ
@@ -12,44 +13,8 @@ test.describe("FN-STS-01 (Part 1): Authentication - Login Roles Suite", () => {
     // 1. ล้าง Cookies ทั้งหมดเพื่อเริ่มการทดสอบจากสถานะยังไม่ล็อกอิน
     await page.context().clearCookies();
 
-    // 2. จำลอง Route Mocking สำหรับ /api/auth/login เพื่อให้รันได้ทุกที่โดยไม่ต้องพึ่งพาฐานข้อมูลจริง
-    await page.route("**/api/auth/login", async (route) => {
-      let postData: { username?: string; password?: string } | null = null;
-      try {
-        postData = route.request().postDataJSON();
-      } catch {
-        postData = null;
-      }
-      const { username, password } = postData || {};
-
-      if (password === "changeme") {
-        const roleEntry = Object.values(DEMO_CREDENTIALS).find(
-          (c) => c.username === username,
-        );
-        const roleEnum = roleEntry ? roleEntry.roleEnum : "TEACHER";
-
-        return route.fulfill({
-          status: 200,
-          contentType: "application/json",
-          body: JSON.stringify({
-            accessToken: "mock-jwt-token-from-monitor",
-            user: {
-              id: 99,
-              username,
-              name: `UAT User (${username})`,
-              role: roleEnum,
-              schoolId: 1,
-            },
-          }),
-        });
-      }
-
-      return route.fulfill({
-        status: 401,
-        contentType: "application/json",
-        body: JSON.stringify({ message: "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง" }),
-      });
-    });
+    // 2. เรียกใช้ Mock API กลางที่รองรับทุกสิทธิ์ (Active User, Refresh Token, Dashboard Data)
+    await setupStsApiMocks(page);
   });
 
   // วนลูปทดสอบการเข้าสู่ระบบตามสิทธิ์ของแต่ละบทบาท
