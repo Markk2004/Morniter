@@ -1326,6 +1326,20 @@ export function getFunctionTemplate(functionIdOrCode: string): FunctionTemplate 
     }
   }
 
+  // Authentication matches (including invalid / empty / role variations)
+  if (
+    upper.includes("AUTH") ||
+    upper.includes("LOGIN") ||
+    upper.includes("01-AUTH") ||
+    upper.includes("FN-01") ||
+    upper.includes("FN-STS-01") ||
+    upper.includes("INVALID") ||
+    upper.includes("EMPTY") ||
+    upper.includes("ROLE")
+  ) {
+    return STS_FUNCTION_TEMPLATES["FN-STS-01"];
+  }
+
   // Specific keyword & test ID pattern matching
   if (upper.includes("AUTH") || upper.includes("LOGIN") || upper.includes("01-AUTH") || upper.includes("FN-01") || upper.includes("FN-STS-01")) {
     return STS_FUNCTION_TEMPLATES["FN-STS-01"];

@@ -34,6 +34,9 @@
     { "id": "FN-STS-11", "name": "Profile & Password (โปรไฟล์ส่วนตัวและการเปลี่ยนรหัสผ่าน)", "keywords": ["profile", "password", "policy"] }
   ],
   "explicitMappings": [
+    { "path": "e2e/sts/specs/01-auth-login-roles.spec.ts", "functionId": "FN-STS-01" },
+    { "path": "e2e/sts/specs/01-auth-invalid-credentials.spec.ts", "functionId": "FN-STS-01" },
+    { "path": "e2e/sts/specs/01-auth-empty-submission.spec.ts", "functionId": "FN-STS-01" },
     { "path": "e2e/sts/login.spec.ts", "functionId": "FN-STS-01" },
     { "path": "e2e/sts/specs/08-user-management.spec.ts", "functionId": "FN-STS-02" },
     { "path": "e2e/sts/specs/03-students-classrooms.spec.ts", "functionId": "FN-STS-03" },

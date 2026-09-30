@@ -57,8 +57,8 @@ export function TestDetailDrawer({
   // Resolve function category and documentation
   const resolvedCat = resolveFunctionCategory(test.title, test.relativePath);
   const targetFnId = functionId || resolvedCat.code;
-  const functionDoc = getFunctionDetailedDoc(targetFnId) || getFunctionDetailedDoc(test.title);
-  const template = getFunctionTemplate(targetFnId) || getFunctionTemplate(test.title);
+  const functionDoc = getFunctionDetailedDoc(test.title) || getFunctionDetailedDoc(targetFnId);
+  const template = getFunctionTemplate(test.title) || getFunctionTemplate(targetFnId);
 
   const functionLabel =
     functionId && functionName

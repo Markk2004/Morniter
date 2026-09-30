@@ -442,7 +442,7 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
     setActiveSourceTestId(null);
   }, [selectedProjectId]);
 
-  // Load test source code into editor (0ms instant if cached)
+  // Load test source code into editor (0ms instant if cached or specific sub-part)
   const loadTestSource = useCallback(
     async (testId: string) => {
       if (!selectedProjectId) return;
@@ -450,9 +450,7 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
       setActiveSourceTestId(testId);
 
       const testItem = findTestItem(testId);
-      const cached =
-        sourceCacheRef.current.get(testId) ||
-        (testItem?.relativePath ? sourceCacheRef.current.get(testItem.relativePath) : undefined);
+      const cached = sourceCacheRef.current.get(testId);
 
       if (cached) {
         if (editorDirty && typeof window !== "undefined") {
@@ -474,6 +472,27 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
         if (!proceed) return;
       }
 
+      // Check if this test corresponds to an isolated sub-part template
+      const specificTpl = getFunctionTemplate(testItem?.title || testId);
+      const isSubPart =
+        specificTpl &&
+        specificTpl.id !== "FN-STS-01" &&
+        (testItem?.title?.includes("INVALID") ||
+          testItem?.title?.includes("EMPTY") ||
+          testItem?.title?.includes("ROLE") ||
+          testItem?.title?.includes("succeeds") ||
+          testItem?.title?.includes("001") ||
+          testItem?.title?.includes("002") ||
+          testItem?.title?.includes("003"));
+
+      if (isSubPart && specificTpl) {
+        sourceCacheRef.current.set(testId, specificTpl.code);
+        setEditorCodeState(specificTpl.code);
+        setEditorDirty(false);
+        setSource("workspace");
+        return;
+      }
+
       const requestId = ++sourceRequestRef.current;
       const projectId = selectedProjectId;
       setLoadingSourceTestId(testId);
@@ -488,21 +507,6 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
           const data = await res.json();
           if (requestId === sourceRequestRef.current && typeof data.content === "string") {
             sourceCacheRef.current.set(testId, data.content);
-            if (data.relativePath) {
-              sourceCacheRef.current.set(data.relativePath, data.content);
-              if (currentProject) {
-                const allTests = [
-                  ...(currentProject.tests || []),
-                  ...(currentProject.testGroups?.flatMap((g) => g.tests) || []),
-                  ...(currentProject.coverageGroups?.flatMap((g) => g.tests) || []),
-                ];
-                for (const t of allTests) {
-                  if (t.relativePath === data.relativePath) {
-                    sourceCacheRef.current.set(t.id, data.content);
-                  }
-                }
-              }
-            }
             setEditorCodeState(data.content);
             setEditorDirty(false);
             setSource("workspace");
@@ -531,7 +535,7 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
         }
       }
     },
-    [selectedProjectId, findTestItem, editorDirty, currentProject],
+    [selectedProjectId, findTestItem, editorDirty],
   );
 
   // Load full function test suite or template into workspace editor
@@ -631,21 +635,6 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
             const data = await res.json();
             if (typeof data.content === "string") {
               sourceCacheRef.current.set(testId, data.content);
-              if (data.relativePath) {
-                sourceCacheRef.current.set(data.relativePath, data.content);
-                if (currentProject) {
-                  const allTests = [
-                    ...(currentProject.tests || []),
-                    ...(currentProject.testGroups?.flatMap((g) => g.tests) || []),
-                    ...(currentProject.coverageGroups?.flatMap((g) => g.tests) || []),
-                  ];
-                  for (const t of allTests) {
-                    if (t.relativePath === data.relativePath) {
-                      sourceCacheRef.current.set(t.id, data.content);
-                    }
-                  }
-                }
-              }
             }
           }
         } catch {

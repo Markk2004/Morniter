@@ -32,10 +32,10 @@ describe("CodeWorkspace Component", () => {
     render(<CodeWorkspace code="" onChange={onChange} />);
 
     const templateSelect = screen.getByLabelText(/Insert template/i);
-    fireEvent.change(templateSelect, { target: { value: "Basic Navigation" } });
+    fireEvent.change(templateSelect, { target: { value: "FN-STS-01 · เข้าสู่ระบบ" } });
 
     expect(onChange).toHaveBeenCalledWith(
-      expect.stringContaining("test(\"Page title and navigation\""),
+      expect.stringContaining("FN-STS-01: Authentication Suite"),
     );
   });
 });

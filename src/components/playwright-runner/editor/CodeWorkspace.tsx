@@ -20,80 +20,7 @@ const STS_TEMPLATES = getAllFunctionTemplates().map((tpl) => ({
   code: tpl.code,
 }));
 
-const GENERIC_TEMPLATES = [
-  {
-    name: "Basic Navigation",
-    code: `// ==============================================================
-// 🧭 ทดสอบการเข้าถึงหน้าเว็บและการตรวจสอบ URL (Basic Navigation)
-// วัตถุประสงค์: ตรวจสอบว่าระบบเปิดหน้าเว็บได้ถูกต้อง และ URL ไม่เกิดข้อผิดพลาด
-// ==============================================================
-import { test, expect } from "@playwright/test";
-
-// กำหนด Scenario สำหรับการทดสอบ (ฟังก์ชันรับ context { page } ของเบราว์เซอร์)
-test("Page title and navigation", async ({ page }) => {
-  // 1. นำทาง Browser ไปยังหน้าแรกของเว็บไซต์ (Home Page: /)
-  await page.goto("/");
-
-  // 2. ตรวจสอบเงื่อนไข (Assertion): ตรวจสอบว่า URL ตอบกลับสำเร็จและไม่ว่างเปล่า
-  await expect(page).toHaveURL(/.+/);
-});
-`,
-  },
-  {
-    name: "Form Fill & Auth",
-    code: `// ==============================================================
-// 🔐 ทดสอบการกรอกฟอร์มและการยืนยันตัวตน (Form Fill & Authentication)
-// วัตถุประสงค์: จำลองการกรอกข้อมูลผู้ใช้งาน รหัสผ่าน และการคลิกปุ่มเข้าสู่ระบบ
-// ==============================================================
-import { test, expect } from "@playwright/test";
-
-// กำหนด Scenario ทดสอบขั้นตอนการล็อกอิน
-test("Login flow verification", async ({ page }) => {
-  // 1. นำทาง Browser ไปยังหน้าเข้าสู่ระบบ (/login)
-  await page.goto("/login");
-
-  // 2. ค้นหาองค์ประกอบของฟอร์ม (Username และ Password Input)
-  const username = page.locator("#login-username, input[type='text'], input[name='username']");
-  const password = page.locator("#login-password, input[type='password'], input[name='password']");
-
-  // 3. ตรวจสอบว่าพบฟิลด์กรอกข้อมูลหรือไม่ แล้วจำลองการพิมพ์ข้อมูลของผู้ใช้
-  if (await username.count() > 0) {
-    // 3.1 กรอกชื่อผู้ใช้ตัวอย่าง
-    await username.first().fill("test-user");
-
-    // 3.2 กรอกรหัสผ่านตัวอย่าง
-    await password.first().fill("password123");
-
-    // 4. จำลองการคลิกปุ่ม Submit หรือปุ่มเข้าสู่ระบบ
-    await page.locator("#login-submit, button[type='submit']").first().click();
-  }
-
-  // 5. ตรวจสอบเงื่อนไขผลลัพธ์: ต้องไม่ถูกนำทางไปยังหน้าข้อผิดพลาด (/error)
-  await expect(page).not.toHaveURL(/\\/error/);
-});
-`,
-  },
-  {
-    name: "API Health Check",
-    code: `// ==============================================================
-// 🩺 ทดสอบความพร้อมของระบบเซิร์ฟเวอร์ (API Health Check)
-// วัตถุประสงค์: ส่งคำขอ HTTP ตรงไปยัง Backend Endpoint เพื่อตรวจเช็คสถานะการทำงาน
-// ==============================================================
-import { test, expect } from "@playwright/test";
-
-// กำหนด Scenario สำหรับการทดสอบ API ผ่าน { request } context
-test("Health check endpoint", async ({ request }) => {
-  // 1. ส่งคำขอแบบ GET ไปยัง Endpoint /api/health
-  const res = await request.get("/api/health");
-
-  // 2. ตรวจสอบ HTTP Status Code: ต้องตอบกลับสถานะปกติ (ไม่ใช่ Error 5xx)
-  expect(res.status()).toBeLessThan(500);
-});
-`,
-  },
-];
-
-const ALL_TEMPLATES = [...STS_TEMPLATES, ...GENERIC_TEMPLATES];
+const ALL_TEMPLATES = STS_TEMPLATES;
 
 export function CodeWorkspace({
   code,
@@ -177,22 +104,13 @@ export function CodeWorkspace({
             className="rounded border border-slate-700 bg-slate-800 px-2 py-1 text-[11px] font-mono text-slate-300 focus:outline-none cursor-pointer"
           >
             <option value="" disabled>
-              + เลือกเทมเพลตฟังก์ชั่น
+              + เลือกเทมเพลต ProjectSTS (FN-01 ถึง FN-11)
             </option>
-            <optgroup label="📋 ProjectSTS Functions (FN-01 ถึง FN-11)">
-              {STS_TEMPLATES.map((t) => (
-                <option key={t.name} value={t.name}>
-                  {t.name}
-                </option>
-              ))}
-            </optgroup>
-            <optgroup label="🌐 เทมเพลตพื้นฐานทั่วไป">
-              {GENERIC_TEMPLATES.map((t) => (
-                <option key={t.name} value={t.name}>
-                  {t.name}
-                </option>
-              ))}
-            </optgroup>
+            {STS_TEMPLATES.map((t) => (
+              <option key={t.name} value={t.name}>
+                {t.name}
+              </option>
+            ))}
           </select>
 
           {onCreateDraft && (

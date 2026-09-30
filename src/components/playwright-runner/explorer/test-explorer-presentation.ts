@@ -478,6 +478,78 @@ export const FUNCTION_DETAILED_DOCS: Record<string, FunctionDetailedDoc> = {
     ],
   },
 
+  "FN-STS-01-ROLES": {
+    id: "FN-STS-01-ROLES",
+    code: "FN-STS-01 (Part 1)",
+    name: "ระบบยืนยันตัวตน - เข้าสู่ระบบตามบทบาทผู้ใช้ (Login as Role)",
+    role: "ผู้ใช้งานทุกบทบาท (Teacher, Director, Admin, Officer)",
+    workflow: "เปิดหน้า /login → เคลียร์คุกกี้ → กรอกชื่อผู้ใช้และรหัสผ่านตามสิทธิ์ → ตรวจสอบการ Redirect ไปหน้าแดชบอร์ดตามสิทธิ์",
+    overview: "ทดสอบการเข้าสู่ระบบสำเร็จสำหรับแต่ละบทบาทของผู้ใช้งานในระบบ (ครูประจำชั้น, ผอ.โรงเรียน, แอดมิน, เจ้าหน้าที่เขต) และตรวจสอบว่าระบบพานำทางไปยังแดชบอร์ดที่ถูกต้องตามสิทธิ์โดยอัตโนมัติ",
+    codeExplanation: "โค้ดทำการตั้งค่า beforeEach เพื่อจำลอง API Response สำหรับ /api/auth/login ให้ส่ง accessToken และ User Payload ตาม Role นั้นๆ จากนั้นใช้คำสั่ง page.goto('/login') กรอก username และ password กด Submit และตรวจสอบว่าระบบ redirect ออกจากหน้าล็อกอินไปยังหน้าที่กำหนดด้วย expect(page).toHaveURL(...)",
+    steps: [
+      "1. ล้างคุกกี้และเซสชันเก่า (Clear Cookies) เพื่อเริ่มต้นทดสอบสถานะก่อนล็อกอิน",
+      "2. นำทาง Browser ไปที่ URL หน้าล็อกอิน (/login)",
+      "3. กรอก Username และ Password ของบทบาทที่ทดสอบ (เช่น teacher_a, director_a, admin_a)",
+      "4. คลิกปุ่ม 'เข้าสู่ระบบ' (Submit Button)",
+      "5. ตรวจสอบการนำทาง (URL Redirection) ไปยังหน้าหลักตามบทบาทนั้นๆ เช่น /teacher/dashboard หรือ /director/dashboard",
+    ],
+    expectedResult: "ผู้ใช้งานแต่ละบทบาทเข้าสู่ระบบสำเร็จและถูกนำทางไปยังหน้าจอการทำงานหลักตามสิทธิ์ของตนเองอย่างถูกต้อง",
+    keySelectors: [
+      "#login-username, input[name='username'] (ช่องกรอกชื่อผู้ใช้)",
+      "#login-password, input[name='password'] (ช่องกรอกรหัสผ่าน)",
+      "button[type='submit'], #login-submit (ปุ่มเข้าสู่ระบบ)",
+    ],
+  },
+
+  "FN-STS-01-INVALID": {
+    id: "FN-STS-01-INVALID",
+    code: "FN-STS-01 (Part 2)",
+    name: "ระบบยืนยันตัวตน - ตรวจสอบความปลอดภัยเมื่อรหัสผ่านผิด (Invalid Credentials)",
+    role: "ตรวจสอบความปลอดภัย (Security Check)",
+    workflow: "เปิดหน้า /login → กรอกชื่อผู้ใช้และรหัสผ่านที่ไม่ถูกต้อง → คลิกเข้าสู่ระบบ → ตรวจสอบว่าระบบปฏิเสธและแสดง Alert สีแดง",
+    overview: "ทดสอบกลไกความปลอดภัยในการป้องกันการเข้าสู่ระบบที่ไม่ได้รับอนุญาต เมื่อผู้ใช้กรอกรหัสผ่านผิด ระบบต้องไม่อนุญาตให้เข้าสู่ระบบ ต้องคงอยู่ที่หน้า /login และต้องแสดงกล่องแจ้งเตือน Error Alert สีแดงชัดเจน",
+    codeExplanation: "โค้ดทำการตั้งค่า Route Mocking สำหรับ /api/auth/login ให้ตอบกลับสถานะ HTTP 401 Unauthorized พร้อม message ข้อผิดพลาด จากนั้นสั่งกรอก username และรหัสผ่านที่ผิด (wrong_password_999) แล้วคลิกปุ่มส่งฟอร์ม ตรวจสอบว่ากล่องแจ้งเตือน Error Alert ปรากฏขึ้นใน DOM และ URL ยังคงเป็น /login",
+    steps: [
+      "1. ล้างคุกกี้และตั้งค่า Mock API ให้ตอบกลับ 401 Unauthorized",
+      "2. นำทาง Browser ไปยัง URL หน้าล็อกอิน (/login)",
+      "3. กรอกชื่อผู้ใช้และรหัสผ่านที่ไม่ถูกต้องในช่องแบบฟอร์ม",
+      "4. คลิกปุ่ม 'เข้าสู่ระบบ' (Submit Button)",
+      "5. ตรวจสอบว่ามีกล่องแจ้งเตือนสีแดง (Error Alert) แสดงข้อความเตือนผู้ใช้",
+      "6. ตรวจสอบว่า URL ยังคงอยู่ที่หน้า /login (ไม่เกิดการ Redirection)",
+    ],
+    expectedResult: "ระบบปฏิเสธการเข้าสู่ระบบ คงอยู่ที่หน้าเดิม และแสดงข้อความเตือน Error Alert อย่างชัดเจน",
+    keySelectors: [
+      "#login-username, input[name='username'] (ช่องกรอกชื่อผู้ใช้)",
+      "#login-password, input[name='password'] (ช่องกรอกรหัสผ่าน)",
+      "button[type='submit'], #login-submit (ปุ่มเข้าสู่ระบบ)",
+      "[role='alert'], .text-rose-500, [data-testid='error-alert'] (กล่องแจ้งเตือนข้อผิดพลาด)",
+    ],
+  },
+
+  "FN-STS-01-EMPTY": {
+    id: "FN-STS-01-EMPTY",
+    code: "FN-STS-01 (Part 3)",
+    name: "ระบบยืนยันตัวตน - ตรวจสอบการเว้นว่างข้อมูลเข้าสู่ระบบ (Empty Credentials)",
+    role: "ตรวจสอบความปลอดภัย (Validation Check)",
+    workflow: "เปิดหน้า /login → ไม่กรอกข้อมูลในช่องใดๆ (เว้นว่าง) → คลิกปุ่มส่งฟอร์มทันที → ตรวจสอบการปฏิเสธของระบบ",
+    overview: "ทดสอบการตรวจสอบความถูกต้องของฟอร์ม (Form Validation) เมื่อผู้ใช้กดปุ่มเข้าสู่ระบบโดยเว้นว่างชื่อผู้ใช้หรือรหัสผ่าน ระบบต้องปฏิเสธการส่งคำขอ และแสดงข้อความแจ้งเตือนให้กรอกข้อมูล",
+    codeExplanation: "โค้ดทำการเปิดหน้า /login ปล่อยช่อง username และ password ให้เป็นค่าว่าง แล้วคลิกปุ่มส่งฟอร์มทันที ตรวจสอบว่าเบราว์เซอร์หรือฟอร์มไม่ส่งคำขอผิดพลาด และแสดงสถานะ validation เตือนผู้ใช้ พร้อมทั้งคงอยู่ที่หน้าเดิม",
+    steps: [
+      "1. นำทาง Browser ไปยังหน้าเข้าสู่ระบบ (/login)",
+      "2. ปล่อยช่องชื่อผู้ใช้และรหัสผ่านให้เป็นค่าว่าง (ไม่กรอกข้อมูล)",
+      "3. คลิกปุ่ม 'เข้าสู่ระบบ' ทันที",
+      "4. ตรวจสอบว่าระบบปฏิเสธการส่งฟอร์ม และยังคงอยู่ที่หน้า /login",
+      "5. ตรวจสอบข้อความเตือนหรือสถานะ Validation บนแบบฟอร์ม",
+    ],
+    expectedResult: "ระบบปฏิเสธการส่งฟอร์มเมื่อเว้นว่างข้อมูล และแจ้งเตือนให้ผู้ใช้กรอกชื่อผู้ใช้และรหัสผ่าน",
+    keySelectors: [
+      "#login-username, input[name='username'] (ช่องกรอกชื่อผู้ใช้)",
+      "#login-password, input[name='password'] (ช่องกรอกรหัสผ่าน)",
+      "button[type='submit'], #login-submit (ปุ่มเข้าสู่ระบบ)",
+      "[role='alert'], :invalid (ข้อความเตือนความถูกต้อง)",
+    ],
+  },
+
   "FN-STS-02": {
     id: "FN-STS-02",
     code: "FN-STS-02",
@@ -739,6 +811,34 @@ export function getFunctionDetailedDoc(functionIdOrText: string): FunctionDetail
     if (upper === key || upper.includes(key) || key.includes(upper)) {
       return doc;
     }
+  }
+
+  // Specific sub-cases for Authentication parts (Checked first to isolate specific part)
+  if (
+    upper.includes("INVALID") ||
+    upper.includes("AUTH-INVALID") ||
+    upper.includes("รหัสผ่านผิด") ||
+    upper.includes("รหัสผิด")
+  ) {
+    return FUNCTION_DETAILED_DOCS["FN-STS-01-INVALID"];
+  }
+  if (
+    upper.includes("EMPTY") ||
+    upper.includes("AUTH-EMPTY") ||
+    upper.includes("เว้นว่าง")
+  ) {
+    return FUNCTION_DETAILED_DOCS["FN-STS-01-EMPTY"];
+  }
+  if (
+    upper.includes("AUTH-ROLE") ||
+    upper.includes("SUCCEEDS") ||
+    upper.includes("AUTH-TEACHER") ||
+    upper.includes("AUTH-DIRECTOR") ||
+    upper.includes("AUTH-ADMIN") ||
+    upper.includes("AUTH-OFFICER") ||
+    upper.includes("LOGIN AS")
+  ) {
+    return FUNCTION_DETAILED_DOCS["FN-STS-01-ROLES"];
   }
 
   // Keyword-based fallback
