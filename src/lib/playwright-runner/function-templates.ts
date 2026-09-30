@@ -21,46 +21,58 @@ export const STS_FUNCTION_TEMPLATES: Record<string, FunctionTemplate> = {
     description: "ทดสอบการเข้าสู่ระบบตามบทบาทผู้ใช้ (Admin, Teacher, Director, Officer) และการป้องกันข้อผิดพลาด",
     code: `// ==============================================================
 // 🧪 ชุดทดสอบ: FN-STS-01 ระบบยืนยันตัวตนและการเข้าสู่ระบบ (Authentication)
-// วัตถุประสงค์: ตรวจสอบการ Login ตามสิทธิ์ผู้ใช้งาน และการ Redirect ไปยังหน้าที่ถูกต้อง
+// 🎯 วัตถุประสงค์: ตรวจสอบการ Login ตามสิทธิ์ผู้ใช้งาน และการ Redirect ไปยังหน้าที่ถูกต้อง
+// 👥 บทบาทผู้ใช้: ครูประจำชั้น (Teacher), ผู้บริหาร (Director), แอดมิน (Admin), เจ้าหน้าที่ (Officer)
 // ==============================================================
 import { test, expect } from "@playwright/test";
 
 test.describe("FN-STS-01: Authentication Suite", () => {
+  // [Precondition]: ล้างคุกกี้และเซสชันเก่าก่อนเริ่มแต่ละเคส เพื่อความสะอาดของ State
   test.beforeEach(async ({ page }) => {
+    // คำสั่ง: clearCookies() ล้างข้อมูลเซสชันเก่าออกจากเบราว์เซอร์
     await page.context().clearCookies();
   });
 
   test("TC-STS-AUTH-001: ครูประจำชั้น (Teacher) เข้าสู่ระบบสำเร็จและนำทางไปหน้าหลัก", async ({ page }) => {
-    // 1. นำทางไปยังหน้า Login
+    // [ขั้นตอนที่ 1]: สั่งให้ Browser นำทางไปยัง URL หน้า Login
     await page.goto("/login");
+    // [การตรวจสอบ]: ยืนยันว่าหน้าเว็บโหลดเส้นทาง /login สำเร็จ
     await expect(page).toHaveURL(/.*\\/login/);
 
-    // 2. กรอกชื่อผู้ใช้และรหัสผ่าน
+    // [ขั้นตอนที่ 2]: ค้นหาช่องกรอกชื่อผู้ใช้และรหัสผ่านด้วย CSS Locator
     const usernameInput = page.locator("#login-username, input[name='username'], input[type='text']").first();
     const passwordInput = page.locator("#login-password, input[name='password'], input[type='password']").first();
 
+    // [ขั้นตอนที่ 3]: จำลองการพิมพ์ Username และ Password ของครูประจำชั้น
     await usernameInput.fill("teacher01");
     await passwordInput.fill("changeme");
 
-    // 3. คลิกปุ่มเข้าสู่ระบบ
+    // [ขั้นตอนที่ 4]: คลิกปุ่ม 'เข้าสู่ระบบ' (Submit Button)
     await page.locator("button[type='submit'], #login-submit").first().click();
 
-    // 4. ตรวจสอบการ Redirect ออกจากหน้า Login
+    // [ขั้นตอนที่ 5]: ตรวจสอบผลลัพธ์ (Assertion) ว่าระบบต้องนำทางออกจากหน้า /login ไปยังหน้าแดชบอร์ด
     await expect(page).not.toHaveURL(/.*\\/login/, { timeout: 15000 });
   });
 
   test("TC-STS-AUTH-002: ตรวจสอบความปลอดภัยเมื่อกรอกรหัสผ่านผิด", async ({ page }) => {
+    // [ขั้นตอนที่ 1]: นำทางไปยังหน้า Login
     await page.goto("/login");
 
+    // [ขั้นตอนที่ 2]: ค้นหาช่องกรอกข้อมูล
     const usernameInput = page.locator("#login-username, input[name='username'], input[type='text']").first();
     const passwordInput = page.locator("#login-password, input[name='password'], input[type='password']").first();
 
+    // [ขั้นตอนที่ 3]: กรอกรหัสผ่านที่ไม่ถูกต้องเพื่อทดสอบระบบความปลอดภัย
     await usernameInput.fill("teacher01");
     await passwordInput.fill("wrong-password-999");
+
+    // [ขั้นตอนที่ 4]: คลิกปุ่มเข้าสู่ระบบ
     await page.locator("button[type='submit'], #login-submit").first().click();
 
-    // ต้องยังคงอยู่ที่หน้า login และแสดงแจ้งเตือนข้อผิดพลาด
+    // [ขั้นตอนที่ 5]: ตรวจสอบผลลัพธ์ (Assertion) ต้องยังคงอยู่ที่หน้า /login และห้ามหลุดเข้าสู่ระบบ
     await expect(page).toHaveURL(/.*\\/login/);
+
+    // [ขั้นตอนที่ 6]: ตรวจสอบว่าระบบแสดงกล่องแจ้งเตือนข้อผิดพลาด (Alert Box) สีแดงเตือนผู้ใช้
     const alertBox = page.locator("[role='alert'], .text-rose-500, .text-red-500, .bg-rose-950");
     if (await alertBox.count() > 0) {
       await expect(alertBox.first()).toBeVisible();
@@ -78,34 +90,38 @@ test.describe("FN-STS-01: Authentication Suite", () => {
     description: "ตรวจสอบทำเนียบผู้ใช้ ค้นหา กรองสถานะ Active/Suspended และแบบฟอร์มเพิ่มผู้ใช้งาน",
     code: `// ==============================================================
 // 🧪 ชุดทดสอบ: FN-STS-02 ระบบจัดการผู้ใช้ (User Management)
-// วัตถุประสงค์: ตรวจสอบหน้าจอจัดการบัญชีผู้ใช้งาน, ตารางรายชื่อ, การค้นหา และการกรองสถานะ
+// 🎯 วัตถุประสงค์: ตรวจสอบหน้าจอจัดการบัญชีผู้ใช้งาน, ตารางรายชื่อ, การค้นหา และการกรองสถานะ
+// 👥 บทบาทผู้ใช้: ผู้ดูแลระบบแพลตฟอร์ม (Platform Admin) / ผู้ดูแลระบบสถานศึกษา
 // ==============================================================
 import { test, expect } from "@playwright/test";
 
 test.describe("FN-STS-02: User Management Suite", () => {
   test("TC-STS-USER-001: ผู้ดูแลระบบเปิดดูทำเนียบผู้ใช้และตรวจสอบตารางข้อมูล", async ({ page }) => {
-    // 1. เข้าสู่หน้าจัดการผู้ใช้
+    // [ขั้นตอนที่ 1]: สั่ง Browser นำทางไปยังหน้าจัดการผู้ใช้ (/admin/users)
     await page.goto("/admin/users");
+    // [การตรวจสอบ]: ยืนยันว่าหน้าเว็บโหลด URL ถูกต้อง
     await expect(page).toHaveURL(/.*\\/admin\\/users/);
 
-    // 2. ตรวจสอบว่ามีช่องค้นหาผู้ใช้
+    // [ขั้นตอนที่ 2]: ตรวจสอบว่ามีช่องค้นหาผู้ใช้แสดงผลบนหน้าจอพร้อมใช้งาน
     const searchInput = page.locator("input[placeholder*='ค้นหา'], input[type='search'], #user-search").first();
     await expect(searchInput).toBeVisible();
 
-    // 3. ตรวจสอบว่ามีตารางหรือรายการแสดงรายชื่อผู้ใช้งาน
+    // [ขั้นตอนที่ 3]: ตรวจสอบว่ามีตารางหรือรายการแสดงรายชื่อผู้ใช้งาน (User List/Table)
     const userTableOrList = page.locator("table, [role='table'], [data-testid='users-list'], .user-card").first();
     await expect(userTableOrList).toBeVisible({ timeout: 10000 });
   });
 
   test("TC-STS-USER-002: ทดสอบการค้นหาและกรองผู้ใช้งานตามชื่อ", async ({ page }) => {
+    // [ขั้นตอนที่ 1]: เข้าสู่หน้าจัดการผู้ใช้
     await page.goto("/admin/users");
     const searchInput = page.locator("input[placeholder*='ค้นหา'], input[type='search'], #user-search").first();
 
-    // ค้นหาผู้ใช้
+    // [ขั้นตอนที่ 2]: ป้อนคำค้นหาลงในช่องค้นหา เช่น 'Admin'
     await searchInput.fill("Admin");
-    await page.waitForTimeout(500); // debounce time
+    // [ขั้นตอนที่ 3]: รอเวลาประมวลผลการค้นหา (Debounce delay 500ms)
+    await page.waitForTimeout(500);
 
-    // ตรวจสอบว่าผลลัพธ์ในหน้าจอแสดงรายการที่ตรงกับคำค้น
+    // [ขั้นตอนที่ 4]: ตรวจสอบผลลัพธ์ว่าหน้าจอแสดงข้อมูลผู้ใช้ที่ตรงกับคำค้นหา
     await expect(page.locator("body")).toContainText(/admin|ผู้ดูแล/i);
   });
 });
@@ -120,30 +136,35 @@ test.describe("FN-STS-02: User Management Suite", () => {
     description: "เปิดดูทำเนียบรายชื่อนักเรียน ค้นหานักเรียน และดูโปรไฟล์ประวัตินักเรียนรายบุคคล",
     code: `// ==============================================================
 // 🧪 ชุดทดสอบ: FN-STS-03 ข้อมูลนักเรียนและห้องเรียน (Students & Classrooms)
-// วัตถุประสงค์: ตรวจสอบทำเนียบนักเรียน การแสดงผลการ์ดนักเรียน และการค้นหารายชื่อ
+// 🎯 วัตถุประสงค์: ตรวจสอบทำเนียบนักเรียน การแสดงผลการ์ดนักเรียน และการค้นหารายชื่อ
+// 👥 บทบาทผู้ใช้: ครูประจำชั้น / ครูผู้สอน / ผู้บริหารสถานศึกษา
 // ==============================================================
 import { test, expect } from "@playwright/test";
 
 test.describe("FN-STS-03: Students & Classrooms Suite", () => {
   test("TC-STS-STU-001: ครูประจำชั้นเปิดดูทำเนียบรายชื่อนักเรียนในห้อง", async ({ page }) => {
-    // 1. นำทางไปยังหน้ารายชื่อนักเรียน
+    // [ขั้นตอนที่ 1]: นำทางไปยังหน้ารายชื่อนักเรียน (/students)
     await page.goto("/students");
+    // [การตรวจสอบ]: ยืนยัน URL ถูกต้อง
     await expect(page).toHaveURL(/.*\\/students/);
 
-    // 2. ตรวจสอบว่ามีการ์ดหรือแถวนักเรียนแสดงผล
+    // [ขั้นตอนที่ 2]: ค้นหาและตรวจสอบว่ามีการ์ดหรือแถวนักเรียนแสดงผลขึ้นมา
     const studentElements = page.locator("[data-testid='student-card'], .student-item, tr[data-student-id], table tbody tr");
     await expect(studentElements.first()).toBeVisible({ timeout: 10000 });
   });
 
   test("TC-STS-STU-002: ค้นหารายชื่อนักเรียนด้วยคำค้นหา", async ({ page }) => {
+    // [ขั้นตอนที่ 1]: เปิดหน้านักเรียน
     await page.goto("/students");
     const searchInput = page.locator("input[placeholder*='ค้นหา'], input[type='search']").first();
     await expect(searchInput).toBeVisible();
 
+    // [ขั้นตอนที่ 2]: ป้อนชื่อนักเรียนภาษาไทยในช่องค้นหา
     await searchInput.fill("กิตติพงษ์");
+    // [ขั้นตอนที่ 3]: รอผลลัพธ์อัปเดต
     await page.waitForTimeout(500);
 
-    // ตรวจสอบว่ามีการอัปเดตผลลัพธ์การค้นหา
+    // [ขั้นตอนที่ 4]: ตรวจสอบว่าระบบเรนเดอร์เนื้อหาหน้าจอได้ตามปกติ
     await expect(page.locator("body")).toBeDefined();
   });
 });
@@ -158,30 +179,35 @@ test.describe("FN-STS-03: Students & Classrooms Suite", () => {
     description: "เปิดหน้าจอเช็คชื่อเข้าเรียนประจำวัน ตรวจสอบยอดสรุปมา/ขาด/ลา/มาสาย และรายการเช็คชื่อ",
     code: `// ==============================================================
 // 🧪 ชุดทดสอบ: FN-STS-04 ระบบเช็คชื่อเข้าเรียน (Attendance)
-// วัตถุประสงค์: ตรวจสอบหน้าจอเช็คชื่อประจำวัน ยอดสรุปสถิติ และการบันทึกสถานะ
+// 🎯 วัตถุประสงค์: ตรวจสอบหน้าจอเช็คชื่อประจำวัน ยอดสรุปสถิติ และการบันทึกสถานะ
+// 👥 บทบาทผู้ใช้: ครูประจำชั้น / ครูเวรประจำวัน
 // ==============================================================
 import { test, expect } from "@playwright/test";
 
 test.describe("FN-STS-04: Attendance Suite", () => {
   test("TC-STS-ATT-001: ครูประจำชั้นเปิดหน้าจอเช็คชื่อการเข้าเรียนประจำวัน", async ({ page }) => {
-    // 1. เข้าสู่หน้าจอเช็คชื่อ
+    // [ขั้นตอนที่ 1]: นำทาง Browser เข้าสู่หน้าจอเช็คชื่อ (/attendance)
     await page.goto("/attendance");
+    // [การตรวจสอบ]: ยืนยัน URL หน้าเช็คชื่อ
     await expect(page).toHaveURL(/.*\\/attendance/);
 
-    // 2. ตรวจสอบว่ามีแถบสถิติสรุป (มา / ขาด / ลา / มาสาย)
+    // [ขั้นตอนที่ 2]: ตรวจสอบการ์ดสถิติสรุปยอดรวมประจำวัน (มา / ขาด / ลา / มาสาย)
     const summaryCards = page.locator("[data-testid='attendance-summary'], .stat-card, .metric-card");
     if (await summaryCards.count() > 0) {
       await expect(summaryCards.first()).toBeVisible();
     }
 
-    // 3. ตรวจสอบตารางรายชื่อนักเรียนพร้อมปุ่มสถานะเช็คชื่อ
+    // [ขั้นตอนที่ 3]: ตรวจสอบตารางรายชื่อนักเรียนพร้อมปุ่มบันทึกสถานะการเช็คชื่อ
     const checkinRows = page.locator("table tbody tr, [data-testid='attendance-row']");
     await expect(checkinRows.first()).toBeVisible({ timeout: 10000 });
   });
 
   test("TC-STS-ATT-002: ตรวจสอบการเลือกวันที่และห้องเรียน", async ({ page }) => {
+    // [ขั้นตอนที่ 1]: เข้าสู่หน้าเช็คชื่อ
     await page.goto("/attendance");
+    // [ขั้นตอนที่ 2]: ค้นหาตัวเลือกวันที่ (Date Picker) หรือเมนูเลือกห้องเรียน
     const datePickerOrSelect = page.locator("input[type='date'], select[name*='classroom'], button[aria-label*='date']").first();
+    // [ขั้นตอนที่ 3]: ตรวจสอบว่าสามารถกดเลือกหรือเปลี่ยนค่าได้
     if (await datePickerOrSelect.isVisible()) {
       await expect(datePickerOrSelect).toBeEnabled();
     }
@@ -198,21 +224,23 @@ test.describe("FN-STS-04: Attendance Suite", () => {
     description: "ตรวจสอบทำเนียบเคสปัญหาของนักเรียน ระดับความเสี่ยง และแบบฟอร์มการส่งต่อเคสใหม่",
     code: `// ==============================================================
 // 🧪 ชุดทดสอบ: FN-STS-05 ระบบจัดการเคสปัญหา (Student Cases)
-// วัตถุประสงค์: ตรวจสอบทำเนียบเคสปัญหา ป้ายสถานะความเสี่ยง และแบบฟอร์มสร้างเคสใหม่
+// 🎯 วัตถุประสงค์: ตรวจสอบทำเนียบเคสปัญหา ป้ายสถานะความเสี่ยง และแบบฟอร์มสร้างเคสใหม่
+// 👥 บทบาทผู้ใช้: ครูประจำชั้น / ครูแนะแนว / ฝ่ายปกครอง
 // ==============================================================
 import { test, expect } from "@playwright/test";
 
 test.describe("FN-STS-05: Student Cases Suite", () => {
   test("TC-STS-CASE-001: ครูประจำชั้นเปิดดูทำเนียบเคสปัญหาและป้ายความเสี่ยง", async ({ page }) => {
-    // 1. เข้าสู่หน้ารายการเคส
+    // [ขั้นตอนที่ 1]: เข้าสู่หน้ารายการเคสปัญหานักเรียน (/cases)
     await page.goto("/cases");
+    // [การตรวจสอบ]: ยืนยัน URL ถูกต้อง
     await expect(page).toHaveURL(/.*\\/cases/);
 
-    // 2. ตรวจสอบปุ่มสร้างเคสใหม่ (New Case Button)
+    // [ขั้นตอนที่ 2]: ตรวจสอบว่ามีปุ่มสำหรับกดสร้างเคสใหม่ (New Case Button)
     const newCaseBtn = page.locator("a[href*='/cases/create'], button:has-text('สร้างเคส'), button:has-text('เพิ่มเคส')").first();
     await expect(newCaseBtn).toBeVisible({ timeout: 10000 });
 
-    // 3. ตรวจสอบรายการเคสในตาราง
+    // [ขั้นตอนที่ 3]: ตรวจสอบรายการเคสปัญหาในตารางข้อมูล
     const caseList = page.locator("table tbody tr, [data-testid='case-card'], .case-item");
     if (await caseList.count() > 0) {
       await expect(caseList.first()).toBeVisible();
@@ -220,12 +248,15 @@ test.describe("FN-STS-05: Student Cases Suite", () => {
   });
 
   test("TC-STS-CASE-002: ตรวจสอบหน้าฟอร์มสร้างเคสปัญหานักเรียนใหม่", async ({ page }) => {
+    // [ขั้นตอนที่ 1]: เปิดหน้ารายการเคส
     await page.goto("/cases");
     const newCaseBtn = page.locator("a[href*='/cases/create'], button:has-text('สร้างเคส'), button:has-text('เพิ่มเคส')").first();
+    // [ขั้นตอนที่ 2]: คลิกปุ่มสร้างเคสเพื่อทดสอบการเปลี่ยนเส้นทางไปยังหน้ากรอกข้อมูล
     if (await newCaseBtn.isVisible()) {
       await newCaseBtn.click();
+      // [ขั้นตอนที่ 3]: ยืนยันว่า URL เปลี่ยนไปยังหน้าสร้างเคส /cases/create
       await expect(page).toHaveURL(/.*\\/cases.*create/);
-      // ตรวจสอบฟิลด์สำคัญ
+      // [ขั้นตอนที่ 4]: ตรวจสอบว่ามีฟิลด์กรอกข้อมูลแสดงผลพร้อมใช้งาน
       await expect(page.locator("input, textarea, select").first()).toBeVisible();
     }
   });
@@ -241,23 +272,25 @@ test.describe("FN-STS-05: Student Cases Suite", () => {
     description: "เปิดหน้า Report Studio กำหนดช่วงเวลา/เงื่อนไข พรีวิวตารางข้อมูล และทดสอบปุ่ม Export Excel/PDF",
     code: `// ==============================================================
 // 🧪 ชุดทดสอบ: FN-STS-06 รายงานสรุปและการส่งออก (Reports & Export)
-// วัตถุประสงค์: ตรวจสอบหน้าจอออกรายงาน ตัวกรองเงื่อนไข และปุ่มส่งออก Excel / PDF
+// 🎯 วัตถุประสงค์: ตรวจสอบหน้าจอออกรายงาน ตัวกรองเงื่อนไข และปุ่มส่งออก Excel / PDF
+// 👥 บทบาทผู้ใช้: ผู้อำนวยการ / ผู้บริหารสถานศึกษา / หัวหน้าฝ่ายสถิติ
 // ==============================================================
 import { test, expect } from "@playwright/test";
 
 test.describe("FN-STS-06: Case Reports & Export Suite", () => {
   test("TC-STS-REP-001: ผู้บริหารเปิดหน้า Report Studio และตรวจสอบตัวกรองรายงาน", async ({ page }) => {
-    // 1. เข้าสู่หน้า Reports
+    // [ขั้นตอนที่ 1]: นำทางไปยังหน้าระบบรายงาน (/reports)
     await page.goto("/reports");
+    // [การตรวจสอบ]: ยืนยัน URL หน้าสรุปรายงาน
     await expect(page).toHaveURL(/.*\\/reports/);
 
-    // 2. ตรวจสอบว่ามีตัวเลือกประเภทรายงาน
+    // [ขั้นตอนที่ 2]: ตรวจสอบตัวเลือกประเภทรายงาน (Report Type Dropdown)
     const reportType = page.locator("select[name*='type'], [role='combobox'], #report-type").first();
     if (await reportType.isVisible()) {
       await expect(reportType).toBeVisible();
     }
 
-    // 3. ตรวจสอบว่ามีปุ่มสั่งสร้างรายงาน (Generate / Preview Report)
+    // [ขั้นตอนที่ 3]: ตรวจสอบว่ามีปุ่มสั่งสร้างรายงาน (Generate / Preview Report)
     const generateBtn = page.locator("button:has-text('สร้างรายงาน'), button:has-text('ดูรายงาน'), button:has-text('Generate')").first();
     if (await generateBtn.isVisible()) {
       await expect(generateBtn).toBeEnabled();
@@ -265,8 +298,11 @@ test.describe("FN-STS-06: Case Reports & Export Suite", () => {
   });
 
   test("TC-STS-REP-002: ตรวจสอบความพร้อมของปุ่ม Export ข้อมูล", async ({ page }) => {
+    // [ขั้นตอนที่ 1]: เปิดหน้ารายงาน
     await page.goto("/reports");
+    // [ขั้นตอนที่ 2]: ค้นหาปุ่มดาวน์โหลดไฟล์รายงาน Excel (.xlsx)
     const exportExcelBtn = page.locator("button:has-text('Excel'), a:has-text('Excel'), button:has-text('ส่งออก')").first();
+    // [ขั้นตอนที่ 3]: ตรวจสอบว่าปุ่มดาวน์โหลดพร้อมให้ผู้บริหารคลิกใช้งาน
     if (await exportExcelBtn.isVisible()) {
       await expect(exportExcelBtn).toBeVisible();
     }
@@ -283,17 +319,19 @@ test.describe("FN-STS-06: Case Reports & Export Suite", () => {
     description: "เปิดแผนที่/รายการสังเกตพฤติกรรม ค้นหานักเรียน และกรองตามระดับความเสี่ยง (เสี่ยงสูง/ปานกลาง/ปกติ)",
     code: `// ==============================================================
 // 🧪 ชุดทดสอบ: FN-STS-07 บันทึกพฤติกรรมและการติดตาม (Observations & Tracking)
-// วัตถุประสงค์: ตรวจสอบหน้าจอติดตามพฤติกรรม แผนที่พิกัด และการกรองความเสี่ยง
+// 🎯 วัตถุประสงค์: ตรวจสอบหน้าจอติดตามพฤติกรรม แผนที่พิกัด และการกรองความเสี่ยง
+// 👥 บทบาทผู้ใช้: ครูประจำชั้น / ครูแนะแนว / เจ้าหน้าที่ลงพื้นที่เยี่ยมบ้าน
 // ==============================================================
 import { test, expect } from "@playwright/test";
 
 test.describe("FN-STS-07: Observations & Tracking Suite", () => {
   test("TC-STS-TRK-001: ครูประจำชั้นเปิดหน้าติดตามพฤติกรรมและการเยี่ยมบ้าน", async ({ page }) => {
-    // 1. นำทางไปยังหน้า Tracking / Observations
+    // [ขั้นตอนที่ 1]: นำทางไปยังหน้า Tracking / Observations
     await page.goto("/observations");
+    // [การตรวจสอบ]: ยืนยัน URL ถูกต้อง
     await expect(page).toHaveURL(/.*\\/(observations|tracking)/);
 
-    // 2. ตรวจสอบว่ามีรายการหรือการ์ดติดตามนักเรียน
+    // [ขั้นตอนที่ 2]: ตรวจสอบว่ามีการ์ดหรือแถวแสดงผลการติดตามนักเรียน
     const trackingCards = page.locator("[data-testid='tracking-item'], .observation-card, tr[data-student-id]");
     if (await trackingCards.count() > 0) {
       await expect(trackingCards.first()).toBeVisible({ timeout: 10000 });
@@ -301,8 +339,11 @@ test.describe("FN-STS-07: Observations & Tracking Suite", () => {
   });
 
   test("TC-STS-TRK-002: กรองรายชื่อนักเรียนตามระดับความเสี่ยง", async ({ page }) => {
+    // [ขั้นตอนที่ 1]: เปิดหน้าจอสังเกตพฤติกรรม
     await page.goto("/observations");
+    // [ขั้นตอนที่ 2]: ค้นหาตัวกรองระดับความเสี่ยง (Risk Filter)
     const riskFilter = page.locator("select[name*='risk'], button:has-text('ความเสี่ยง')").first();
+    // [ขั้นตอนที่ 3]: ตรวจสอบว่าตัวกรองพร้อมรับการสั่งการ
     if (await riskFilter.isVisible()) {
       await expect(riskFilter).toBeVisible();
     }
@@ -319,29 +360,33 @@ test.describe("FN-STS-07: Observations & Tracking Suite", () => {
     description: "ตรวจสอบการแสดงผลการ์ดสรุป KPI สถิติประจำวัน และเมนูทางลัดตามบทบาทของผู้ใช้งาน",
     code: `// ==============================================================
 // 🧪 ชุดทดสอบ: FN-STS-08 แดชบอร์ดตามบทบาทผู้ใช้ (Dashboard Navigation)
-// วัตถุประสงค์: ตรวจสอบการโหลดแดชบอร์ด การแสดงผล KPI Cards และเมนูทางลัด
+// 🎯 วัตถุประสงค์: ตรวจสอบการโหลดแดชบอร์ด การแสดงผล KPI Cards และเมนูทางลัด
+// 👥 บทบาทผู้ใช้: ผู้ใช้งานทุกบทบาท (ครู, ผู้บริหาร, เจ้าหน้าที่, แอดมิน)
 // ==============================================================
 import { test, expect } from "@playwright/test";
 
 test.describe("FN-STS-08: Dashboard & Navigation Suite", () => {
   test("TC-STS-DASH-001: เปิดหน้าแดชบอร์ดหลักและตรวจสอบการ์ด KPI สถิติ", async ({ page }) => {
-    // 1. นำทางไปยังหน้า Dashboard
+    // [ขั้นตอนที่ 1]: สั่ง Browser เข้าสู่หน้าจอแดชบอร์ดหลัก (/dashboard)
     await page.goto("/dashboard");
+    // [การตรวจสอบ]: ยืนยัน URL หน้าแดชบอร์ด
     await expect(page).toHaveURL(/.*\\/dashboard/);
 
-    // 2. ตรวจสอบหัวข้อแดชบอร์ด
+    // [ขั้นตอนที่ 2]: ตรวจสอบหัวข้อหลักของแดชบอร์ด (Dashboard Heading)
     const heading = page.locator("h1, h2, [data-testid='dashboard-header']").first();
     await expect(heading).toBeVisible({ timeout: 10000 });
 
-    // 3. ตรวจสอบการ์ด KPI แสดงผล
+    // [ขั้นตอนที่ 3]: ตรวจสอบว่ามีการ์ด KPI สรุปตัวชี้วัดแสดงผลอย่างน้อย 1 รายการ
     const kpiCards = page.locator(".kpi-card, [data-testid='kpi-card'], .grid > div");
     await expect(kpiCards.first()).toBeVisible();
   });
 
   test("TC-STS-DASH-002: ตรวจสอบปุ่มทางลัดไปยังโมดูลหลักต่างๆ", async ({ page }) => {
+    // [ขั้นตอนที่ 1]: เปิดหน้าแดชบอร์ด
     await page.goto("/dashboard");
-    // ตรวจสอบ Navigation bar หรือ Sidebar
+    // [ขั้นตอนที่ 2]: ตรวจสอบแถบเมนูนำทาง (Sidebar / Navigation Menu)
     const navOrSidebar = page.locator("nav, aside, [role='navigation']").first();
+    // [ขั้นตอนที่ 3]: ยืนยันว่าแถบเมนูแสดงผลพร้อมคลิกใช้งาน
     await expect(navOrSidebar).toBeVisible();
   });
 });
@@ -356,21 +401,23 @@ test.describe("FN-STS-08: Dashboard & Navigation Suite", () => {
     description: "ตรวจสอบหน้าจอประเมินผล AI Model Benchmark, การส่ง Run ID และค่าสถิติ F1-Score / Accuracy",
     code: `// ==============================================================
 // 🧪 ชุดทดสอบ: FN-STS-09 ระบบวิเคราะห์ AI (AI Insights & Benchmark)
-// วัตถุประสงค์: ตรวจสอบหน้าจอ Benchmark การวิเคราะห์เคสของโมเดล AI และตัวชี้วัดประสิทธิภาพ
+// 🎯 วัตถุประสงค์: ตรวจสอบหน้าจอ Benchmark การวิเคราะห์เคสของโมเดล AI และตัวชี้วัดประสิทธิภาพ
+// 👥 บทบาทผู้ใช้: ผู้ดูแลระบบแพลตฟอร์ม / ผู้เชี่ยวชาญด้านข้อมูล / ผู้บริหาร
 // ==============================================================
 import { test, expect } from "@playwright/test";
 
 test.describe("FN-STS-09: AI Insights & Benchmark Evaluation Suite", () => {
   test("TC-STS-AI-001: ผู้ดูแลระบบเปิดหน้าจอประเมินและทดสอบระบบ AI", async ({ page }) => {
-    // 1. นำทางไปยังหน้า AI Evaluation
+    // [ขั้นตอนที่ 1]: นำทางไปยังหน้าจอประเมินผล AI (/admin/ai-evaluation)
     await page.goto("/admin/ai-evaluation");
+    // [การตรวจสอบ]: ยืนยัน URL ถูกต้อง
     await expect(page).toHaveURL(/.*\\/ai-evaluation/);
 
-    // 2. ตรวจสอบหัวข้อหน้าจอ
+    // [ขั้นตอนที่ 2]: ตรวจสอบหัวข้อหลักของหน้าจอ AI Benchmark
     const header = page.locator("h1, h2").first();
     await expect(header).toBeVisible({ timeout: 10000 });
 
-    // 3. ตรวจสอบช่องกรอก Run ID และปุ่มเริ่มการประเมิน
+    // [ขั้นตอนที่ 3]: ตรวจสอบช่องกรอก Benchmark Run ID และปุ่มสั่งเริ่มการประเมิน
     const runInput = page.locator("input[placeholder*='Run ID'], input[name='runId']").first();
     const runBtn = page.locator("button:has-text('เริ่มการประเมิน'), button:has-text('Benchmark'), button:has-text('Run')").first();
 
@@ -393,27 +440,31 @@ test.describe("FN-STS-09: AI Insights & Benchmark Evaluation Suite", () => {
     description: "ตรวจสอบแดชบอร์ดสถิติภาพรวมระดับจังหวัด การเปรียบเทียบระหว่างสถานศึกษา และนโยบายรักษาความเป็นส่วนตัว",
     code: `// ==============================================================
 // 🧪 ชุดทดสอบ: FN-STS-10 แดชบอร์ดระดับเขตและจังหวัด (Platform & Province)
-// วัตถุประสงค์: ตรวจสอบแดชบอร์ดภาพรวมระดับเขตพื้นที่ สถิติเปรียบเทียบโรงเรียน และมาตรการ Privacy
+// 🎯 วัตถุประสงค์: ตรวจสอบแดชบอร์ดภาพรวมระดับเขตพื้นที่ สถิติเปรียบเทียบโรงเรียน และมาตรการ Privacy
+// 👥 บทบาทผู้ใช้: เจ้าหน้าที่เขตพื้นที่การศึกษา / ผู้ว่าราชการจังหวัด / ผู้บริหารระดับเขต
 // ==============================================================
 import { test, expect } from "@playwright/test";
 
 test.describe("FN-STS-10: Platform & Province Suite", () => {
   test("TC-STS-PRV-001: เจ้าหน้าที่เขต/จังหวัดเปิดดูแดชบอร์ดสรุปภาพรวมพื้นที่", async ({ page }) => {
-    // 1. นำทางไปยังหน้าแดชบอร์ดระดับจังหวัด
+    // [ขั้นตอนที่ 1]: นำทางไปยังหน้าแดชบอร์ดระดับจังหวัด (/province/dashboard)
     await page.goto("/province/dashboard");
+    // [การตรวจสอบ]: ยืนยัน URL ถูกต้อง
     await expect(page).toHaveURL(/.*\\/province/);
 
-    // 2. ตรวจสอบหัวข้อหรือชื่อจังหวัดในแดชบอร์ด
+    // [ขั้นตอนที่ 2]: ตรวจสอบหัวข้อชื่อจังหวัดหรือรหัสเขตพื้นที่
     const provinceHeader = page.locator("h1, h2, [data-testid='province-name']").first();
     await expect(provinceHeader).toBeVisible({ timeout: 10000 });
 
-    // 3. ตรวจสอบการแสดงผลการ์ดสถิติรวมสถานศึกษา
+    // [ขั้นตอนที่ 3]: ตรวจสอบการแสดงผลการ์ดสถิติรวมสถานศึกษาในสังกัด
     const statCards = page.locator(".stat-card, [data-testid='summary-card'], .grid > div");
     await expect(statCards.first()).toBeVisible();
   });
 
   test("TC-STS-PRV-002: ตรวจสอบการป้องกันความเป็นส่วนตัว (No Individual Student PII)", async ({ page }) => {
+    // [ขั้นตอนที่ 1]: เปิดหน้ารายงานระดับจังหวัด
     await page.goto("/province/reports");
+    // [ขั้นตอนที่ 2]: ตรวจสอบนโยบายความปลอดภัยข้อมูลส่วนบุคคล (Privacy Assertion)
     // แดชบอร์ดระดับเขตต้องไม่แสดงรหัสบัตรประชาชนหรือข้อมูลส่วนบุคคลรายบุคคล
     await expect(page.locator("body")).not.toContainText(/เลขประจำตัวประชาชน/i);
   });
@@ -429,17 +480,19 @@ test.describe("FN-STS-10: Platform & Province Suite", () => {
     description: "ตรวจสอบหน้าจอข้อมูลโปรไฟล์ผู้ใช้งาน แบบฟอร์มเปลี่ยนรหัสผ่านใหม่ และข้อกำหนดความปลอดภัยของ Password",
     code: `// ==============================================================
 // 🧪 ชุดทดสอบ: FN-STS-11 โปรไฟล์ส่วนตัวและการเปลี่ยนรหัสผ่าน (Profile & Password)
-// วัตถุประสงค์: ตรวจสอบหน้าจอโปรไฟล์ผู้ใช้ ฟอร์มเปลี่ยนรหัสผ่าน และการตรวจสอบเงื่อนไขความปลอดภัย
+// 🎯 วัตถุประสงค์: ตรวจสอบหน้าจอโปรไฟล์ผู้ใช้ ฟอร์มเปลี่ยนรหัสผ่าน และการตรวจสอบเงื่อนไขความปลอดภัย
+// 👥 บทบาทผู้ใช้: ผู้ใช้งานทุกคนในระบบทุกบทบาท
 // ==============================================================
 import { test, expect } from "@playwright/test";
 
 test.describe("FN-STS-11: Profile & Password Suite", () => {
   test("TC-STS-PWD-001: ผู้ใช้เปิดหน้าจอเปลี่ยนรหัสผ่านและตรวจสอบเงื่อนไขความปลอดภัย", async ({ page }) => {
-    // 1. นำทางไปยังหน้าเปลี่ยนรหัสผ่าน
+    // [ขั้นตอนที่ 1]: นำทางไปยังหน้าจอเปลี่ยนรหัสผ่าน (/change-password)
     await page.goto("/change-password");
+    // [การตรวจสอบ]: ยืนยัน URL ถูกต้อง
     await expect(page).toHaveURL(/.*\\/(change-password|profile)/);
 
-    // 2. ตรวจสอบว่ามีช่องกรอกรหัสผ่านเดิม รหัสผ่านใหม่ และยืนยันรหัสผ่าน
+    // [ขั้นตอนที่ 2]: ตรวจสอบว่ามีช่องกรอกรหัสผ่านเดิม รหัสผ่านใหม่ และยืนยันรหัสผ่านใหม่
     const oldPass = page.locator("#oldPassword, input[name='oldPassword'], input[type='password']").first();
     const newPass = page.locator("#newPassword, input[name='newPassword']").first();
     const confirmPass = page.locator("#confirmPassword, input[name='confirmPassword']").first();
@@ -448,7 +501,7 @@ test.describe("FN-STS-11: Profile & Password Suite", () => {
     await expect(newPass).toBeVisible();
     await expect(confirmPass).toBeVisible();
 
-    // 3. ตรวจสอบปุ่มบันทึกรหัสผ่านใหม่
+    // [ขั้นตอนที่ 3]: ตรวจสอบว่ามีปุ่มบันทึกรหัสผ่านใหม่แสดงผลพร้อมใช้งาน
     const submitBtn = page.locator("button[type='submit'], #change-password-submit").first();
     await expect(submitBtn).toBeVisible();
   });

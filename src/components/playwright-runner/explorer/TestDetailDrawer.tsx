@@ -1,12 +1,15 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import type { ProjectCoverageTest } from "@/lib/playwright-runner/types";
 import {
   getMatchReasonLabels,
   getRunnerLabel,
   getTestThaiMeta,
+  getFunctionDetailedDoc,
+  resolveFunctionCategory,
 } from "./test-explorer-presentation";
+import { getFunctionTemplate } from "@/lib/playwright-runner/function-templates";
 
 export interface TestDetailDrawerProps {
   isOpen: boolean;
@@ -31,6 +34,9 @@ export function TestDetailDrawer({
   isSelected = false,
   disabled = false,
 }: TestDetailDrawerProps) {
+  const [showCode, setShowCode] = useState(false);
+  const [copied, setCopied] = useState(false);
+
   // Close drawer on Escape key
   useEffect(() => {
     if (!isOpen) return;
@@ -47,12 +53,29 @@ export function TestDetailDrawer({
 
   const matchReasons = getMatchReasonLabels(test.matchedBy);
   const testMeta = getTestThaiMeta(test.title);
+
+  // Resolve function category and documentation
+  const resolvedCat = resolveFunctionCategory(test.title, test.relativePath);
+  const targetFnId = functionId || resolvedCat.code;
+  const functionDoc = getFunctionDetailedDoc(targetFnId) || getFunctionDetailedDoc(test.title);
+  const template = getFunctionTemplate(targetFnId) || getFunctionTemplate(test.title);
+
   const functionLabel =
     functionId && functionName
       ? `${functionId} · ${functionName}`
-      : functionName || functionId || "ไม่มีข้อมูลฟังก์ชัน";
+      : functionDoc?.name || functionName || functionId || "ไม่มีข้อมูลฟังก์ชัน";
 
   const isRunnable = test.executable !== false;
+
+  const handleCopyCode = async (codeToCopy: string) => {
+    try {
+      await navigator.clipboard.writeText(codeToCopy);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // ignore
+    }
+  };
 
   return (
     <div
@@ -69,7 +92,7 @@ export function TestDetailDrawer({
       />
 
       {/* Slide-over Drawer Panel */}
-      <div className="relative z-10 w-full max-w-lg bg-slate-900/98 border-l border-slate-800 shadow-2xl flex flex-col h-full overflow-hidden text-slate-200 animate-in slide-in-from-right duration-300">
+      <div className="relative z-10 w-full max-w-xl bg-slate-900/98 border-l border-slate-800 shadow-2xl flex flex-col h-full overflow-hidden text-slate-200 animate-in slide-in-from-right duration-300">
         {/* Drawer Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800 bg-slate-950/80 shrink-0">
           <div className="flex items-center gap-2 min-w-0">
@@ -85,7 +108,7 @@ export function TestDetailDrawer({
                 รายละเอียดการทดสอบ (Test Details)
               </h2>
               <span className="text-[11px] font-mono text-slate-400 block truncate">
-                ID: {test.id}
+                ID: {test.id} {targetFnId ? `· ${targetFnId}` : ""}
               </span>
             </div>
           </div>
@@ -107,7 +130,7 @@ export function TestDetailDrawer({
               <span
                 className={`inline-block text-[11px] font-mono px-2 py-0.5 rounded-md border font-semibold ${testMeta.roleBadgeStyle}`}
               >
-                {testMeta.role}
+                {functionDoc?.role || testMeta.role}
               </span>
               <span
                 className={`inline-block text-[11px] font-mono px-2 py-0.5 rounded-md border ${
@@ -133,12 +156,14 @@ export function TestDetailDrawer({
               {test.title}
             </h3>
 
-            {testMeta.description && (
-              <div className="rounded-lg bg-indigo-950/30 border border-indigo-500/20 p-3 text-xs text-indigo-200">
-                <span className="font-semibold text-indigo-300 block mb-1">
-                  💡 วัตถุประสงค์และฟังก์ชันที่ทดสอบ:
+            {(functionDoc?.overview || testMeta.description) && (
+              <div className="rounded-lg bg-indigo-950/30 border border-indigo-500/20 p-3 text-xs text-indigo-200 space-y-1">
+                <span className="font-semibold text-indigo-300 block">
+                  💡 ภาพรวมและวัตถุประสงค์การทดสอบ:
                 </span>
-                {testMeta.description}
+                <p className="leading-relaxed">
+                  {functionDoc?.overview || testMeta.description}
+                </p>
               </div>
             )}
           </div>
@@ -177,7 +202,145 @@ export function TestDetailDrawer({
             )}
           </div>
 
-          {/* Detailed Specifications */}
+          {/* Comprehensive Function & Code Documentation Section */}
+          {functionDoc && (
+            <div className="space-y-3 rounded-xl border border-indigo-500/30 bg-slate-950/60 p-4">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-base">📘</span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-indigo-300 font-mono">
+                    คำอธิบายการทำงานของโค้ดสำหรับฟังก์ชันนี้
+                  </span>
+                </div>
+                <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                  {functionDoc.code}
+                </span>
+              </div>
+
+              {/* Workflow Path */}
+              {functionDoc.workflow && (
+                <div className="text-xs rounded-lg bg-slate-900 border border-slate-800 p-2.5 space-y-1">
+                  <span className="text-[11px] font-semibold text-slate-400 block">
+                    🛣️ เส้นทางการทำงานของระบบ (Workflow):
+                  </span>
+                  <span className="font-mono text-slate-200 text-[11px] leading-relaxed block">
+                    {functionDoc.workflow}
+                  </span>
+                </div>
+              )}
+
+              {/* Code Explanation Paragraph */}
+              {functionDoc.codeExplanation && (
+                <div className="text-xs rounded-lg bg-slate-900 border border-slate-800 p-2.5 space-y-1">
+                  <span className="text-[11px] font-semibold text-slate-300 block">
+                    🔍 คำอธิบายโค้ด Playwright:
+                  </span>
+                  <p className="text-slate-300 leading-relaxed">
+                    {functionDoc.codeExplanation}
+                  </p>
+                </div>
+              )}
+
+              {/* Step-by-Step Flow */}
+              {functionDoc.steps.length > 0 && (
+                <div className="space-y-1.5 pt-1">
+                  <span className="text-xs font-semibold text-slate-200 block">
+                    📋 ขั้นตอนการทำงานของโค้ดทีละสเต็ป (Step-by-Step Execution):
+                  </span>
+                  <div className="space-y-1.5">
+                    {functionDoc.steps.map((st, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-start gap-2 p-2 rounded-lg bg-slate-900/90 border border-slate-800/80 text-xs text-slate-200"
+                      >
+                        <span className="w-5 h-5 rounded-full bg-indigo-600/30 text-indigo-300 border border-indigo-500/40 text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">
+                          {idx + 1}
+                        </span>
+                        <span className="leading-relaxed">
+                          {st.replace(/^\d+\.\s*/, "")}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Expected Results */}
+              {functionDoc.expectedResult && (
+                <div className="rounded-lg bg-emerald-950/30 border border-emerald-500/30 p-3 text-xs text-emerald-200 space-y-1">
+                  <span className="font-semibold text-emerald-300 block">
+                    🎯 ผลลัพธ์ที่คาดหวังเมื่อโค้ดรันสำเร็จ (Expected Results):
+                  </span>
+                  <p className="leading-relaxed text-emerald-200">
+                    {functionDoc.expectedResult}
+                  </p>
+                </div>
+              )}
+
+              {/* Key Selectors */}
+              {functionDoc.keySelectors.length > 0 && (
+                <div className="space-y-1.5 pt-1">
+                  <span className="text-[11px] font-semibold text-slate-400 block">
+                    🎯 องค์ประกอบบนหน้าจอที่โค้ดค้นหาและสั่งการ (Target Elements & Selectors):
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {functionDoc.keySelectors.map((sel, idx) => (
+                      <span
+                        key={idx}
+                        className="inline-block text-[10px] font-mono px-2 py-1 rounded bg-slate-900 border border-slate-700/80 text-indigo-300"
+                      >
+                        {sel}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Code Preview Section with Thai Comments */}
+          {template?.code && (
+            <div className="space-y-2 rounded-xl border border-slate-800 bg-slate-950/60 p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-base">💻</span>
+                  <span className="text-xs font-bold text-slate-200">
+                    โค้ด Playwright พร้อมคอมเมนต์ภาษาไทย
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => handleCopyCode(template.code)}
+                    className="px-2 py-1 rounded border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-mono transition-colors cursor-pointer"
+                  >
+                    {copied ? "✓ คัดลอกแล้ว" : "คัดลอกโค้ด"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowCode((prev) => !prev)}
+                    className="px-2 py-1 rounded border border-indigo-500/40 bg-indigo-950/50 hover:bg-indigo-900/50 text-indigo-300 text-[11px] font-mono transition-colors cursor-pointer"
+                  >
+                    {showCode ? "▲ ซ่อนโค้ด" : "▼ ดูโค้ด"}
+                  </button>
+                </div>
+              </div>
+
+              {showCode ? (
+                <div className="relative mt-2">
+                  <pre className="max-h-72 overflow-y-auto p-3 rounded-lg bg-slate-950 border border-slate-800 text-[11px] font-mono text-emerald-300/90 leading-relaxed whitespace-pre select-all">
+                    <code>{template.code}</code>
+                  </pre>
+                </div>
+              ) : (
+                <p className="text-[11px] text-slate-400">
+                  กดปุ่ม <strong>"▼ ดูโค้ด"</strong> เพื่อดูตัวอย่างสเปก Playwright ฉบับเต็มที่มีคอมเมนต์ <code>//</code> ภาษาไทยกำกับอย่างละเอียดทุกบรรทัด
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Detailed Technical Specifications */}
           <div className="space-y-3">
             <h4 className="text-xs font-mono font-semibold uppercase tracking-wider text-slate-400 border-b border-slate-800 pb-1.5 flex items-center gap-1.5">
               <span>⚙️</span>
@@ -252,7 +415,7 @@ export function TestDetailDrawer({
               💡 วิธีการรันและดูโค้ด:
             </span>
             <p>
-              คุณสามารถกดปุ่ม <strong>"เปิดโค้ดใน Workspace"</strong> เพื่อดูโค้ดที่แท้จริงของเทสต์นี้ ซึ่งจะมี <code>// comment</code> อธิบายรายละเอียดของคำสั่งแต่ละบรรทัดให้เข้าใจง่าย
+              คุณสามารถกดปุ่ม <strong>"เปิดโค้ดใน Workspace"</strong> เพื่อนำโค้ดพร้อมคำอธิบายภาษาไทยไปเปิดใน Code Editor ของระบบ จากนั้นสามารถกดปุ่มรันเพื่อทดสอบจริงได้ทันที
             </p>
           </div>
         </div>
