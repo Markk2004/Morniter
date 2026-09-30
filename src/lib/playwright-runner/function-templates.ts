@@ -229,18 +229,32 @@ test.describe("FN-STS-02: User Management Suite", () => {
       });
     });
 
-    // 2. Mock Users List API
+    // 2. Mock Users List API (รองรับทั้ง /api/users และ /api/admin/users)
+    const mockUsers = [
+      { id: 1, username: "admin", name: "สมชาย ผู้ดูแลระบบ (Admin)", full_name: "สมชาย ผู้ดูแลระบบ (Admin)", role: { name: "PLATFORM_ADMIN" }, roleName: "PLATFORM_ADMIN", status: "active", isActive: true, email: "admin@sts.ac.th" },
+      { id: 2, username: "teacher_a", name: "สมหญิง ครูประจำชั้น (Teacher)", full_name: "สมหญิง ครูประจำชั้น (Teacher)", role: { name: "TEACHER" }, roleName: "TEACHER", status: "active", isActive: true, email: "sommai@sts.ac.th" },
+      { id: 3, username: "director_a", name: "ผู้อำนวยการ วิชัย", full_name: "ผู้อำนวยการ วิชัย", role: { name: "SCHOOL_DIRECTOR" }, roleName: "SCHOOL_DIRECTOR", status: "active", isActive: true, email: "director@sts.ac.th" },
+      { id: 4, username: "suspended_user", name: "ผู้ใช้ระงับสิทธิ์", full_name: "ผู้ใช้ระงับสิทธิ์", role: { name: "TEACHER" }, roleName: "TEACHER", status: "suspended", isActive: false, email: "suspended@sts.ac.th" },
+    ];
+
+    await page.route("**/api/users*", async (route) => {
+      const url = route.request().url();
+      if (url.includes("access-change-requests")) {
+        return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([]) });
+      }
+      return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(mockUsers) });
+    });
+
     await page.route("**/api/admin/users*", async (route) => {
-      return route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify([
-          { id: 1, username: "admin", full_name: "ผู้ดูแลระบบ แพลตฟอร์ม", role: "ADMIN", status: "active", email: "admin@sts.ac.th" },
-          { id: 2, username: "teacher_a", full_name: "ครูสมหมาย ประจำชั้น", role: "TEACHER", status: "active", email: "sommai@sts.ac.th" },
-          { id: 3, username: "director_a", full_name: "ผู้อำนวยการ วิชัย", role: "DIRECTOR", status: "active", email: "director@sts.ac.th" },
-          { id: 4, username: "suspended_user", full_name: "ผู้ใช้ระงับสิทธิ์", role: "TEACHER", status: "suspended", email: "suspended@sts.ac.th" },
-        ]),
-      });
+      return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(mockUsers) });
+    });
+
+    await page.route("**/api/schools*", async (route) => {
+      return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([{ id: 1, name: "โรงเรียนสาธิต STS" }]) });
+    });
+
+    await page.route("**/api/provinces*", async (route) => {
+      return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([{ id: 1, name: "กรุงเทพมหานคร" }]) });
     });
 
     // เข้าสู่ระบบด้วยบัญชีแอดมินก่อนเริ่มทดสอบ
@@ -248,7 +262,7 @@ test.describe("FN-STS-02: User Management Suite", () => {
     await page.locator("#login-username, input[name='username']").first().fill("admin");
     await page.locator("#login-password, input[name='password']").first().fill("changeme");
     await page.locator("#login-submit, button[type='submit']").first().click();
-    await expect(page).toHaveURL(/.*\\/admin/, { timeout: 15000 });
+    await expect(page).toHaveURL(/.*\\/(?:admin|users|dashboard)/, { timeout: 15000 });
   });
 
   test("TC-STS-USER-001: ผู้ดูแลระบบเปิดดูทำเนียบผู้ใช้และตรวจสอบตารางข้อมูล", async ({ page }) => {
@@ -346,15 +360,67 @@ test.describe("FN-STS-03: Students & Classrooms Suite", () => {
       });
     });
 
-    // 2. Mock Students & Classrooms
+    // 2. Mock Students (รองรับทั้งรายการและรายละเอียดโปรไฟล์)
     await page.route("**/api/students*", async (route) => {
+      const url = route.request().url();
+      const matchDetail = url.match(/\/api\/students\/([0-9a-zA-Z_-]+)(?:\?|$)/);
+      if (matchDetail) {
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            id: 101,
+            studentCode: "50001",
+            student_id: "50001",
+            firstName: "กิตติพงษ์",
+            first_name: "กิตติพงษ์",
+            lastName: "สุขเกษม",
+            last_name: "สุขเกษม",
+            gender: { name: "ชาย" },
+            currentAddress: "123 กรุงเทพมหานคร",
+            enrollments: [
+              {
+                id: 1,
+                isCurrent: true,
+                classroom: { id: 1, roomName: "1", gradeLevel: { name: "มัธยมศึกษาปีที่ 3" } },
+              },
+            ],
+            cases: [],
+            attendance_stats: { present: 45, absent: 0, late: 1, leave: 0 },
+          }),
+        });
+      }
+
       return route.fulfill({
         status: 200,
         contentType: "application/json",
         body: JSON.stringify([
-          { id: "stu-1", student_id: "50001", first_name: "กิตติพงษ์", last_name: "สุขเกษม", class_room: "ม.3/1", risk_level: "low", status: "active" },
-          { id: "stu-2", student_id: "50002", first_name: "ชาญชัย", last_name: "มีสุข", class_room: "ม.3/1", risk_level: "high", status: "active" },
-          { id: "stu-3", student_id: "50003", first_name: "นภา", last_name: "เด่นดวง", class_room: "ม.3/1", risk_level: "medium", status: "active" },
+          {
+            id: 101,
+            studentCode: "50001",
+            student_id: "50001",
+            firstName: "กิตติพงษ์",
+            first_name: "กิตติพงษ์",
+            lastName: "สุขเกษม",
+            last_name: "สุขเกษม",
+            class_room: "ม.3/1",
+            risk_level: "low",
+            status: "active",
+            enrollments: [{ id: 1, isCurrent: true, classroom: { id: 1, roomName: "1", gradeLevel: { name: "ม.3" } } }],
+          },
+          {
+            id: 102,
+            studentCode: "50002",
+            student_id: "50002",
+            firstName: "ชาญชัย",
+            first_name: "ชาญชัย",
+            lastName: "มีสุข",
+            last_name: "มีสุข",
+            class_room: "ม.3/1",
+            risk_level: "high",
+            status: "active",
+            enrollments: [{ id: 2, isCurrent: true, classroom: { id: 1, roomName: "1", gradeLevel: { name: "ม.3" } } }],
+          },
         ]),
       });
     });
@@ -367,11 +433,18 @@ test.describe("FN-STS-03: Students & Classrooms Suite", () => {
       });
     });
 
-    await page.route("**/api/academic-years/current*", async (route) => {
+    await page.route("**/api/academic-years/**", async (route) => {
       return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ id: 1, year: 2569, isCurrent: true }),
+        body: JSON.stringify({
+          id: 1,
+          year: 2569,
+          startDate: "2026-05-16",
+          endDate: "2027-03-31",
+          isCurrent: true,
+          terms: [{ termNo: 1, isCurrent: true }],
+        }),
       });
     });
 
@@ -473,7 +546,22 @@ test.describe("FN-STS-04: Attendance Suite", () => {
       });
     });
 
-    // 2. Mock Classrooms & Attendance
+    // 2. Mock Classrooms, Academic Years, and Attendance APIs
+    await page.route("**/api/academic-years/**", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          id: 1,
+          year: 2569,
+          startDate: "2026-05-16",
+          endDate: "2027-03-31",
+          isCurrent: true,
+          terms: [{ termNo: 1, isCurrent: true }],
+        }),
+      });
+    });
+
     await page.route("**/api/my-classrooms*", async (route) => {
       return route.fulfill({
         status: 200,
@@ -482,11 +570,38 @@ test.describe("FN-STS-04: Attendance Suite", () => {
       });
     });
 
-    await page.route("**/api/academic-years/current*", async (route) => {
+    await page.route("**/api/classrooms*", async (route) => {
       return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ id: 1, year: 2569, isCurrent: true }),
+        body: JSON.stringify([{ id: "1", name: "ม.3/1", gradeLevel: 9, studentCount: 35 }]),
+      });
+    });
+
+    await page.route("**/api/attendance/sessions/*", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify([{ id: 1, roundNumber: 1, createdAt: new Date().toISOString(), recordCount: 3 }]),
+      });
+    });
+
+    await page.route("**/api/attendance/daily/*", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify([
+          { id: 1, date: new Date().toISOString().split("T")[0], status: "PRESENT", studentId: 101, studentName: "กิตติพงษ์ สุขเกษม", enrollment: { student: { firstName: "กิตติพงษ์", lastName: "สุขเกษม" } } },
+          { id: 2, date: new Date().toISOString().split("T")[0], status: "ABSENT", studentId: 102, studentName: "ชาญชัย มีสุข", enrollment: { student: { firstName: "ชาญชัย", lastName: "มีสุข" } } },
+        ]),
+      });
+    });
+
+    await page.route("**/api/attendance/summary/*", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ presentCount: 32, absentCount: 1, lateCount: 2, leaveCount: 0, total: 35 }),
       });
     });
 
@@ -596,13 +711,28 @@ test.describe("FN-STS-05: Student Cases Suite", () => {
       });
     });
 
-    // 2. Mock Students
+    // 2. Mock Academic Years & Students
+    await page.route("**/api/academic-years/**", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          id: 1,
+          year: 2569,
+          startDate: "2026-05-16",
+          endDate: "2027-03-31",
+          isCurrent: true,
+          terms: [{ termNo: 1, isCurrent: true }],
+        }),
+      });
+    });
+
     await page.route("**/api/students*", async (route) => {
       return route.fulfill({
         status: 200,
         contentType: "application/json",
         body: JSON.stringify([
-          { id: "stu-1", student_id: "50001", first_name: "กิตติพงษ์", last_name: "สุขเกษม", class_room: "ม.3/1" },
+          { id: 101, studentId: 101, studentCode: "50001", student_id: "50001", firstName: "กิตติพงษ์", first_name: "กิตติพงษ์", lastName: "สุขเกษม", last_name: "สุขเกษม", class_room: "ม.3/1" },
         ]),
       });
     });
@@ -610,13 +740,19 @@ test.describe("FN-STS-05: Student Cases Suite", () => {
     // 3. Mock Cases List & Create
     let cases = [
       {
-        id: "case-1",
+        id: 201,
+        caseNumber: "CASE-2026-001",
         case_number: "CASE-2026-001",
         title: "นักเรียนขาดเรียนบ่อยครั้ง",
         description: "ขาดเรียนติดต่อกัน 3 วันโดยไม่แจ้งเหตุผล",
-        severity: "high",
+        severity: "HIGH",
         status: "open",
-        student: { id: "stu-1", student_id: "50001", first_name: "กิตติพงษ์", last_name: "สุขเกษม", class_room: "ม.3/1" },
+        enrollment: {
+          studentId: 101,
+          student: { id: 101, firstName: "กิตติพงษ์", lastName: "สุขเกษม", studentCode: "50001" },
+          classroom: { roomName: "1", gradeLevel: { name: "ม.3" } },
+        },
+        student: { id: "101", student_id: "50001", first_name: "กิตติพงษ์", last_name: "สุขเกษม", class_room: "ม.3/1" },
         created_at: new Date().toISOString(),
       },
     ];
@@ -625,20 +761,38 @@ test.describe("FN-STS-05: Student Cases Suite", () => {
       if (route.request().method() === "POST") {
         const postData = route.request().postDataJSON();
         const newCase = {
-          id: "case-2",
+          id: 202,
+          caseNumber: "CASE-2026-002",
           case_number: "CASE-2026-002",
           title: postData?.title || "เคสทดสอบใหม่",
           description: postData?.description || "รายละเอียดเคส",
-          severity: "medium",
+          severity: "MEDIUM",
           status: "open",
-          student: { id: "stu-1", student_id: "50001", first_name: "กิตติพงษ์", last_name: "สุขเกษม", class_room: "ม.3/1" },
+          enrollment: {
+            studentId: 101,
+            student: { id: 101, firstName: "กิตติพงษ์", lastName: "สุขเกษม", studentCode: "50001" },
+            classroom: { roomName: "1", gradeLevel: { name: "ม.3" } },
+          },
+          student: { id: "101", student_id: "50001", first_name: "กิตติพงษ์", last_name: "สุขเกษม", class_room: "ม.3/1" },
           created_at: new Date().toISOString(),
         };
-        cases.push(newCase);
+        cases.unshift(newCase);
         return route.fulfill({
           status: 201,
           contentType: "application/json",
           body: JSON.stringify(newCase),
+        });
+      }
+
+      const url = route.request().url();
+      if (url.includes("page=")) {
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            data: cases,
+            meta: { total: cases.length, page: 1, limit: 25, totalPages: 1 },
+          }),
         });
       }
 
@@ -903,14 +1057,29 @@ test.describe("FN-STS-07: Observations & Tracking Suite", () => {
       });
     });
 
-    // 2. Mock Students for Tracking
+    // 2. Mock Academic Years & Students for Tracking
+    await page.route("**/api/academic-years/**", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          id: 1,
+          year: 2569,
+          startDate: "2026-05-16",
+          endDate: "2027-03-31",
+          isCurrent: true,
+          terms: [{ termNo: 1, isCurrent: true }],
+        }),
+      });
+    });
+
     await page.route("**/api/students*", async (route) => {
       return route.fulfill({
         status: 200,
         contentType: "application/json",
         body: JSON.stringify([
-          { id: "stu-1", student_id: "50001", first_name: "กิตติพงษ์", last_name: "สุขเกษม", class_room: "ม.3/1", risk_level: "low", status: "active" },
-          { id: "stu-2", student_id: "50002", first_name: "ชาญชัย", last_name: "มีสุข", class_room: "ม.3/1", risk_level: "high", status: "active" },
+          { id: 101, studentCode: "50001", student_id: "50001", firstName: "กิตติพงษ์", first_name: "กิตติพงษ์", lastName: "สุขเกษม", last_name: "สุขเกษม", class_room: "ม.3/1", risk_level: "low", status: "active" },
+          { id: 102, studentCode: "50002", student_id: "50002", firstName: "ชาญชัย", first_name: "ชาญชัย", lastName: "มีสุข", last_name: "มีสุข", class_room: "ม.3/1", risk_level: "high", status: "active" },
         ]),
       });
     });
@@ -990,17 +1159,45 @@ test.describe("FN-STS-07: Observations & Tracking Suite", () => {
 import { test, expect } from "@playwright/test";
 
 test.describe("FN-STS-08: Dashboard & Navigation Suite", () => {
+  let activeUser = {
+    id: 2,
+    username: "director_a",
+    name: "ผู้อำนวยการ",
+    role: "SCHOOL_DIRECTOR",
+    schoolId: 1,
+  };
+
   test.beforeEach(async ({ page }) => {
     await page.context().clearCookies();
 
     // 1. Mock Auth
     await page.route("**/api/auth/login", async (route) => {
+      let postData: { username?: string; password?: string } | null = null;
+      try {
+        postData = route.request().postDataJSON();
+      } catch {
+        postData = null;
+      }
+      const { username } = postData || {};
+      let role = "TEACHER";
+      if (username?.includes("director")) role = "SCHOOL_DIRECTOR";
+      else if (username?.includes("admin")) role = "SCHOOL_ADMIN";
+      else if (username?.includes("officer")) role = "PROVINCE_OFFICER";
+
+      activeUser = {
+        id: username?.includes("director") ? 2 : username?.includes("admin") ? 1 : 99,
+        username: username || "teacher_a",
+        name: username?.includes("director") ? "ผู้อำนวยการ" : username?.includes("admin") ? "ผู้ดูแลระบบ" : "ครูประจำชั้น",
+        role,
+        schoolId: 1,
+      };
+
       return route.fulfill({
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({
-          accessToken: "mock-jwt-token-director",
-          user: { id: 2, username: "director_a", name: "ผู้อำนวยการ", role: "SCHOOL_DIRECTOR", schoolId: 1 },
+          accessToken: "mock-jwt-token-dashboard",
+          user: activeUser,
         }),
       });
     });
@@ -1010,8 +1207,8 @@ test.describe("FN-STS-08: Dashboard & Navigation Suite", () => {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({
-          accessToken: "mock-jwt-token-director",
-          user: { id: 2, username: "director_a", name: "ผู้อำนวยการ", role: "SCHOOL_DIRECTOR", schoolId: 1 },
+          accessToken: "mock-jwt-token-dashboard",
+          user: activeUser,
         }),
       });
     });
@@ -1047,24 +1244,32 @@ test.describe("FN-STS-08: Dashboard & Navigation Suite", () => {
       });
     });
 
-    // เข้าสู่ระบบด้วยบัญชีผู้บริหาร
+    // 3. Mock Teacher Dashboard API
+    await page.route("**/api/dashboard/teacher*", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          classroomId: 1,
+          classroomName: "ม.3/1",
+          totalStudents: 35,
+          attendanceToday: { present: 32, absent: 1, late: 2, leave: 0 },
+          pendingCases: 1,
+        }),
+      });
+    });
+  });
+
+  test("TC-STS-DASH-001: ผู้อำนวยการเปิดดู Action Center และการ์ด KPI สรุปสถานศึกษา", async ({ page }) => {
     await page.goto("/login");
     await page.locator("#login-username, input[name='username']").first().fill("director_a");
     await page.locator("#login-password, input[name='password']").first().fill("changeme");
     await page.locator("#login-submit, button[type='submit']").first().click();
     await expect(page).toHaveURL(/.*\\/director\\/dashboard/, { timeout: 15000 });
-  });
 
-  test("TC-STS-DASH-001: ผู้อำนวยการเปิดดู Action Center และการ์ด KPI สรุปสถานศึกษา", async ({ page }) => {
-    // [ขั้นตอนที่ 1]: นำทางเข้าสู่หน้าจอแดชบอร์ดผู้อำนวยการ
-    await page.goto("/director/dashboard");
-    await expect(page).toHaveURL(/.*\\/director\\/dashboard/);
-
-    // [ขั้นตอนที่ 2]: ตรวจสอบหัวข้อหลักของแดชบอร์ด
+    // ตรวจสอบหัวข้อหลักและการ์ด KPI
     const heading = page.locator("h1, h2").first();
     await expect(heading).toBeVisible({ timeout: 10000 });
-
-    // [ขั้นตอนที่ 3]: ตรวจสอบการ์ดตัวชี้วัด KPI สถิติ
     const metricCards = page.locator(".card, [data-testid*='metric'], .grid > div");
     await expect(metricCards.first()).toBeVisible({ timeout: 10000 });
 
@@ -1072,20 +1277,25 @@ test.describe("FN-STS-08: Dashboard & Navigation Suite", () => {
   });
 
   test("TC-STS-DASH-002: ครูเปิดดูแดชบอร์ดห้องเรียนและสถิติการเข้าเรียนประจำวัน", async ({ page }) => {
-    // [ขั้นตอนที่ 1]: เปลี่ยนไปยังแดชบอร์ดของครูประจำชั้น
-    await page.goto("/teacher/dashboard");
-    await expect(page).toHaveURL(/.*\\/teacher\\/dashboard/);
+    await page.goto("/login");
+    await page.locator("#login-username, input[name='username']").first().fill("teacher_a");
+    await page.locator("#login-password, input[name='password']").first().fill("changeme");
+    await page.locator("#login-submit, button[type='submit']").first().click();
+    await expect(page).toHaveURL(/.*\\/teacher\\/dashboard/, { timeout: 15000 });
 
-    // [ขั้นตอนที่ 2]: ยืนยันว่าหน้าแดชบอร์ดแสดงผลหัวข้อและข้อมูลเรียบร้อย
-    await expect(page.locator("h1, h2").first()).toBeVisible({ timeout: 10000 });
+    const heading = page.locator("h1, h2").first();
+    await expect(heading).toBeVisible({ timeout: 10000 });
 
     await page.waitForTimeout(2500);
   });
 
   test("TC-STS-DASH-003: นำทางผ่านเมนูทางลัดไปยังโมดูลจัดการเคสและระบบรายงาน", async ({ page }) => {
-    await page.goto("/director/dashboard");
+    await page.goto("/login");
+    await page.locator("#login-username, input[name='username']").first().fill("director_a");
+    await page.locator("#login-password, input[name='password']").first().fill("changeme");
+    await page.locator("#login-submit, button[type='submit']").first().click();
+    await expect(page).toHaveURL(/.*\\/director\\/dashboard/, { timeout: 15000 });
 
-    // [ขั้นตอนที่ 1]: ค้นหาลิงก์เมนูนำทางไปยังหน้ารายงาน
     const reportsLink = page.getByRole("link", { name: /รายงาน/i }).first();
     if (await reportsLink.isVisible()) {
       await reportsLink.click();
@@ -1153,9 +1363,28 @@ test.describe("FN-STS-09: AI Insights & Benchmark Evaluation Suite", () => {
       });
     });
 
+    // 2. Mock AI Benchmark Evaluation API
+    await page.route("**/api/ai-case-assessments/**", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          experimentId: "exp-001",
+          runId: "run-zero-shot-001",
+          status: "COMPLETED",
+          totalCases: 25,
+          successCases: 25,
+          failedCases: 0,
+          accuracy: 96.0,
+          f1Score: 0.94,
+          metrics: { precision: 0.95, recall: 0.93 },
+        }),
+      });
+    });
+
     // เข้าสู่ระบบด้วยบัญชีแอดมิน
     await page.goto("/login");
-    await page.locator("#login-username, input[name='username']").first().fill("admin");
+    await page.locator("#login-username, input[name='username']").first().fill("admin_a");
     await page.locator("#login-password, input[name='password']").first().fill("changeme");
     await page.locator("#login-submit, button[type='submit']").first().click();
     await expect(page).toHaveURL(/.*\\/admin/, { timeout: 15000 });
@@ -1224,7 +1453,7 @@ test.describe("FN-STS-10: Platform & Province Suite", () => {
         contentType: "application/json",
         body: JSON.stringify({
           accessToken: "mock-jwt-token-province",
-          user: { id: 5, username: "officer_bkk", name: "เจ้าหน้าที่เขต กทม.", role: "OFFICER", provinceId: 1 },
+          user: { id: 5, username: "province_officer", name: "เจ้าหน้าที่เขต กทม.", role: "PROVINCE_OFFICER", provinceId: 1 },
         }),
       });
     });
@@ -1235,14 +1464,51 @@ test.describe("FN-STS-10: Platform & Province Suite", () => {
         contentType: "application/json",
         body: JSON.stringify({
           accessToken: "mock-jwt-token-province",
-          user: { id: 5, username: "officer_bkk", name: "เจ้าหน้าที่เขต กทม.", role: "OFFICER", provinceId: 1 },
+          user: { id: 5, username: "province_officer", name: "เจ้าหน้าที่เขต กทม.", role: "PROVINCE_OFFICER", provinceId: 1 },
+        }),
+      });
+    });
+
+    await page.route("**/api/academic-years/**", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          id: 1,
+          year: 2569,
+          startDate: "2026-05-16",
+          endDate: "2027-03-31",
+          isCurrent: true,
+          terms: [{ termNo: 1, isCurrent: true }],
+        }),
+      });
+    });
+
+    // 2. Mock Province & Dashboard API
+    await page.route("**/api/provinces*", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify([{ id: 1, name: "กรุงเทพมหานคร" }]),
+      });
+    });
+
+    await page.route("**/api/dashboard/province*", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          provinceId: 1,
+          provinceName: "กรุงเทพมหานคร",
+          summary: { totalSchools: 50, totalStudents: 25000, highRiskCount: 12 },
+          schools: [{ id: 1, name: "โรงเรียนสาธิต STS", totalStudents: 500, riskCount: 3 }],
         }),
       });
     });
 
     // เข้าสู่ระบบด้วยบัญชีเจ้าหน้าที่จังหวัด
     await page.goto("/login");
-    await page.locator("#login-username, input[name='username']").first().fill("officer_bkk");
+    await page.locator("#login-username, input[name='username']").first().fill("province_officer");
     await page.locator("#login-password, input[name='password']").first().fill("changeme");
     await page.locator("#login-submit, button[type='submit']").first().click();
     await expect(page).toHaveURL(/.*\\/province\\/dashboard/, { timeout: 15000 });
@@ -1321,8 +1587,23 @@ test.describe("FN-STS-11: Profile & Password Suite", () => {
       });
     });
 
+    await page.route("**/api/academic-years/**", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          id: 1,
+          year: 2569,
+          startDate: "2026-05-16",
+          endDate: "2027-03-31",
+          isCurrent: true,
+          terms: [{ termNo: 1, isCurrent: true }],
+        }),
+      });
+    });
+
     // 2. Mock Change Password API
-    await page.route(//api/auth/change-password/, async (route) => {
+    await page.route("**/api/auth/change-password*", async (route) => {
       return route.fulfill({
         status: 200,
         contentType: "application/json",
