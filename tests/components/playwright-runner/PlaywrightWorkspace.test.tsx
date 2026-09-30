@@ -271,7 +271,7 @@ describe("PlaywrightWorkspace Main Integration Component", () => {
 
     // 3. New terminal log arrives while collapsed -> unread badge appears
     await waitFor(() => {
-      expect(screen.getByText(/new/i)).toBeInTheDocument();
+      expect(screen.getByText(/\d+\s+new/i)).toBeInTheDocument();
     });
 
     // 4. Expand terminal -> unread badge is cleared
@@ -279,7 +279,7 @@ describe("PlaywrightWorkspace Main Integration Component", () => {
     fireEvent.click(expandBtn);
 
     await waitFor(() => {
-      expect(screen.queryByText(/new/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/\d+\s+new/i)).not.toBeInTheDocument();
     });
 
     // 5. Verify no render-phase update warnings were logged

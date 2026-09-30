@@ -55,6 +55,11 @@ describe("STS Function Playwright Templates", () => {
   });
 
   it("resolves specific sub-part templates for authentication parts", () => {
+    // Exact Sub-template IDs
+    expect(getFunctionTemplate("FN-STS-01-ROLES")?.id).toBe("FN-STS-01-ROLES");
+    expect(getFunctionTemplate("FN-STS-01-INVALID")?.id).toBe("FN-STS-01-INVALID");
+    expect(getFunctionTemplate("FN-STS-01-EMPTY")?.id).toBe("FN-STS-01-EMPTY");
+
     const tplInvalid = getFunctionTemplate("TC-STS-AUTH-INVALID: Invalid credentials displays an error alert");
     expect(tplInvalid?.id).toBe("FN-STS-01-INVALID");
     expect(tplInvalid?.shortName).toBe("รหัสผ่านผิด");
@@ -69,6 +74,24 @@ describe("STS Function Playwright Templates", () => {
     expect(tplRoles?.id).toBe("FN-STS-01-ROLES");
     expect(tplRoles?.shortName).toBe("เข้าสู่ระบบสำเร็จ");
     expect(tplRoles?.code).toContain("TC-STS-AUTH-TEACHER");
+    expect(tplRoles?.code).toContain("TC-STS-AUTH-DIRECTOR");
+    expect(tplRoles?.code).toContain("TC-STS-AUTH-ADMIN");
+
+    // All templates must have robust route mocks (auth/me, refresh, etc.)
+    expect(tplRoles?.code).toContain("/api/auth/me");
+    expect(tplRoles?.code).toContain("director/action-center");
+    expect(tplRoles?.code).toContain("admin/operations");
+  });
+
+  it("ensures all 11 function templates contain essential Next.js route mocks", () => {
+    for (const [id, tpl] of Object.entries(STS_FUNCTION_TEMPLATES)) {
+      expect(tpl.code).toContain('import { test, expect } from "@playwright/test";');
+      expect(tpl.code).toContain("page.route");
+      // All function templates must mock auth session endpoints to prevent redirect bouncing
+      expect(tpl.code).toContain("/api/auth/refresh");
+      expect(tpl.code).toContain("/api/auth/me");
+      expect(tpl.code).toContain("/api/academic-years");
+    }
   });
 
   it("returns undefined for unknown or empty input", () => {

@@ -14,7 +14,7 @@ import type { TestLogLine, AgentPresence } from "@/lib/test-runner/types";
 import type { RecipeDraft, ReusableFlow, RecipeAction } from "@/lib/playwright-runner/recipe-types";
 import { renderRecipeToPlaywrightCode } from "@/lib/playwright-runner/recipe-renderer";
 import { analyzeSourceForPlaywrightDraft } from "@/lib/playwright-runner/source-analyzer";
-import { getFunctionTemplate, STS_FUNCTION_TEMPLATES } from "@/lib/playwright-runner/function-templates";
+import { getFunctionTemplate, STS_FUNCTION_TEMPLATES, STS_SUB_TEMPLATES } from "@/lib/playwright-runner/function-templates";
 import { extractTestExecutionSummary, formatTerminalSummary } from "@/lib/playwright-runner/progress-parser";
 import type { HistoricalJobItem } from "@/components/test-runner/JobHistory";
 
@@ -476,17 +476,18 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
       }
 
       // Check if this test corresponds to an isolated sub-part template
-      const specificTpl = getFunctionTemplate(testItem?.title || testId);
+      const specificTpl = getFunctionTemplate(testId) || getFunctionTemplate(testItem?.title || "");
       const isSubPart =
         specificTpl &&
-        specificTpl.id !== "FN-STS-01" &&
-        (testItem?.title?.includes("INVALID") ||
+        (specificTpl.id in STS_SUB_TEMPLATES ||
+          specificTpl.id.includes("PART") ||
+          specificTpl.id.includes("ROLES") ||
+          specificTpl.id.includes("INVALID") ||
+          specificTpl.id.includes("EMPTY") ||
+          testItem?.title?.includes("INVALID") ||
           testItem?.title?.includes("EMPTY") ||
           testItem?.title?.includes("ROLE") ||
-          testItem?.title?.includes("succeeds") ||
-          testItem?.title?.includes("001") ||
-          testItem?.title?.includes("002") ||
-          testItem?.title?.includes("003"));
+          testItem?.title?.includes("succeeds"));
 
       if (isSubPart && specificTpl) {
         sourceCacheRef.current.set(testId, specificTpl.code);

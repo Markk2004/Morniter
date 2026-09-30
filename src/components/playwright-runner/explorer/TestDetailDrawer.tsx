@@ -174,7 +174,7 @@ export function TestDetailDrawer({
               <button
                 type="button"
                 onClick={() => {
-                  onLoadSource(test.id);
+                  onLoadSource(template?.id || test.id);
                   onClose();
                 }}
                 disabled={disabled}
