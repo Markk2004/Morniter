@@ -252,14 +252,18 @@ export function WorkspaceControlBar({
           {isJobRunning ? (
             <button
               type="button"
-              disabled={isCancelling}
               onClick={onCancel}
-              className="px-4 py-1.5 bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/40 rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              title={isCancelling ? "คลิกเพื่อบังคับยกเลิกทันที (Force Cancel)" : "ยกเลิกการทดสอบ"}
+              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 cursor-pointer ${
+                isCancelling
+                  ? "bg-amber-600/30 hover:bg-amber-600/40 text-amber-200 border border-amber-500/50"
+                  : "bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/40"
+              }`}
             >
-              <span>{isCancelling ? "⏳" : "⏹"}</span>
+              <span>{isCancelling ? "⚡" : "⏹"}</span>
               <span>
                 {isCancelling
-                  ? "Cancelling..."
+                  ? "Force Cancel"
                   : runMode === "interactive"
                     ? "Stop UI"
                     : "Cancel"}

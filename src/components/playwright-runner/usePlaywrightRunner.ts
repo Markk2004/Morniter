@@ -990,6 +990,7 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
     let isCancelled = false;
     let terminalReconciled = false;
     let emptyReconcileAttempts = 0;
+    let cancelPollAttempts = 0;
     let timerId: ReturnType<typeof setTimeout> | null = null;
 
     const scheduleNext = (delayMs: number) => {
@@ -1086,6 +1087,19 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
         }
 
         const isCancelRequested = data.job.status === "cancel_requested";
+        if (isCancelRequested) {
+          cancelPollAttempts += 1;
+          if (cancelPollAttempts >= 8) {
+            // Auto force cancel after ~1.2s in cancel_requested
+            void fetch(`/api/playwright-runner/jobs/${activeJobId}/cancel`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ force: true }),
+            }).catch(() => {});
+          }
+        } else {
+          cancelPollAttempts = 0;
+        }
         scheduleNext(isCancelRequested ? 150 : 1000);
       } catch {
         scheduleNext(1000);
@@ -1238,14 +1252,25 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
         const data = await res.json().catch(() => ({}));
         if (data.job?.status === "cancelled") {
           setActiveJob(data.job);
+          void refreshHistory();
         }
         return true;
       }
+      const errData = await res.json().catch(() => ({}));
+      setTerminalLines((prev) => [
+        ...prev,
+        {
+          sequence: (nextSequenceRef.current += 1),
+          timestamp: new Date().toISOString(),
+          stream: "system",
+          message: `[system] Cancellation note: ${errData.error || res.statusText || "HTTP " + res.status}`,
+        },
+      ]);
       return false;
     } catch {
       return false;
     }
-  }, [activeJob]);
+  }, [activeJob, refreshHistory]);
 
   return {
     catalog,

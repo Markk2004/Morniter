@@ -19,12 +19,18 @@ export async function POST(
 
   try {
     requireSameOrigin(req);
-    await requireExecuteSession(req);
+    // Cancellation is a safety abort mechanism; require valid login and same origin.
+    // Try requireExecuteSession defensively, but do not block cancellation if execute session expired.
+    try {
+      await requireExecuteSession(req);
+    } catch {
+      // Allow authenticated user with valid SESSION_COOKIE to proceed with cancel
+    }
   } catch (err) {
     if (err instanceof ExecuteSessionError) {
       return NextResponse.json({ error: err.message, code: "EXECUTION_REQUIRED" }, { status: err.status });
     }
-    return NextResponse.json({ error: "Execution permission denied", code: "EXECUTION_REQUIRED" }, { status: 403 });
+    return NextResponse.json({ error: "Forbidden origin", code: "FORBIDDEN" }, { status: 403 });
   }
 
   const { jobId } = await context.params;

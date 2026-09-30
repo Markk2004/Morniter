@@ -133,9 +133,36 @@ export async function getPlaywrightAgentPresence(
 export async function getPlaywrightJob(
   jobId: string,
   redisClient?: Redis,
+  now: Date = new Date(),
 ): Promise<PlaywrightJob | null> {
   const redis = redisClient ?? getRunnerRedis();
-  return await redis.get<PlaywrightJob>(playwrightKeys.job(jobId));
+  const job = await redis.get<PlaywrightJob>(playwrightKeys.job(jobId));
+  if (!job) return null;
+
+  if (job.status === "cancel_requested") {
+    const cancelMs = job.cancelRequestedAt ? new Date(job.cancelRequestedAt).getTime() : 0;
+    const lastHeartbeatMs = job.lastHeartbeatAt ? new Date(job.lastHeartbeatAt).getTime() : 0;
+    const cancelAge = cancelMs > 0 ? now.getTime() - cancelMs : 0;
+    const heartbeatAge = lastHeartbeatMs > 0 ? now.getTime() - lastHeartbeatMs : Infinity;
+
+    if (cancelAge > 2500 || heartbeatAge > 3000 || !job.lastHeartbeatAt) {
+      const nowStr = now.toISOString();
+      const updated: PlaywrightJob = {
+        ...job,
+        status: "cancelled",
+        completedAt: nowStr,
+        updatedAt: nowStr,
+      };
+      await redis.set(playwrightKeys.job(jobId), updated, { ex: JOB_TTL_SECONDS });
+      const currentActive = await redis.get<string>(playwrightKeys.active(job.agentId));
+      if (currentActive === jobId) {
+        await redis.del(playwrightKeys.active(job.agentId));
+      }
+      return updated;
+    }
+  }
+
+  return job;
 }
 
 export async function enqueuePlaywrightJob(
@@ -328,7 +355,7 @@ export async function heartbeatPlaywrightJob(
   );
 
   return {
-    cancelRequested: job.status === "cancel_requested",
+    cancelRequested: job.status === "cancel_requested" || job.status === "cancelled",
   };
 }
 
@@ -383,7 +410,7 @@ export async function appendPlaywrightLogBatch(
     sequenceStart,
     nextSequence: seqCounter,
     truncated: false,
-    cancelRequested: job.status === "cancel_requested",
+    cancelRequested: job.status === "cancel_requested" || job.status === "cancelled",
   };
 }
 
@@ -505,8 +532,7 @@ export async function requestCancelPlaywrightJob(
     : 0;
   const executionHeartbeatExpired =
     executionStatus &&
-    lastHeartbeatMs > 0 &&
-    now.getTime() - lastHeartbeatMs > 5000;
+    (lastHeartbeatMs === 0 || now.getTime() - lastHeartbeatMs > 3000);
 
   let newStatus: PlaywrightJobStatus = job.status;
   if (
@@ -578,13 +604,23 @@ export async function reapStalePlaywrightJobs(
     }
 
     const lastHeartbeat = job.lastHeartbeatAt ? new Date(job.lastHeartbeatAt).getTime() : 0;
-    if (lastHeartbeat > 0 && now.getTime() - lastHeartbeat > LEASE_SECONDS * 2000) {
+    const cancelRequested = job.cancelRequestedAt ? new Date(job.cancelRequestedAt).getTime() : 0;
+    const isCancelStale = job.status === "cancel_requested" && cancelRequested > 0 && now.getTime() - cancelRequested > 2500;
+    const isLeaseExpired = lastHeartbeat > 0 && now.getTime() - lastHeartbeat > LEASE_SECONDS * 2000;
+
+    if (isCancelStale || isLeaseExpired) {
       const isInteractive = job.mode === "interactive";
+      const finalStatus: PlaywrightJobStatus = isCancelStale
+        ? "cancelled"
+        : isInteractive
+          ? "session_closed"
+          : "failed";
+
       const updated: PlaywrightJob = {
         ...job,
-        status: isInteractive ? "session_closed" : "failed",
-        sessionCloseReason: isInteractive ? "timeout" : undefined,
-        error: "Agent lost or lease expired",
+        status: finalStatus,
+        sessionCloseReason: isInteractive && !isCancelStale ? "timeout" : job.sessionCloseReason,
+        error: isCancelStale ? undefined : "Agent lost or lease expired",
         completedAt: now.toISOString(),
         updatedAt: now.toISOString(),
       };
