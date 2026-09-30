@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const jobs = await listPlaywrightJobs(20);
+    const jobs = await listPlaywrightJobs(30);
     return NextResponse.json({ jobs }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to list jobs";

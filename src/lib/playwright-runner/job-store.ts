@@ -460,6 +460,7 @@ export async function completePlaywrightJob(
     browserResults?: BrowserExecutionResult[];
     runnerResults?: import("./types").NativeGroupResult[];
     artifacts?: TestArtifact[];
+    testExecutionSummary?: import("./types").TestExecutionSummary;
     startedAt?: string;
     finishedAt?: string;
     error?: string;
@@ -494,6 +495,8 @@ export async function completePlaywrightJob(
     browserResults: result.browserResults || job.browserResults,
     runnerResults: result.runnerResults || job.runnerResults,
     artifacts: result.artifacts || job.artifacts,
+    testExecutionSummary: result.testExecutionSummary || job.testExecutionSummary,
+    testCases: result.testExecutionSummary?.cases || job.testCases,
     startedAt: result.startedAt ?? job.startedAt,
     completedAt: result.finishedAt ?? nowStr,
     updatedAt: nowStr,

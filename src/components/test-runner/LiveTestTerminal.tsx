@@ -114,12 +114,60 @@ export function LiveTestTerminal({
             }
 
             const rawText = line.text ?? line.message ?? "";
+            const cleanText = stripTerminalControlSequences(rawText);
+
+            const isPassLine =
+              cleanText.includes("[PASS]") ||
+              cleanText.includes("ALL TESTS PASSED") ||
+              /^\s*(?:ok\s+\d+|✓)\b/.test(cleanText) ||
+              cleanText.includes("✓ ผ่าน");
+
+            const isFailLine =
+              cleanText.includes("[FAIL]") ||
+              cleanText.includes("FINAL RESULT: FAILED") ||
+              /^\s*(?:x\s+\d+|✗|✖)\b/.test(cleanText) ||
+              cleanText.includes("❌") ||
+              cleanText.includes("Error:") ||
+              cleanText.includes("test-failed");
+
+            const isBorderLine =
+              cleanText.startsWith("====") ||
+              cleanText.startsWith("────") ||
+              cleanText.startsWith("╔══") ||
+              cleanText.startsWith("╚══");
+
+            const isSummaryHeader =
+              cleanText.includes("TEST EXECUTION & UAT SUMMARY") ||
+              cleanText.includes("รายละเอียดผลการทดสอบแต่ละ Test Case");
+
+            const isMetadataLine =
+              cleanText.startsWith("📋 UAT Module") ||
+              cleanText.startsWith("🌐 Browser(s)") ||
+              cleanText.startsWith("⏱️ Total Time") ||
+              cleanText.startsWith("📊 Overview") ||
+              cleanText.startsWith("[RUN]");
+
+            let rowBg = "hover:bg-slate-900/40";
+            if (isPassLine) {
+              msgColor = "text-emerald-400 font-semibold";
+              rowBg = "bg-emerald-950/20 hover:bg-emerald-950/30";
+            } else if (isFailLine) {
+              msgColor = "text-rose-400 font-semibold";
+              rowBg = "bg-rose-950/25 hover:bg-rose-950/35";
+            } else if (isSummaryHeader) {
+              msgColor = "text-amber-300 font-bold tracking-wide";
+              rowBg = "bg-amber-500/10 hover:bg-amber-500/20";
+            } else if (isBorderLine) {
+              msgColor = "text-sky-500/70 font-mono select-none";
+            } else if (isMetadataLine) {
+              msgColor = "text-indigo-300 font-medium";
+            }
 
             return (
               <div
                 key={`${line.sequence}-${idx}`}
                 data-testid="terminal-line"
-                className="flex items-start gap-2 hover:bg-slate-900/40 px-1.5 py-0.5 rounded"
+                className={`flex items-start gap-2 px-1.5 py-0.5 rounded transition-colors ${rowBg}`}
               >
                 <span className="text-[10px] text-slate-600 select-none w-8 text-right font-mono">
                   {line.sequence}
@@ -135,7 +183,7 @@ export function LiveTestTerminal({
                   </span>
                 )}
                 <span className={`flex-1 whitespace-pre-wrap break-all ${msgColor}`}>
-                  {stripTerminalControlSequences(rawText)}
+                  {cleanText}
                 </span>
               </div>
             );

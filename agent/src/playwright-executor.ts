@@ -327,12 +327,15 @@ export async function runPlaywrightExecution(
   let abortListener: (() => void) | undefined;
   let uiReadyReported = false;
 
+  const allOutputLines: string[] = [];
+
   return new Promise<PlaywrightExecutionResult>((resolve) => {
     async function finish(
       finalStatus: PlaywrightExecutionResult["status"],
       errMessage?: string,
       shouldKill = false,
       explicitCloseReason?: import("./types.js").PlaywrightSessionCloseReason,
+      testExecutionSummary?: import("./types.js").TestExecutionSummary,
     ) {
       if (isFinished) return;
       isFinished = true;
@@ -404,6 +407,7 @@ export async function runPlaywrightExecution(
         status: finalStatus,
         browserResults,
         artifacts: artifacts.length > 0 ? artifacts : undefined,
+        testExecutionSummary,
         startedAt,
         finishedAt,
         durationMs,
@@ -432,6 +436,7 @@ export async function runPlaywrightExecution(
       const text = data.toString("utf-8");
       const lines = text.split(/\r?\n/).filter((l) => l.length > 0);
       const redacted = lines.map((l) => redactText(l));
+      allOutputLines.push(...redacted);
 
       if (prepared.interactive) {
         for (const line of redacted) {
@@ -481,8 +486,231 @@ export async function runPlaywrightExecution(
         finish("session_closed", undefined, false, "user_closed");
       } else {
         const finalStatus = code === 0 ? "passed" : "failed";
-        finish(finalStatus, undefined, false);
+        const { summary, summaryLines } = buildExecutionSummary(job, allOutputLines, browserResults, finalStatus);
+        callbacks.onLines("system", summaryLines);
+        finish(finalStatus, undefined, false, undefined, summary);
       }
     });
   });
+}
+
+export function buildExecutionSummary(
+  job: PlaywrightJob,
+  rawLines: string[],
+  browserResults: BrowserExecutionResult[],
+  finalStatus: "passed" | "failed" | "cancelled" | "timed_out",
+): { summary: import("./types.js").TestExecutionSummary; summaryLines: string[] } {
+  const cases: import("./types.js").TestCaseResultItem[] = [];
+  const seenIds = new Set<string>();
+
+  let detectedUatId: string | undefined;
+  let detectedUatTitle: string | undefined;
+  let totalDuration: string | undefined;
+  let activeFailedCase: import("./types.js").TestCaseResultItem | null = null;
+
+  for (const raw of rawLines) {
+    const line = raw.replace(/\r$/, "").trim();
+    if (!line) continue;
+
+    const durMatch = line.match(/(?:passed|failed|flaky|skipped).*?\(([\d.]+[m]?s)\)/i);
+    if (durMatch && !totalDuration) {
+      totalDuration = durMatch[1];
+    }
+
+    if (!detectedUatTitle) {
+      const uatMatch = line.match(/(FN-STS-\d+(?:\s*\([^)]+\))?(?::\s*[^›\n\r]+)?)/i);
+      if (uatMatch) {
+        detectedUatTitle = uatMatch[1].trim();
+        const idMatch = detectedUatTitle.match(/(FN-STS-\d+)/i);
+        if (idMatch) detectedUatId = idMatch[1].toUpperCase();
+      }
+    }
+
+    const testLineMatch = line.match(
+      /^(?:ok|x|✓|✗|✖)\s+\d+\s+\[([^\]]+)\]\s+›\s+(.*)$/i,
+    );
+
+    if (testLineMatch) {
+      const isPass = line.startsWith("ok") || line.startsWith("✓");
+      const fullPath = testLineMatch[2];
+
+      let duration: string | undefined;
+      let pathWithoutDuration = fullPath;
+      const durEndMatch = fullPath.match(/\s+\(([\d.]+[m]?s)\)\s*$/);
+      if (durEndMatch) {
+        duration = durEndMatch[1];
+        pathWithoutDuration = fullPath.slice(0, durEndMatch.index).trim();
+      }
+
+      const segments = pathWithoutDuration.split("›").map((s) => s.trim());
+      const lastSegment = segments[segments.length - 1] || pathWithoutDuration;
+
+      for (const seg of segments) {
+        if (!detectedUatTitle && /FN-STS-\d+/i.test(seg)) {
+          detectedUatTitle = seg;
+          const m = seg.match(/(FN-STS-\d+)/i);
+          if (m) detectedUatId = m[1].toUpperCase();
+        }
+      }
+
+      let caseId = `TC-${cases.length + 1}`;
+      let caseTitle = lastSegment;
+
+      const tcPrefixMatch = lastSegment.match(/^(TC-[A-Za-z0-9_-]+)(?::\s*|\s*-\s*)(.*)$/);
+      if (tcPrefixMatch) {
+        caseId = tcPrefixMatch[1].trim();
+        caseTitle = tcPrefixMatch[2].trim() || caseId;
+      } else {
+        const anyIdMatch = lastSegment.match(/^([A-Z0-9_-]+): (.*)$/);
+        if (anyIdMatch && anyIdMatch[1].length <= 25) {
+          caseId = anyIdMatch[1].trim();
+          caseTitle = anyIdMatch[2].trim();
+        }
+      }
+
+      const caseKey = `${caseId}:${caseTitle}`;
+      if (!seenIds.has(caseKey)) {
+        seenIds.add(caseKey);
+        const item: import("./types.js").TestCaseResultItem = {
+          id: caseId,
+          title: caseTitle,
+          status: isPass ? "passed" : "failed",
+          duration,
+        };
+        cases.push(item);
+        if (!isPass) {
+          activeFailedCase = item;
+        }
+      }
+      continue;
+    }
+
+    if (activeFailedCase) {
+      if (line.startsWith("Error:") || line.startsWith("Expected pattern:") || line.startsWith("Received string:")) {
+        if (!activeFailedCase.error) {
+          activeFailedCase.error = line;
+        } else if (activeFailedCase.error.length < 180 && !activeFailedCase.error.includes(line)) {
+          activeFailedCase.error += ` | ${line}`;
+        }
+      } else if (/^\d+\)\s+\[/.test(line)) {
+        const match = line.match(/(TC-[A-Za-z0-9_-]+)/);
+        if (match) {
+          const target = cases.find((c) => c.id === match[1]);
+          if (target) activeFailedCase = target;
+        }
+      }
+    }
+  }
+
+  let uatTitle = detectedUatTitle;
+  let uatId = detectedUatId;
+  if (!uatTitle && job.code) {
+    const codeMatch = job.code.match(/\/\/\s*🧪\s*(?:ชุดทดสอบระบบ\s*ProjectSTS:\s*)?(FN-STS-\d+.*?)(?:\r?\n|$)/i);
+    if (codeMatch) {
+      uatTitle = codeMatch[1].trim();
+      const idMatch = uatTitle.match(/(FN-STS-\d+)/i);
+      if (idMatch) uatId = idMatch[1].toUpperCase();
+    }
+  }
+
+  if (cases.length === 0) {
+    if (job.code) {
+      const testMatches = Array.from(job.code.matchAll(/test\s*\(\s*["'`](.*?)["'`]/g));
+      for (const m of testMatches) {
+        const fullTitle = m[1].trim();
+        let caseId = `TC-${cases.length + 1}`;
+        let caseTitle = fullTitle;
+        const tcPrefixMatch = fullTitle.match(/^(TC-[A-Za-z0-9_-]+)(?::\s*|\s*-\s*)(.*)$/);
+        if (tcPrefixMatch) {
+          caseId = tcPrefixMatch[1].trim();
+          caseTitle = tcPrefixMatch[2].trim() || caseId;
+        }
+        cases.push({
+          id: caseId,
+          title: caseTitle,
+          status: finalStatus === "passed" ? "passed" : "failed",
+          duration: totalDuration,
+        });
+      }
+    }
+  }
+
+  if (cases.length === 0 && job.testIds && job.testIds.length > 0) {
+    for (const tid of job.testIds) {
+      cases.push({
+        id: tid,
+        title: tid,
+        status: finalStatus === "passed" ? "passed" : "failed",
+        duration: totalDuration,
+      });
+    }
+  }
+
+  if (cases.length === 0) {
+    cases.push({
+      id: "TC-RUN-01",
+      title: uatTitle || "Workspace Playwright Execution",
+      status: finalStatus === "passed" ? "passed" : "failed",
+      duration: totalDuration,
+    });
+  }
+
+  const passed = cases.filter((c) => c.status === "passed").length;
+  const failed = cases.filter((c) => c.status === "failed").length;
+  const skipped = cases.filter((c) => c.status === "skipped").length;
+
+  const summary: import("./types.js").TestExecutionSummary = {
+    uatId,
+    uatTitle: uatTitle || "Playwright Test Execution",
+    total: cases.length,
+    passed,
+    failed,
+    skipped,
+    duration: totalDuration,
+    cases,
+  };
+
+  const border = "=".repeat(78);
+  const divider = "─".repeat(78);
+  const browsers = job.browsers && job.browsers.length > 0 ? job.browsers.join(", ") : "chromium";
+  const duration = totalDuration || "N/A";
+
+  const summaryLines: string[] = [
+    border,
+    "🎯 TEST EXECUTION & UAT SUMMARY / สรุปผลการทดสอบระบบ",
+    border,
+    `📋 UAT Module : ${summary.uatTitle || summary.uatId || "General Test Execution"}`,
+    `🌐 Browser(s)  : ${browsers}`,
+    `⏱️ Total Time  : ${duration}`,
+    `📊 Overview    : ${summary.total} Total | ผ่าน (Passed): ${passed} | ไม่ผ่าน (Failed): ${failed}`,
+  ];
+
+  if (cases.length > 0) {
+    summaryLines.push("");
+    summaryLines.push("[ รายละเอียดผลการทดสอบแต่ละ Test Case (Breakdown) ]");
+    summaryLines.push(divider);
+    for (const c of cases) {
+      const isPass = c.status === "passed";
+      const icon = isPass ? "✅" : "❌";
+      const tag = isPass ? "[PASS]" : "[FAIL]";
+      const timeStr = c.duration ? ` (${c.duration})` : "";
+      const idStr = c.id ? `${c.id}: ` : "";
+      summaryLines.push(`  ${tag} ${icon} ${idStr}${c.title}${timeStr}`);
+      if (c.error && !isPass) {
+        summaryLines.push(`         ⚠️ ${c.error}`);
+      }
+    }
+    summaryLines.push(divider);
+  }
+
+  if (failed === 0 && passed > 0) {
+    summaryLines.push("🚦 FINAL RESULT: ALL TESTS PASSED ✅ (ผ่านทุกกรณีทดสอบ)");
+  } else if (failed > 0) {
+    summaryLines.push(`🚦 FINAL RESULT: FAILED ❌ (พบข้อผิดพลาด ${failed} จาก ${summary.total} เคส)`);
+  } else {
+    summaryLines.push("🚦 FINAL RESULT: COMPLETED ℹ️");
+  }
+  summaryLines.push(border);
+
+  return { summary, summaryLines };
 }

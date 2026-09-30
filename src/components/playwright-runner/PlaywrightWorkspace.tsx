@@ -307,6 +307,7 @@ export function PlaywrightWorkspace() {
                     <JobHistory
                       jobs={runner.history}
                       activeJobId={runner.activeJob?.id}
+                      onLoadWorkspaceCode={runner.loadJobCodeIntoWorkspace}
                       onRefresh={runner.refreshHistory}
                     />
                   </div>

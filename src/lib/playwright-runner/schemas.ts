@@ -336,6 +336,29 @@ export const NativeGroupResultSchema = z
   })
   .strict();
 
+export const TestCaseResultItemSchema = z
+  .object({
+    id: z.string().min(1),
+    title: z.string().min(1),
+    status: z.enum(["passed", "failed", "skipped"]),
+    duration: z.string().optional(),
+    error: z.string().optional(),
+  })
+  .strict();
+
+export const TestExecutionSummarySchema = z
+  .object({
+    uatId: z.string().optional(),
+    uatTitle: z.string().optional(),
+    total: z.number().int().nonnegative(),
+    passed: z.number().int().nonnegative(),
+    failed: z.number().int().nonnegative(),
+    skipped: z.number().int().nonnegative().optional(),
+    duration: z.string().optional(),
+    cases: z.array(TestCaseResultItemSchema),
+  })
+  .strict();
+
 export const PlaywrightCompleteJobSchema = z
   .object({
     jobId: z.string().optional(),
@@ -350,6 +373,7 @@ export const PlaywrightCompleteJobSchema = z
     browserResults: z.array(BrowserExecutionResultSchema).optional(),
     runnerResults: z.array(NativeGroupResultSchema).optional(),
     artifacts: z.array(TestArtifactSchema).optional(),
+    testExecutionSummary: TestExecutionSummarySchema.optional(),
     startedAt: z.string().datetime().optional(),
     finishedAt: z.string().datetime().optional(),
     error: z.string().optional(),

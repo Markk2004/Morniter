@@ -183,3 +183,340 @@ export function progressPercentage(
   const raw = Math.round((progress.started / progress.total) * 100);
   return Math.min(99, raw);
 }
+
+import type { TestCaseResultItem, TestExecutionSummary } from "./types";
+export type { TestCaseResultItem, TestExecutionSummary };
+
+/**
+ * Parses individual test cases, suites, UAT titles, and errors from Playwright log output lines.
+ */
+export function parsePlaywrightTestCases(
+  rawLines: string[],
+  context?: {
+    uatTitle?: string;
+    uatId?: string;
+    defaultBrowser?: string;
+  },
+): TestExecutionSummary {
+  const cases: TestCaseResultItem[] = [];
+  const seenIds = new Set<string>();
+
+  let detectedUatId = context?.uatId;
+  let detectedUatTitle = context?.uatTitle;
+  let totalDuration: string | undefined;
+  let activeFailedCase: TestCaseResultItem | null = null;
+
+  for (const raw of rawLines) {
+    const line = raw.replace(/\r$/, "").trim();
+    if (!line) continue;
+
+    // Detect total duration (e.g. "1 passed (47.7s)" or "2 failed, 1 passed (47.7s)")
+    const durMatch = line.match(/(?:passed|failed|flaky|skipped).*?\(([\d.]+[m]?s)\)/i);
+    if (durMatch && !totalDuration) {
+      totalDuration = durMatch[1];
+    }
+
+    // Try to detect UAT title if not yet detected
+    if (!detectedUatTitle) {
+      const uatMatch = line.match(/(FN-STS-\d+(?:\s*\([^)]+\))?(?::\s*[^›\n\r]+)?)/i);
+      if (uatMatch) {
+        detectedUatTitle = uatMatch[1].trim();
+        const idMatch = detectedUatTitle.match(/(FN-STS-\d+)/i);
+        if (idMatch) detectedUatId = idMatch[1].toUpperCase();
+      }
+    }
+
+    // Check for standard line/list test result:
+    // e.g. "ok 1 [chromium] › ... › TC-STS-AUTH-TEACHER: Login as teacher succeeds (6.8s)"
+    // or   "x  2 [chromium] › ... › TC-STS-AUTH-DIRECTOR: Login as director succeeds (18.6s)"
+    // or   "✓ 1 [chromium] › ... › TC-STS-AUTH-001: Login test (1.2s)"
+    const testLineMatch = line.match(
+      /^(?:ok|x|✓|✗|✖)\s+\d+\s+\[([^\]]+)\]\s+›\s+(.*)$/i,
+    );
+
+    if (testLineMatch) {
+      const isPass = line.startsWith("ok") || line.startsWith("✓");
+      const fullPath = testLineMatch[2];
+
+      // Extract duration if present at end: (6.8s)
+      let duration: string | undefined;
+      let pathWithoutDuration = fullPath;
+      const durEndMatch = fullPath.match(/\s+\(([\d.]+[m]?s)\)\s*$/);
+      if (durEndMatch) {
+        duration = durEndMatch[1];
+        pathWithoutDuration = fullPath.slice(0, durEndMatch.index).trim();
+      }
+
+      // Check breadcrumbs: segments separated by '›'
+      const segments = pathWithoutDuration.split("›").map((s) => s.trim());
+      const lastSegment = segments[segments.length - 1] || pathWithoutDuration;
+
+      // Extract suite name if it looks like FN-STS-...
+      for (const seg of segments) {
+        if (!detectedUatTitle && /FN-STS-\d+/i.test(seg)) {
+          detectedUatTitle = seg;
+          const m = seg.match(/(FN-STS-\d+)/i);
+          if (m) detectedUatId = m[1].toUpperCase();
+        }
+      }
+
+      // Parse ID and Title from last segment (e.g. "TC-STS-AUTH-TEACHER: Login as teacher succeeds")
+      let caseId = `TC-${cases.length + 1}`;
+      let caseTitle = lastSegment;
+
+      const tcPrefixMatch = lastSegment.match(/^(TC-[A-Za-z0-9_-]+)(?::\s*|\s*-\s*)(.*)$/);
+      if (tcPrefixMatch) {
+        caseId = tcPrefixMatch[1].trim();
+        caseTitle = tcPrefixMatch[2].trim() || caseId;
+      } else {
+        const anyIdMatch = lastSegment.match(/^([A-Z0-9_-]+): (.*)$/);
+        if (anyIdMatch && anyIdMatch[1].length <= 25) {
+          caseId = anyIdMatch[1].trim();
+          caseTitle = anyIdMatch[2].trim();
+        }
+      }
+
+      const caseKey = `${caseId}:${caseTitle}`;
+      if (!seenIds.has(caseKey)) {
+        seenIds.add(caseKey);
+        const item: TestCaseResultItem = {
+          id: caseId,
+          title: caseTitle,
+          status: isPass ? "passed" : "failed",
+          duration,
+        };
+        cases.push(item);
+        if (!isPass) {
+          activeFailedCase = item;
+        }
+      }
+      continue;
+    }
+
+    // Capture error snippet for failed test case
+    if (activeFailedCase) {
+      if (line.startsWith("Error:") || line.startsWith("Expected pattern:") || line.startsWith("Received string:")) {
+        if (!activeFailedCase.error) {
+          activeFailedCase.error = line;
+        } else if (activeFailedCase.error.length < 180 && !activeFailedCase.error.includes(line)) {
+          activeFailedCase.error += ` | ${line}`;
+        }
+      } else if (/^\d+\)\s+\[/.test(line)) {
+        // Next failure block begins
+        const match = line.match(/(TC-[A-Za-z0-9_-]+)/);
+        if (match) {
+          const target = cases.find((c) => c.id === match[1]);
+          if (target) activeFailedCase = target;
+        }
+      }
+    }
+  }
+
+  const passed = cases.filter((c) => c.status === "passed").length;
+  const failed = cases.filter((c) => c.status === "failed").length;
+  const skipped = cases.filter((c) => c.status === "skipped").length;
+
+  return {
+    uatId: detectedUatId,
+    uatTitle: detectedUatTitle,
+    total: cases.length,
+    passed,
+    failed,
+    skipped,
+    duration: totalDuration,
+    cases,
+  };
+}
+
+/**
+ * Extracts a complete TestExecutionSummary given a job descriptor and log output.
+ * If log lines did not contain individual test breakdown, synthesizes cases from job.code or job.testIds.
+ */
+export function extractTestExecutionSummary(
+  job: {
+    id?: string;
+    code?: string;
+    presetName?: string;
+    source?: string;
+    testIds?: string[];
+    status?: string;
+    browsers?: string[];
+    browserResults?: Array<{ browser: string; passed: number; failed: number; skipped: number; durationMs?: number }>;
+  },
+  rawLines: string[] = [],
+): TestExecutionSummary {
+  // First, parse whatever test case lines were streamed in logs
+  const parsed = parsePlaywrightTestCases(rawLines);
+
+  // If UAT title wasn't found from logs, extract from job code comments or presetName
+  let uatTitle = parsed.uatTitle || job.presetName;
+  let uatId = parsed.uatId;
+
+  if (!uatTitle && job.code) {
+    const codeMatch = job.code.match(/\/\/\s*🧪\s*(?:ชุดทดสอบระบบ\s*ProjectSTS:\s*)?(FN-STS-\d+.*?)(?:\r?\n|$)/i);
+    if (codeMatch) {
+      uatTitle = codeMatch[1].trim();
+      const idMatch = uatTitle.match(/(FN-STS-\d+)/i);
+      if (idMatch) uatId = idMatch[1].toUpperCase();
+    }
+  }
+
+  if (!uatTitle && job.testIds && job.testIds.length > 0) {
+    const firstTest = job.testIds[0];
+    uatTitle = firstTest;
+    const idMatch = firstTest.match(/(FN-STS-\d+)/i);
+    if (idMatch) uatId = idMatch[1].toUpperCase();
+  }
+
+  // Calculate browser aggregate numbers if present
+  let browserPassed = 0;
+  let browserFailed = 0;
+  let totalDurationMs = 0;
+
+  if (job.browserResults && job.browserResults.length > 0) {
+    for (const br of job.browserResults) {
+      browserPassed += br.passed;
+      browserFailed += br.failed;
+      if (br.durationMs) totalDurationMs = Math.max(totalDurationMs, br.durationMs);
+    }
+  }
+
+  const durationStr =
+    parsed.duration ||
+    (totalDurationMs > 0 ? `${(totalDurationMs / 1000).toFixed(1)}s` : undefined);
+
+  // If parsed cases are already found from logs, return them
+  if (parsed.cases.length > 0) {
+    return {
+      uatId: uatId || parsed.uatId,
+      uatTitle: uatTitle || parsed.uatTitle,
+      total: parsed.cases.length,
+      passed: parsed.passed,
+      failed: parsed.failed,
+      skipped: parsed.skipped,
+      duration: durationStr,
+      cases: parsed.cases,
+    };
+  }
+
+  // Fallback: If no individual test lines were parsed, synthesize cases from code or testIds
+  const cases: TestCaseResultItem[] = [];
+  const isJobPass = job.status === "passed";
+  const isJobFail = job.status === "failed";
+  const fallbackStatus: "passed" | "failed" = isJobPass ? "passed" : isJobFail ? "failed" : "passed";
+
+  if (job.code) {
+    const testMatches = Array.from(job.code.matchAll(/test\s*\(\s*["'`](.*?)["'`]/g));
+    for (const m of testMatches) {
+      const fullTitle = m[1].trim();
+      let caseId = `TC-${cases.length + 1}`;
+      let caseTitle = fullTitle;
+
+      const tcPrefixMatch = fullTitle.match(/^(TC-[A-Za-z0-9_-]+)(?::\s*|\s*-\s*)(.*)$/);
+      if (tcPrefixMatch) {
+        caseId = tcPrefixMatch[1].trim();
+        caseTitle = tcPrefixMatch[2].trim() || caseId;
+      }
+      cases.push({
+        id: caseId,
+        title: caseTitle,
+        status: fallbackStatus,
+        duration: durationStr,
+      });
+    }
+  }
+
+  if (cases.length === 0 && job.testIds && job.testIds.length > 0) {
+    for (const tid of job.testIds) {
+      cases.push({
+        id: tid,
+        title: tid,
+        status: fallbackStatus,
+        duration: durationStr,
+      });
+    }
+  }
+
+  if (cases.length === 0) {
+    cases.push({
+      id: "TC-RUN-01",
+      title: uatTitle || "Workspace Playwright Execution",
+      status: fallbackStatus,
+      duration: durationStr,
+    });
+  }
+
+  const passedCount = isJobPass ? cases.length : isJobFail ? Math.max(0, cases.length - 1) : cases.length;
+  const failedCount = isJobFail ? Math.max(1, cases.length - passedCount) : 0;
+
+  return {
+    uatId,
+    uatTitle: uatTitle || "Playwright Test Execution",
+    total: cases.length,
+    passed: browserPassed > 0 ? browserPassed : passedCount,
+    failed: browserFailed > 0 ? browserFailed : failedCount,
+    duration: durationStr,
+    cases,
+  };
+}
+
+/**
+ * Formats a clean, prominent ASCII/Unicode summary box suitable for terminal display.
+ */
+export function formatTerminalSummary(
+  summary: TestExecutionSummary,
+  options?: {
+    browsers?: string[];
+    mode?: string;
+  },
+): string[] {
+  const border = "=".repeat(78);
+  const divider = "─".repeat(78);
+
+  const uat = summary.uatTitle || summary.uatId || "General Test Execution";
+  const browsers =
+    options?.browsers && options.browsers.length > 0 ? options.browsers.join(", ") : "chromium";
+  const duration = summary.duration || "N/A";
+  const passCount = summary.passed;
+  const failCount = summary.failed;
+  const totalCount = summary.total || passCount + failCount;
+
+  const lines: string[] = [];
+  lines.push(border);
+  lines.push("🎯 TEST EXECUTION & UAT SUMMARY / สรุปผลการทดสอบระบบ");
+  lines.push(border);
+  lines.push(`📋 UAT Module : ${uat}`);
+  lines.push(`🌐 Browser(s)  : ${browsers}`);
+  lines.push(`⏱️ Total Time  : ${duration}`);
+  lines.push(`📊 Overview    : ${totalCount} Total | ผ่าน (Passed): ${passCount} | ไม่ผ่าน (Failed): ${failCount}`);
+
+  if (summary.cases.length > 0) {
+    lines.push("");
+    lines.push("[ รายละเอียดผลการทดสอบแต่ละ Test Case (Breakdown) ]");
+    lines.push(divider);
+    for (const c of summary.cases) {
+      const isPass = c.status === "passed";
+      const icon = isPass ? "✅" : "❌";
+      const tag = isPass ? "[PASS]" : "[FAIL]";
+      const timeStr = c.duration ? ` (${c.duration})` : "";
+      const idStr = c.id ? `${c.id}: ` : "";
+      lines.push(`  ${tag} ${icon} ${idStr}${c.title}${timeStr}`);
+      if (c.error && !isPass) {
+        lines.push(`         ⚠️ ${c.error}`);
+      }
+    }
+    lines.push(divider);
+  }
+
+  const isAllPassed = failCount === 0 && passCount > 0;
+  if (isAllPassed) {
+    lines.push("🚦 FINAL RESULT: ALL TESTS PASSED ✅ (ผ่านทุกกรณีทดสอบ)");
+  } else if (failCount > 0) {
+    lines.push(`🚦 FINAL RESULT: FAILED ❌ (พบข้อผิดพลาด ${failCount} จาก ${totalCount} เคส)`);
+  } else {
+    lines.push("🚦 FINAL RESULT: COMPLETED ℹ️");
+  }
+  lines.push(border);
+
+  return lines;
+}

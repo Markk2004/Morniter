@@ -289,7 +289,27 @@ export interface PlaywrightJob {
     downloadUrl?: string;
     createdAt: string;
   }>;
+  testExecutionSummary?: TestExecutionSummary;
   error?: string;
+}
+
+export interface TestCaseResultItem {
+  id: string;
+  title: string;
+  status: "passed" | "failed" | "skipped";
+  duration?: string;
+  error?: string;
+}
+
+export interface TestExecutionSummary {
+  uatId?: string;
+  uatTitle?: string;
+  total: number;
+  passed: number;
+  failed: number;
+  skipped?: number;
+  duration?: string;
+  cases: TestCaseResultItem[];
 }
 
 export interface PlaywrightExecutionResult {
@@ -308,6 +328,7 @@ export interface PlaywrightExecutionResult {
     downloadUrl?: string;
     createdAt: string;
   }>;
+  testExecutionSummary?: TestExecutionSummary;
   startedAt: string;
   finishedAt: string;
   durationMs: number;

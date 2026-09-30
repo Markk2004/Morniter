@@ -15,6 +15,8 @@ import type { RecipeDraft, ReusableFlow, RecipeAction } from "@/lib/playwright-r
 import { renderRecipeToPlaywrightCode } from "@/lib/playwright-runner/recipe-renderer";
 import { analyzeSourceForPlaywrightDraft } from "@/lib/playwright-runner/source-analyzer";
 import { getFunctionTemplate, STS_FUNCTION_TEMPLATES } from "@/lib/playwright-runner/function-templates";
+import { extractTestExecutionSummary, formatTerminalSummary } from "@/lib/playwright-runner/progress-parser";
+import type { HistoricalJobItem } from "@/components/test-runner/JobHistory";
 
 export function getDefaultWorkspaceCode(projectId?: string | null): string {
   if (projectId?.toLowerCase().includes("sts")) {
@@ -130,6 +132,7 @@ export interface UsePlaywrightRunnerResult {
   resetEditorCode: () => void;
   loadTestSource: (testId: string) => Promise<void>;
   loadFunctionSource: (functionIdOrGroupId: string) => Promise<void>;
+  loadJobCodeIntoWorkspace: (job: HistoricalJobItem | PlaywrightJob) => Promise<void>;
   loadingSourceTestId: string | null;
   prefetchTestSource: (testId: string) => void;
   openRecipeBuilder: (seed?: { testId?: string; relativePath?: string; title?: string; functionId?: string }) => void;
@@ -612,6 +615,42 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
     [editorDirty, currentProject, loadTestSource],
   );
 
+  // Load code from historical test job into workspace editor
+  const loadJobCodeIntoWorkspace = useCallback(
+    async (job: HistoricalJobItem | PlaywrightJob) => {
+      if (editorDirty && typeof window !== "undefined") {
+        const proceed = window.confirm(
+          "คุณมีโค้ดที่แก้ไขค้างอยู่ ต้องการละทิ้งการแก้ไขแล้วโหลดโค้ดจากประวัตินี้หรือไม่?",
+        );
+        if (!proceed) return;
+      }
+
+      if (job.code && job.code.trim().length > 0) {
+        setEditorCodeState(job.code);
+        setEditorDirty(false);
+        setSource("workspace");
+        return;
+      }
+
+      // If code was not stored directly, look for function template or test source
+      const targetName = job.presetName || (job.testIds && job.testIds[0]);
+      if (targetName) {
+        const tpl = getFunctionTemplate(targetName);
+        if (tpl) {
+          setEditorCodeState(tpl.code);
+          setEditorDirty(false);
+          setSource("workspace");
+          return;
+        }
+      }
+
+      if (job.testIds && job.testIds.length > 0) {
+        await loadTestSource(job.testIds[0]);
+      }
+    },
+    [editorDirty, loadTestSource],
+  );
+
   // Background prefetch
   const prefetchTestSource = useCallback(
     (testId: string) => {
@@ -1063,6 +1102,22 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
           }
 
           terminalReconciled = true;
+          // Ensure terminal displays summary box if not already present
+          setTerminalLines((prev) => {
+            const hasSummary = prev.some((l) => l.message.includes("TEST EXECUTION & UAT SUMMARY"));
+            if (hasSummary) return prev;
+            const logStrings = prev.map((l) => l.message);
+            const summary = extractTestExecutionSummary(data.job, logStrings);
+            const summaryLines = formatTerminalSummary(summary, { browsers: data.job.browsers });
+            const nowIso = new Date().toISOString();
+            const newLines: TestLogLine[] = summaryLines.map((text) => ({
+              sequence: (nextSequenceRef.current += 1),
+              timestamp: nowIso,
+              stream: "system",
+              message: text,
+            }));
+            return [...prev, ...newLines].slice(-300);
+          });
           void refreshHistory();
           return;
         }
@@ -1299,6 +1354,7 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
     resetEditorCode,
     loadTestSource,
     loadFunctionSource,
+    loadJobCodeIntoWorkspace,
     loadingSourceTestId,
     prefetchTestSource,
     openRecipeBuilder,

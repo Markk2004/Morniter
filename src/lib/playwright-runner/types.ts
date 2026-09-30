@@ -59,10 +59,30 @@ export interface BrowserExecutionResult {
   durationMs?: number;
 }
 
+export interface TestCaseResultItem {
+  id: string;
+  title: string;
+  status: "passed" | "failed" | "skipped";
+  duration?: string;
+  error?: string;
+}
+
+export interface TestExecutionSummary {
+  uatId?: string;
+  uatTitle?: string;
+  total: number;
+  passed: number;
+  failed: number;
+  skipped?: number;
+  duration?: string;
+  cases: TestCaseResultItem[];
+}
+
 export interface PlaywrightJob {
   id: string;
   agentId: string;
   projectId: string;
+  presetName?: string;
   source: PlaywrightSource;
   testIds?: string[];
   code?: string;
@@ -75,6 +95,8 @@ export interface PlaywrightJob {
   browserResults: BrowserExecutionResult[];
   runnerResults?: NativeGroupResult[];
   artifacts?: TestArtifact[];
+  testExecutionSummary?: TestExecutionSummary;
+  testCases?: TestCaseResultItem[];
   createdAt: string; // ISO 8601 UTC
   updatedAt: string; // ISO 8601 UTC
   startedAt?: string;

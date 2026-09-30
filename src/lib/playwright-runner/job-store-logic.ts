@@ -92,7 +92,7 @@ export const LEASE_SECONDS = 60;
 export const MAX_LOG_LINES = 5_000;
 export const MAX_LOG_BYTES = 1_048_576; // 1 MiB
 export const MAX_QUEUE_LENGTH = 10;
-export const MAX_HISTORY_ITEMS = 20;
+export const MAX_HISTORY_ITEMS = 30;
 
 // --- Error classes ---
 
