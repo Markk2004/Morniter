@@ -106,6 +106,29 @@ export function terminateProcessTree(
     } catch {
       // Ignore taskkill errors if process already exited
     }
+
+    // Fallback: If the root process was a wrapper (.cmd / npx) that exited,
+    // find any orphaned child processes that had this process as ParentProcessId
+    try {
+      const out = childProcess.execSync(
+        `powershell -NoProfile -Command "Get-CimInstance Win32_Process -Filter \\"ParentProcessId = ${pid}\\" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty ProcessId"`,
+        { windowsHide: true, encoding: "utf8", timeout: 3000 },
+      );
+      const childPids = out.split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+      for (const cPid of childPids) {
+        try {
+          childProcess.spawnSync(
+            "taskkill.exe",
+            ["/PID", cPid, "/T", "/F"],
+            { shell: false, windowsHide: true, stdio: "ignore" },
+          );
+        } catch {
+          // ignore
+        }
+      }
+    } catch {
+      // Ignore fallback query errors
+    }
   } else {
     try {
       process.kill(-pid, "SIGKILL");
@@ -115,6 +138,31 @@ export function terminateProcessTree(
       } catch {
         // Ignore kill errors if process already exited
       }
+    }
+  }
+}
+
+export function terminateProcessOnPort(port: number): void {
+  if (!port || port <= 0) return;
+  if (process.platform === "win32") {
+    try {
+      const out = childProcess.execSync("netstat -ano -p tcp", {
+        windowsHide: true,
+        encoding: "utf8",
+        timeout: 2000,
+      });
+      const lines = out.split(/\r?\n/);
+      for (const line of lines) {
+        if (line.includes(`:${port}`) && line.includes("LISTENING")) {
+          const parts = line.trim().split(/\s+/);
+          const pid = parseInt(parts[parts.length - 1], 10);
+          if (pid && !isNaN(pid) && pid > 0) {
+            terminateProcessTree(pid);
+          }
+        }
+      }
+    } catch {
+      // Ignore netstat errors
     }
   }
 }

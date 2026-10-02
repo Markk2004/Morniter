@@ -1076,10 +1076,11 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
           data.job.status === "passed" ||
           data.job.status === "failed" ||
           data.job.status === "cancelled" ||
-          data.job.status === "timed_out";
+          data.job.status === "timed_out" ||
+          data.job.status === "session_closed";
 
         if (isTerminal) {
-          if (data.job.status === "cancelled") {
+          if (data.job.status === "cancelled" || data.job.status === "session_closed") {
             terminalReconciled = true;
             void refreshHistory();
             return;
@@ -1280,16 +1281,19 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
             : "[system] Cancellation requested...",
         },
       ]);
+      const shouldForce = isAlreadyRequested || activeJob.mode === "interactive";
       const res = await fetch(`/api/playwright-runner/jobs/${activeJob.id}/cancel`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ force: isAlreadyRequested }),
+        body: JSON.stringify({ force: shouldForce }),
       });
       if (res.ok) {
         const data = await res.json().catch(() => ({}));
-        if (data.job?.status === "cancelled") {
+        if (data.job?.status === "cancelled" || data.job?.status === "session_closed") {
           setActiveJob(data.job);
           void refreshHistory();
+        } else if (data.job) {
+          setActiveJob(data.job);
         }
         return true;
       }

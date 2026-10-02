@@ -242,6 +242,15 @@ export function App() {
       return;
     }
     await window.morniterAgent.unpair();
+    setForm((current) => {
+      const next = { ...current, pairingCode: "", deviceId: crypto.randomUUID() };
+      try {
+        localStorage.setItem(FORM_STORAGE_KEY, JSON.stringify(next));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
     setViewMode("wizard");
     setStep(0);
     setMessage("ยกเลิกการจับคู่แล้ว พร้อมตั้งค่าใหม่");

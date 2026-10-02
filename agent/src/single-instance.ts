@@ -49,13 +49,16 @@ export class SingleInstanceGuard {
           return;
         }
 
-        if (isProcessAlive(info.pid)) {
+        const acquiredTime = new Date(info.acquiredAt).getTime();
+        const isStaleByTime = Number.isFinite(acquiredTime) && (Date.now() - acquiredTime > 12 * 60 * 60 * 1000);
+
+        if (!isStaleByTime && isProcessAlive(info.pid)) {
           throw new Error(
             `Another Agent instance with ID "${this.agentId}" is already running (PID: ${info.pid}).`,
           );
         }
 
-        // Stale lock from dead process: remove it
+        // Stale lock from dead or recycled process: remove it
         fs.unlinkSync(this.lockFilePath);
       } catch (err) {
         if (err instanceof Error && err.message.includes("is already running")) {

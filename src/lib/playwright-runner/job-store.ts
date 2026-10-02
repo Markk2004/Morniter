@@ -543,6 +543,7 @@ export async function requestCancelPlaywrightJob(
     job.status === "claimed" ||
     job.status === "cancel_requested" ||
     executionHeartbeatExpired ||
+    job.mode === "interactive" ||
     force
   ) {
     newStatus = "cancelled";

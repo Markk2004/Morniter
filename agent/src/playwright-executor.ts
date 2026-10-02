@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { spawnProcessCommand, terminateProcessTree } from "./process-adapter.js";
+import { spawnProcessCommand, terminateProcessTree, terminateProcessOnPort } from "./process-adapter.js";
 import { resolveExecutable } from "./config.js";
 import { resolveInsideRoot, scanPlaywrightTests } from "./playwright-catalog.js";
 import { redactText } from "./redact.js";
@@ -326,6 +326,7 @@ export async function runPlaywrightExecution(
   let timeoutTimer: NodeJS.Timeout | undefined;
   let abortListener: (() => void) | undefined;
   let uiReadyReported = false;
+  let uiPort: number | null = null;
 
   const allOutputLines: string[] = [];
 
@@ -354,6 +355,14 @@ export async function runPlaywrightExecution(
         }
         try {
           child.kill();
+        } catch {
+          // ignore
+        }
+      }
+
+      if (prepared.interactive && uiPort) {
+        try {
+          terminateProcessOnPort(uiPort);
         } catch {
           // ignore
         }
@@ -440,6 +449,10 @@ export async function runPlaywrightExecution(
 
       if (prepared.interactive) {
         for (const line of redacted) {
+          const match = line.match(/https?:\/\/(?:127\.0\.0\.1|localhost):(\d+)/i);
+          if (match) {
+            uiPort = parseInt(match[1], 10);
+          }
           if (/https?:\/\/(?:127\.0\.0\.1|localhost):\d+/i.test(line) || /listening on/i.test(line)) {
             if (!uiReadyReported) {
               uiReadyReported = true;
@@ -478,12 +491,12 @@ export async function runPlaywrightExecution(
       if (!prepared.interactive) {
         processStream("stderr", Buffer.from(err.message));
       }
-      finish(prepared.interactive ? "session_closed" : "failed", err.message, false, "process_error");
+      finish(prepared.interactive ? "session_closed" : "failed", err.message, true, "process_error");
     });
 
     child.on("close", (code: number | null) => {
       if (prepared.interactive) {
-        finish("session_closed", undefined, false, "user_closed");
+        finish("session_closed", undefined, true, "user_closed");
       } else {
         const finalStatus = code === 0 ? "passed" : "failed";
         const { summary, summaryLines } = buildExecutionSummary(job, allOutputLines, browserResults, finalStatus);

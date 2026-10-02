@@ -107,8 +107,13 @@ export function AgentDeviceSettings() {
   useEffect(() => {
     if (!pairing) return;
     const targetId = agentId.trim().toLowerCase();
+    // Pairing code is valid for 10 minutes; only detect devices created after this pairing session started
+    const codeStartTime = new Date(pairing.expiresAt).getTime() - 10 * 60 * 1000 - 5000;
     const isOnline = devices.some(
-      (d) => d.agentId.toLowerCase() === targetId && d.status === "online",
+      (d) =>
+        d.agentId.toLowerCase() === targetId &&
+        d.status === "online" &&
+        new Date(d.createdAt).getTime() >= codeStartTime,
     );
     if (isOnline) {
       setPairSuccess(`เชื่อมต่อ Agent "${agentId.trim()}" สำเร็จแล้ว! เครื่องออนไลน์พร้อมใช้งาน`);

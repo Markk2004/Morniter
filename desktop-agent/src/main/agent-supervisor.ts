@@ -54,9 +54,34 @@ export class AgentSupervisor {
     this.setState("connecting");
     const entry = process.env.NODE_ENV === "development" ? path.resolve(process.cwd(), "../agent/dist/index.js") : path.join(process.resourcesPath, "agent", "index.cjs");
     this.child = utilityProcess.fork(entry, [], { env: { ...process.env, TEST_RUNNER_CONFIG: configPath, TEST_RUNNER_AGENT_TOKEN: token }, stdio: "pipe" });
-    this.child.on("spawn", () => this.setState("online"));
+    
+    let stableTimer: NodeJS.Timeout | null = setTimeout(() => {
+      this.restartAttempt = 0;
+      stableTimer = null;
+    }, 15_000);
+
+    this.child.stdout?.on("data", (chunk: Buffer) => {
+      const line = chunk.toString("utf8").trim();
+      if (line.includes("started polling")) {
+        this.setState("online");
+      }
+    });
+    this.child.stderr?.on("data", (chunk: Buffer) => {
+      const line = chunk.toString("utf8").trim();
+      if (line) console.error(`[Agent stderr] ${line}`);
+    });
+
+    this.child.on("spawn", () => {
+      // connecting -> wait for polling confirmation or set online after short grace period
+      setTimeout(() => {
+        if (this.child && !this.stopping && this.current === "connecting") {
+          this.setState("online");
+        }
+      }, 1000);
+    });
     this.child.on("error", () => { if (!this.stopping) this.setState("error", "Agent process error"); });
     this.child.on("exit", (code) => {
+      if (stableTimer) { clearTimeout(stableTimer); stableTimer = null; }
       this.child = null;
       if (this.stopping || code === 0) {
         this.setState("stopped");
@@ -73,6 +98,18 @@ export class AgentSupervisor {
     this.restartAttempt = 0;
     const child = this.child;
     if (!child) { this.setState("stopped"); return; }
+    if (child.pid && process.platform === "win32") {
+      try {
+        const cp = await import("node:child_process");
+        cp.spawnSync("taskkill.exe", ["/PID", String(child.pid), "/T", "/F"], {
+          shell: false,
+          windowsHide: true,
+          stdio: "ignore",
+        });
+      } catch {
+        // ignore
+      }
+    }
     child.kill();
     await new Promise<void>((resolve) => {
       const timeout = setTimeout(resolve, 2000);
@@ -92,7 +129,13 @@ export class AgentSupervisor {
     this.restartTimer = setTimeout(() => {
       this.restartTimer = null;
       if (this.stopping || this.child) return;
-      void this.start().then(() => { this.restartAttempt = 0; }).catch(() => this.scheduleRestart());
+      void this.start().catch((err) => {
+        if (err instanceof Error && err.message === "AGENT_NOT_CONFIGURED") {
+          this.setState("stopped");
+          return;
+        }
+        this.scheduleRestart();
+      });
     }, delayMs);
   }
 }

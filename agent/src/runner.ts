@@ -211,7 +211,7 @@ export async function executeClaimedPlaywrightJob(
       }
     }
 
-    if (job.source === "project-test" && pw.automationMap && job.testIds && job.testIds.length > 0) {
+    if (job.source === "project-test" && job.mode !== "interactive" && pw.automationMap && job.testIds && job.testIds.length > 0) {
       const map = automationMap || (await loadAutomationMap(pw.workspaceRoot, pw.automationMap));
       const discovery = await discoverProjectTests(pw.workspaceRoot, map);
       const hasNativeTests = job.testIds.some((id) => discovery.tests.some((t) => t.id === id));

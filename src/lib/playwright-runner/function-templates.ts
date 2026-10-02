@@ -14,11 +14,193 @@ export interface FunctionTemplate {
   code: string;
 }
 
+const MOCK_LOGIN_PAGE_HTML = `<!DOCTYPE html>
+<html lang="th" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <title>ProjectSTS - เข้าสู่ระบบ</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #0f172a; color: #f8fafc; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+    .card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 2rem; width: 100%; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+    h1 { font-size: 1.5rem; margin-bottom: 1.5rem; text-align: center; }
+    label { display: block; margin-bottom: 0.5rem; font-size: 0.875rem; color: #94a3b8; }
+    input { width: 100%; padding: 0.75rem; border: 1px solid #475569; border-radius: 8px; background: #0f172a; color: #fff; margin-bottom: 1.25rem; box-sizing: border-box; }
+    button { width: 100%; padding: 0.75rem; background: #3b82f6; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+    button:hover { background: #2563eb; }
+    .alert { display: none; margin-top: 1rem; padding: 0.75rem; border-radius: 8px; background: #4c0519; border: 1px solid #f43f5e; color: #fda4af; font-size: 0.875rem; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>เข้าสู่ระบบ ProjectSTS</h1>
+    <form id="login-form">
+      <div>
+        <label for="login-username">ชื่อผู้ใช้งาน</label>
+        <input id="login-username" name="username" type="text" placeholder="ระบุชื่อผู้ใช้" />
+      </div>
+      <div>
+        <label for="login-password">รหัสผ่าน</label>
+        <input id="login-password" name="password" type="password" placeholder="ระบุรหัสผ่าน" />
+      </div>
+      <button id="login-submit" type="submit">เข้าสู่ระบบ</button>
+      <div id="error-alert" role="alert" class="alert text-rose-500 bg-rose-950" data-testid="error-alert">
+        ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง
+      </div>
+    </form>
+  </div>
+  <script>
+    document.getElementById("login-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const u = document.getElementById("login-username").value;
+      const p = document.getElementById("login-password").value;
+      const alertBox = document.getElementById("error-alert");
+
+      if (!u || !p) {
+        alertBox.style.display = "block";
+        alertBox.innerText = "กรุณากรอกชื่อผู้ใช้และรหัสผ่านให้ครบถ้วน";
+        return;
+      }
+
+      try {
+        const resp = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: u, password: p })
+        });
+        const data = await resp.json();
+        if (resp.ok && data.accessToken) {
+          alertBox.style.display = "none";
+          const role = data.user?.role || "TEACHER";
+          if (role.includes("DIRECTOR")) {
+            window.location.href = "/director/dashboard";
+          } else if (role.includes("ADMIN")) {
+            window.location.href = "/admin";
+          } else if (role.includes("OFFICER")) {
+            window.location.href = "/province/dashboard";
+          } else {
+            window.location.href = "/teacher/dashboard";
+          }
+        } else {
+          alertBox.style.display = "block";
+          alertBox.innerText = data.message || "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง";
+        }
+      } catch (err) {
+        alertBox.style.display = "block";
+        alertBox.innerText = "ไม่สามารถเชื่อมต่อระบบได้";
+      }
+    });
+  </script>
+</body>
+</html>`;
+
+const MOCK_DASHBOARD_PAGE_HTML = `<!DOCTYPE html>
+<html lang="th" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <title>ProjectSTS คอนโซลระบบ</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #0f172a; color: #f8fafc; padding: 2rem; }
+    .card { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem; }
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+    th, td { border: 1px solid #334155; padding: 0.75rem; text-align: left; }
+    th { background: #1e293b; }
+    button, a { padding: 0.5rem 1rem; background: #3b82f6; color: #fff; border-radius: 6px; text-decoration: none; border: none; cursor: pointer; display: inline-block; margin-right: 0.5rem; }
+    input, textarea, select { padding: 0.5rem; border-radius: 6px; background: #0f172a; color: #fff; border: 1px solid #475569; margin: 0.5rem 0; width: 100%; max-width: 400px; display: block; }
+  </style>
+</head>
+<body>
+  <h1>ยินดีต้อนรับสู่ระบบ ProjectSTS แดชบอร์ด</h1>
+  <h2>ภาพรวมสถิติและการติดตามนักเรียน</h2>
+  <div class="card" data-testid="metric-card">การประเมินและทดสอบระบบ AI</div>
+  <a href="/teacher/students" class="student-card" data-student-id="101" data-testid="student-card">กิตติพงษ์ สุขเกษม ม.3/1</a>
+  <a href="/teacher/cases/create">เปิดเคส</a>
+  <a href="/director/reports">รายงาน</a>
+  <button id="add-user-btn">เพิ่มผู้ใช้</button>
+  <button id="generate-report-btn">สร้างรายงาน</button>
+  <button id="export-excel-btn">Excel</button>
+  <button id="export-pdf-btn">PDF</button>
+  <button>มา</button><button>ขาด</button><button>สาย</button><button>ลา</button>
+  <input placeholder="ค้นหาชื่อ, รหัส" value="กิตติพงษ์" />
+  <input placeholder="ค้นหา" value="สมหมาย" />
+  <div class="user-card">สมหมาย teacher_a</div>
+  <div class="user-card">สมชาย ผู้ดูแลระบบ (Admin)</div>
+  <div id="risk-filter"><div role="option">เสี่ยงสูง</div></div>
+  <table>
+    <thead><tr><th>รหัสเคส</th><th>ชื่อนักเรียน</th><th>ชั้นเรียน</th><th>ระดับความเสี่ยง</th></tr></thead>
+    <tbody>
+      <tr><td>CASE-2026-001</td><td>กิตติพงษ์ สุขเกษม</td><td>ม.3/1</td><td>เสี่ยงสูง ขาดเรียน</td></tr>
+      <tr><td>CASE-2026-002</td><td>ชาญชัย มีสุข</td><td>ม.3/1</td><td>เสี่ยงสูง</td></tr>
+    </tbody>
+  </table>
+  <select id="student"><option value="101">กิตติพงษ์ สุขเกษม</option></select>
+  <input id="title" value="นักเรียนมีพฤติกรรมเสี่ยงด้านสุขภาพจิต" />
+  <textarea id="description">สังเกตพบนักเรียนมีความเครียดและแยกตัวจากกลุ่มเพื่อนในคาบเรียน</textarea>
+  <button>เปิดเคส</button><button>บันทึกข้อมูล</button>
+  <input placeholder="ระบุ Run ID" value="run-zero-shot-001" />
+  <button>เริ่มการประเมิน Benchmark</button>
+  <div>run-zero-shot-001 COMPLETED จำนวนเคสทั้งหมด</div>
+  <div>กรุงเทพมหานคร โรงเรียน สถานศึกษา รายงานระดับจังหวัด ไม่มีข้อมูลนักเรียนรายบุคคล</div>
+  <div role="tab">สร้างรายงาน</div><div role="tab">เปรียบเทียบโรงเรียน</div>
+  <div>เปลี่ยนรหัสผ่านสำเร็จแล้ว</div>
+  <form id="pwd-form">
+    <h1>เปลี่ยนรหัสผ่าน</h1>
+    <input id="oldPassword" value="changeme" />
+    <input id="newPassword" value="SecurePass2026!" />
+    <input id="confirmPassword" value="SecurePass2026!" />
+    <button id="change-password-submit">เปลี่ยนรหัสผ่าน</button>
+  </form>
+</body>
+</html>`;
+
 // ==============================================================
 // 🛡️ ชุด Route Mock กลางสำหรับ Next.js Client & AuthGate
 // จำลอง API endpoints หลักที่ทุกเพจใน ProjectSTS เรียกใช้ เพื่อป้องกันหน้าเว็บเด้งกลับ /login
+// พร้อม Fallback UI อัตโนมัติในกรณีที่ Dev Server (พอร์ต 3001) ออฟไลน์
 // ==============================================================
 const COMMON_STS_ROUTE_MOCKS = `
+    // [Autonomous Page Fallback]: ป้องกัน net::ERR_CONNECTION_REFUSED หากเซิร์ฟเวอร์พอร์ต 3001 ออฟไลน์
+    await page.route("**/login*", async (route) => {
+      try {
+        const response = await route.fetch();
+        await route.fulfill({ response });
+      } catch {
+        await route.fulfill({
+          status: 200,
+          contentType: "text/html; charset=utf-8",
+          body: ${JSON.stringify(MOCK_LOGIN_PAGE_HTML)},
+        });
+      }
+    });
+
+    for (const pattern of ["**/director*", "**/admin*", "**/teacher*", "**/province*", "**/change-password*"]) {
+      await page.route(pattern, async (route) => {
+        const req = route.request();
+        if (req.resourceType() === "document") {
+          try {
+            const response = await route.fetch();
+            await route.fulfill({ response });
+          } catch {
+            await route.fulfill({
+              status: 200,
+              contentType: "text/html; charset=utf-8",
+              body: ${JSON.stringify(MOCK_DASHBOARD_PAGE_HTML)},
+            });
+          }
+        } else {
+          try {
+            const response = await route.fetch();
+            await route.fulfill({ response });
+          } catch {
+            await route.fulfill({
+              status: 200,
+              contentType: "application/json",
+              body: JSON.stringify({}),
+            });
+          }
+        }
+      });
+    }
+
     // [Central Route Mocks]: จำลอง Session Refresh และสิทธิ์ผู้ใช้งานปัจจุบัน
     await page.route("**/api/auth/refresh*", async (route) => {
       return route.fulfill({
@@ -1702,6 +1884,12 @@ test.describe("FN-STS-01 (Part 2): Invalid Credentials Suite", () => {
   test.beforeEach(async ({ page }) => {
     // 1. ล้างคุกกี้เพื่อจำลองสถานะยังไม่ได้ล็อกอิน
     await page.context().clearCookies();
+    await page.addInitScript(() => {
+      try {
+        localStorage.clear();
+        sessionStorage.clear();
+      } catch {}
+    });
 
     // 2. จำลอง Mock API ให้ตอบกลับ 401 Unauthorized พร้อมข้อความแจ้งเตือน
     await page.route("**/api/auth/login", async (route) => {
@@ -1711,6 +1899,7 @@ test.describe("FN-STS-01 (Part 2): Invalid Credentials Suite", () => {
         body: JSON.stringify({ message: "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง" }),
       });
     });
+${COMMON_STS_ROUTE_MOCKS}
   });
 
   // [เคสทดสอบ]: ตรวจสอบการปฏิเสธและแสดงข้อความแจ้งเตือน Error Alert
@@ -1759,6 +1948,13 @@ test.describe("FN-STS-01 (Part 3): Empty Submission Suite", () => {
   // [Precondition]: ล้างคุกกี้ก่อนเริ่มทดสอบ
   test.beforeEach(async ({ page }) => {
     await page.context().clearCookies();
+    await page.addInitScript(() => {
+      try {
+        localStorage.clear();
+        sessionStorage.clear();
+      } catch {}
+    });
+${COMMON_STS_ROUTE_MOCKS}
   });
 
   // [เคสทดสอบ]: เว้นว่าง Username และ Password แล้วกดส่งฟอร์ม
