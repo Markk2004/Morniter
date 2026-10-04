@@ -152,19 +152,81 @@ export async function setupStsApiMocks(page: Page) {
   });
 
   // 5. Teacher dashboard stats
+  let attendanceSubmittedToday = false;
   await page.route("**/api/dashboard/teacher*", async (route) => {
     return route.fulfill({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
+        totalStudentsInClassroom: 35,
         totalStudents: 35,
-        attendanceToday: {
-          present: 32,
-          absent: 1,
-          late: 2,
-          leave: 0,
-          attendanceRate: 91.4,
-        },
+        attendanceSummary: attendanceSubmittedToday
+          ? {
+              totalStudents: 35,
+              presentCount: 32,
+              absentCount: 1,
+              lateCount: 2,
+              leaveCount: 0,
+              attendanceRate: 91.4,
+            }
+          : {
+              totalStudents: 35,
+              presentCount: 0,
+              absentCount: 0,
+              lateCount: 0,
+              leaveCount: 0,
+              attendanceRate: 0,
+            },
+        attendanceToday: attendanceSubmittedToday
+          ? {
+              present: 32,
+              absent: 1,
+              late: 2,
+              leave: 0,
+              attendanceRate: 91.4,
+            }
+          : {
+              present: 0,
+              absent: 0,
+              late: 0,
+              leave: 0,
+              attendanceRate: 0,
+            },
+        myAssignedCasesCount: 2,
+        absentStudentsList: [
+          {
+            studentId: "102",
+            studentCode: "50002",
+            fullName: "ชาญชัย มีสุข",
+            classroomName: "ม.3/1",
+            absentDaysCount: 4,
+            hasActiveCase: true,
+            activeCaseId: "201",
+            caseSeverity: "high",
+          },
+        ],
+        pendingCasesToFollowUp: [
+          {
+            case_id: "201",
+            activeCaseId: "201",
+            studentId: "102",
+            studentName: "ชาญชัย มีสุข",
+            classroomName: "ม.3/1",
+            severity: "high",
+            caseSeverity: "high",
+            updatedAt: new Date().toISOString(),
+          },
+          {
+            case_id: "203",
+            activeCaseId: "203",
+            studentId: "104",
+            studentName: "กนกวรรณ ทองดี",
+            classroomName: "ม.3/1",
+            severity: "high",
+            caseSeverity: "high",
+            updatedAt: new Date().toISOString(),
+          },
+        ],
         attentionQueue: [
           {
             studentId: "102",
@@ -411,6 +473,7 @@ export async function setupStsApiMocks(page: Page) {
     const method = req.method();
 
     if (method === "PATCH" || url.includes("/bulk")) {
+      attendanceSubmittedToday = true;
       return route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -422,6 +485,7 @@ export async function setupStsApiMocks(page: Page) {
     }
 
     if (method === "POST") {
+      attendanceSubmittedToday = true;
       return route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -600,14 +664,35 @@ export async function setupStsApiMocks(page: Page) {
       });
     }
 
+    const parsedUrl = new URL(url, "http://localhost:3000");
+    const severityParam = (parsedUrl.searchParams.get("severity") || "").toLowerCase();
+    const statusParam = (parsedUrl.searchParams.get("status") || "").toLowerCase();
+    const searchParam = (parsedUrl.searchParams.get("search") || "").trim().toLowerCase();
+
+    let filteredCases = casesData;
+    if (severityParam) {
+      filteredCases = filteredCases.filter((c) => (c.severity || "").toLowerCase() === severityParam);
+    }
+    if (statusParam) {
+      filteredCases = filteredCases.filter((c) => (c.status || "").toLowerCase() === statusParam);
+    }
+    if (searchParam) {
+      filteredCases = filteredCases.filter((c) =>
+        (c.title || "").toLowerCase().includes(searchParam) ||
+        (c.enrollment?.student?.firstName || "").toLowerCase().includes(searchParam) ||
+        (c.enrollment?.student?.lastName || "").toLowerCase().includes(searchParam) ||
+        (c.enrollment?.student?.studentCode || "").toLowerCase().includes(searchParam)
+      );
+    }
+
     if (url.includes("page=")) {
       return route.fulfill({
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({
-          data: casesData,
+          data: filteredCases,
           meta: {
-            total: casesData.length,
+            total: filteredCases.length,
             page: 1,
             limit: 25,
             totalPages: 1,
@@ -620,7 +705,7 @@ export async function setupStsApiMocks(page: Page) {
     return route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify(casesData),
+      body: JSON.stringify(filteredCases),
     });
   });
 

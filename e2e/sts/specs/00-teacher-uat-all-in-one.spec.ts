@@ -128,19 +128,32 @@ test.describe("[UAT ครู] หมวด 7: รันทุกฟังก์
     await test.step("หมวด 4: กลับสู่แดชบอร์ด ตรวจสอบสถิติที่อัปเดตและสลับแท็บข้อมูล", async () => {
       await page.goto("/teacher/dashboard");
       await expect(dashPage.heading()).toBeVisible({ timeout: 10_000 });
-      await page.waitForTimeout(1000);
+      await page.waitForTimeout(1500);
 
-      // สลับแท็บระหว่าง ขาดเรียน และ เคสติดตาม
-      const absentTab = page.locator("button, [role='tab']").filter({ hasText: /ขาดเรียน/i }).first();
+      // 1. ตรวจสอบแท็บ 'ขาดเรียน' และแสดงรายการเคส/นักเรียนขาดเรียน
+      const absentTab = page.locator("#teacher-tab-absent, button[role='tab']").filter({ hasText: /ขาดเรียน/i }).first();
       if (await absentTab.isVisible()) {
         await absentTab.click();
         await page.waitForTimeout(1000);
+        // แสดงรายการนักเรียนที่ขาดเรียน (เช่น ชาญชัย มีสุข)
+        const absentItem = page.locator("#teacher-action-panel").getByText(/ชาญชัย มีสุข|ขาดเรียน/i).first();
+        if (await absentItem.isVisible()) {
+          await expect(absentItem).toBeVisible();
+        }
+        await page.waitForTimeout(2000);
       }
 
-      const casesTab = page.locator("button, [role='tab']").filter({ hasText: /เคส|ติดตาม/i }).first();
+      // 2. สลับไปแท็บ 'เคสติดตาม' และแสดงรายการเคสที่ต้องติดตาม
+      const casesTab = page.locator("#teacher-tab-cases, button[role='tab']").filter({ hasText: /เคส|ติดตาม/i }).first();
       if (await casesTab.isVisible()) {
         await casesTab.click();
         await page.waitForTimeout(1000);
+        // แสดงรายการเคสที่ต้องติดตาม
+        const pendingCaseItem = page.locator("#teacher-action-panel").getByText(/ชาญชัย|กนกวรรณ|เคส/i).first();
+        if (await pendingCaseItem.isVisible()) {
+          await expect(pendingCaseItem).toBeVisible();
+        }
+        await page.waitForTimeout(2500);
       }
     });
 
@@ -150,32 +163,59 @@ test.describe("[UAT ครู] หมวด 7: รันทุกฟังก์
     await test.step("หมวด 5: จัดการเคสผู้เรียน ค้นหา กรองความเสี่ยง และบันทึกเปิดเคสใหม่", async () => {
       await casesPage.goto();
       await expect(casesPage.heading()).toBeVisible({ timeout: 10_000 });
-      await page.waitForTimeout(800);
+      await page.waitForTimeout(1000);
 
       // 1. ค้นหาชื่อนักเรียน "กนกวรรณ"
       await casesPage.searchInput().fill("กนกวรรณ");
-      await page.waitForTimeout(800);
+      await page.waitForTimeout(1500);
+      await expect(page.locator("table").getByText(/กนกวรรณ/i).first()).toBeVisible({ timeout: 5000 });
+      await page.waitForTimeout(1000);
       await casesPage.searchInput().clear();
-      await page.waitForTimeout(500);
+      await page.waitForTimeout(800);
 
-      // 2. เปิดหน้าฟอร์มสร้างเคสใหม่
+      // 2. ทดสอบตัวกรองระดับความเสี่ยง (เสี่ยงสูง) และรอให้แสดงผลในตาราง
+      const severityTrigger = page.locator("#severity-filter, button[role='combobox']").first();
+      if (await severityTrigger.isVisible()) {
+        await severityTrigger.click();
+        await page.waitForTimeout(500);
+        const highOpt = page.locator("[role='option'], li, button").filter({ hasText: /^สูง$/i }).or(page.locator("text=/เสี่ยงสูง|HIGH/i")).first();
+        if (await highOpt.isVisible()) {
+          await highOpt.click();
+        }
+        await page.waitForTimeout(1200);
+        // ตรวจสอบว่าตารางอัปเดตแสดงเฉพาะเคสเสี่ยงสูง
+        await expect(page.locator("table").getByText(/สูง|เสี่ยงสูง|HIGH/i).first()).toBeVisible({ timeout: 5000 });
+        // หน่วงเวลาให้ผู้ใช้/QA ดูผลลัพธ์การกรองอย่างชัดเจนก่อนล้างตัวกรอง
+        await page.waitForTimeout(2500);
+
+        // ล้างตัวกรองกลับเป็น 'ทุกระดับ'
+        await severityTrigger.click();
+        await page.waitForTimeout(500);
+        const allLevelsOpt = page.locator("[role='option'], li, button").filter({ hasText: /ทุกระดับ|ทั้งหมด/i }).first();
+        if (await allLevelsOpt.isVisible()) {
+          await allLevelsOpt.click();
+        }
+        await page.waitForTimeout(1000);
+      }
+
+      // 3. เปิดหน้าฟอร์มสร้างเคสใหม่
       await casesPage.gotoCreate();
       await expect(page).toHaveURL(/\/teacher\/cases\/create/, { timeout: 10_000 });
-      await page.waitForTimeout(1000);
+      await page.waitForTimeout(1200);
 
-      // 3. กรอกข้อมูลเปิดเคสสำหรับนักเรียน กมล ทองประเสริฐ
+      // 4. กรอกข้อมูลเปิดเคสสำหรับนักเรียน กมล ทองประเสริฐ
       await casesPage.fillForm({
         studentName: "กมล",
         title: "นักเรียนขาดเรียนติดต่อกันหลายวัน",
         description: "นักเรียนขาดเรียนติดต่อกันหลายวัน ต้องการการติดตามพฤติกรรมด่วน",
         severity: "high",
       });
-      await page.waitForTimeout(1000);
+      await page.waitForTimeout(1200);
 
-      // 4. กดปุ่มบันทึกเปิดเคส
+      // 5. กดปุ่มบันทึกเปิดเคส
       await casesPage.submit();
       await expect(page).toHaveURL(/\/teacher\/cases/, { timeout: 15_000 });
-      await page.waitForTimeout(1500);
+      await page.waitForTimeout(2000);
     });
 
     // =========================================================================

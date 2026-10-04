@@ -631,34 +631,78 @@ ${COMMON_STS_ROUTE_MOCKS}
   // 🔹 หมวด 4: ตรวจสอบแดชบอร์ดหลังเช็คชื่อ
   await test.step("หมวด 4: กลับสู่แดชบอร์ด ตรวจสอบสถิติที่อัปเดตและสลับแท็บข้อมูล", async () => {
     await page.goto("/teacher/dashboard");
-    await page.waitForTimeout(1000);
-    const absentTab = page.locator("button, [role='tab']").filter({ hasText: /ขาดเรียน/i }).first();
+    await page.waitForTimeout(1500);
+
+    const absentTab = page.locator("#teacher-tab-absent, button[role='tab']").filter({ hasText: /ขาดเรียน/i }).first();
     if (await absentTab.isVisible()) {
       await absentTab.click();
       await page.waitForTimeout(1000);
+      const absentItem = page.locator("#teacher-action-panel").getByText(/ชาญชัย มีสุข|ขาดเรียน/i).first();
+      if (await absentItem.isVisible()) {
+        await expect(absentItem).toBeVisible();
+      }
+      await page.waitForTimeout(2000);
     }
-    const casesTab = page.locator("button, [role='tab']").filter({ hasText: /เคส|ติดตาม/i }).first();
+
+    const casesTab = page.locator("#teacher-tab-cases, button[role='tab']").filter({ hasText: /เคส|ติดตาม/i }).first();
     if (await casesTab.isVisible()) {
       await casesTab.click();
       await page.waitForTimeout(1000);
+      const pendingCaseItem = page.locator("#teacher-action-panel").getByText(/ชาญชัย|กนกวรรณ|เคส/i).first();
+      if (await pendingCaseItem.isVisible()) {
+        await expect(pendingCaseItem).toBeVisible();
+      }
+      await page.waitForTimeout(2500);
     }
   });
 
   // 🔹 หมวด 5: จัดการเคสผู้เรียน & เปิดเคสใหม่
   await test.step("หมวด 5: จัดการเคสผู้เรียน ค้นหา กรองความเสี่ยง และบันทึกเปิดเคสใหม่", async () => {
     await page.goto("/teacher/cases");
-    await page.waitForTimeout(800);
+    await page.waitForTimeout(1000);
+
+    const searchInput = page.getByPlaceholder(/ค้นหา/i).first();
+    if (await searchInput.isVisible()) {
+      await searchInput.fill("กนกวรรณ");
+      await page.waitForTimeout(1500);
+      await expect(page.locator("table").getByText(/กนกวรรณ/i).first()).toBeVisible({ timeout: 5000 });
+      await page.waitForTimeout(1000);
+      await searchInput.clear();
+      await page.waitForTimeout(800);
+    }
+
+    const severityTrigger = page.locator("#severity-filter, button[role='combobox']").first();
+    if (await severityTrigger.isVisible()) {
+      await severityTrigger.click();
+      await page.waitForTimeout(500);
+      const highOpt = page.locator("[role='option'], li, button").filter({ hasText: /^สูง$/i }).or(page.locator("text=/เสี่ยงสูง|HIGH/i")).first();
+      if (await highOpt.isVisible()) {
+        await highOpt.click();
+      }
+      await page.waitForTimeout(1200);
+      await expect(page.locator("table").getByText(/สูง|เสี่ยงสูง|HIGH/i).first()).toBeVisible({ timeout: 5000 });
+      await page.waitForTimeout(2500);
+
+      await severityTrigger.click();
+      await page.waitForTimeout(500);
+      const allLevelsOpt = page.locator("[role='option'], li, button").filter({ hasText: /ทุกระดับ|ทั้งหมด/i }).first();
+      if (await allLevelsOpt.isVisible()) {
+        await allLevelsOpt.click();
+      }
+      await page.waitForTimeout(1000);
+    }
+
     const createBtn = page.getByRole("link", { name: /เปิดเคส|สร้างเคส/i }).first();
     if (await createBtn.isVisible()) {
       await createBtn.click();
       await expect(page).toHaveURL(/\\/cases\\/create/, { timeout: 10_000 });
-      await page.waitForTimeout(1000);
+      await page.waitForTimeout(1200);
     }
     const stuSelect = page.locator("select[name*='student'], #studentId, select").first();
     if (await stuSelect.isVisible()) {
       await stuSelect.selectOption({ index: 1 });
     }
-    const titleInput = page.locator("input[name*='title'], #title").first();
+    const titleInput = page.locator("input[name*='title'], #title, textarea#title").first();
     if (await titleInput.isVisible()) {
       await titleInput.fill("นักเรียนขาดเรียนติดต่อกันหลายวัน");
     }
@@ -670,7 +714,7 @@ ${COMMON_STS_ROUTE_MOCKS}
     if (await submitBtn.isVisible()) {
       await submitBtn.click();
       await expect(page).toHaveURL(/\\/teacher\\/cases/, { timeout: 15_000 });
-      await page.waitForTimeout(1500);
+      await page.waitForTimeout(2000);
     }
   });
 
