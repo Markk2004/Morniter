@@ -548,6 +548,18 @@ export async function setupStsApiMocks(page: Page) {
   ];
 
   await page.route(/\/api\/cases/, async (route) => {
+    const url = route.request().url();
+    const caseDetailMatch = url.match(/\/api\/cases\/(\d+)(?:\?|$)/);
+    if (caseDetailMatch && route.request().method() === "GET") {
+      const requestedId = parseInt(caseDetailMatch[1], 10);
+      const matchedCase = casesData.find((c) => c.id === requestedId) || casesData[0];
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(matchedCase),
+      });
+    }
+
     if (route.request().method() === "POST") {
       let postData: { title?: string; description?: string; severity?: string; problemTypes?: string[]; studentId?: number } = {};
       try {
@@ -588,7 +600,6 @@ export async function setupStsApiMocks(page: Page) {
       });
     }
 
-    const url = route.request().url();
     if (url.includes("page=")) {
       return route.fulfill({
         status: 200,
@@ -1199,24 +1210,27 @@ export async function setupStsApiMocks(page: Page) {
   });
 
   // 11. Student Observations & Tracking mock
-  const observationsList: Array<{ id: number; studentId: number; text: string; createdAt: string }> = [
+  const observationsList: Array<{ id: number; studentId: number; note: string; createdAt: string; recordedByUser?: { name: string } }> = [
     {
       id: 1,
       studentId: 104,
-      text: "วันนี้นักเรียนดูเหนื่อยล้าและไม่ค่อยพูดคุยกับเพื่อน",
+      note: "วันนี้นักเรียนดูเหนื่อยล้าและไม่ค่อยพูดคุยกับเพื่อน",
       createdAt: new Date().toISOString(),
+      recordedByUser: { name: "ครูวิภาดา สอนดี" },
     },
   ];
 
   await page.route(/\/api\/observations/, async (route) => {
+    const url = route.request().url();
     if (route.request().method() === "POST") {
       let data: any = {};
       try { data = route.request().postDataJSON(); } catch { data = {}; }
       const newObs = {
         id: observationsList.length + 1,
         studentId: data.studentId || 104,
-        text: data.text || data.note || "ข้อสังเกตพฤติกรรม",
+        note: data.note || data.text || "ข้อสังเกตพฤติกรรม",
         createdAt: new Date().toISOString(),
+        recordedByUser: { name: "ครูวิภาดา สอนดี" },
       };
       observationsList.unshift(newObs);
       return route.fulfill({
@@ -1232,7 +1246,85 @@ export async function setupStsApiMocks(page: Page) {
     });
   });
 
-  // 12. Case AI Insights and evaluation actions
+  // 12. Case AI Insights & AI-DSS & case-analysis mocks
+  await page.route(/\/api\/case-analysis\/cases\/(\d+)\/analyze/, async (route) => {
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        requestId: "req-123",
+        snapshotId: "snap-123",
+        stage: "CASE_OVERVIEW",
+        primary: {
+          role: "PRIMARY",
+          source: "AI_DSS",
+          availability: "AVAILABLE",
+          overview: {
+            detectedLabels: ["behavioral_problem"],
+            labelProbabilities: { behavioral_problem: 0.88 },
+            modelVersion: "v1.2.0",
+          },
+          recommendedSeverity: "HIGH",
+          assessmentId: 1,
+          aiReasons: ["พบความผิดปกติด้านพฤติกรรมและความเหนื่อยล้าต่อเนื่อง"],
+        },
+        reference: {
+          role: "REFERENCE",
+          source: "AI_LAB",
+          availability: "AVAILABLE",
+          problemLabels: ["behavioral_problem"],
+          recommendedSeverity: "HIGH",
+          severityConfidence: 0.91,
+          modelVersion: "v1.2.0",
+        },
+        comparison: {
+          basis: "SEVERITY",
+          status: "AGREE",
+        },
+      }),
+    });
+  });
+
+  await page.route(/\/api\/case-analysis\/cases\/(\d+)\/reference/, async (route) => {
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        role: "REFERENCE",
+        source: "AI_LAB",
+        availability: "AVAILABLE",
+        problemLabels: ["behavioral_problem"],
+        recommendedSeverity: "HIGH",
+        severityConfidence: 0.91,
+        modelVersion: "v1.2.0",
+      }),
+    });
+  });
+
+  await page.route(/\/api\/ai-dss\/cases\/(\d+)\/overview/, async (route) => {
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        overviewId: 1,
+        caseId: 201,
+        observationId: 1,
+        detectedLabels: ["behavioral_problem"],
+        labelProbabilities: { behavioral_problem: 0.88 },
+        modelVersion: "v1.2.0",
+        analyzedAt: new Date().toISOString(),
+      }),
+    });
+  });
+
+  await page.route(/\/api\/ai-dss\/cases\/(\d+)\/severity\/latest/, async (route) => {
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(null),
+    });
+  });
+
   await page.route(/\/api\/cases\/([0-9a-zA-Z_-]+)\/ai-insights/, async (route) => {
     return route.fulfill({
       status: 200,

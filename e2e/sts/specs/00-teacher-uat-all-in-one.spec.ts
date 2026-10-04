@@ -185,45 +185,60 @@ test.describe("[UAT ครู] หมวด 7: รันทุกฟังก์
       // 1. รอให้รายการเคสในตารางพร้อมแสดงผล แล้วเปิดเคส
       const caseLink = page.locator("table, main").locator("text=/CASE-|ดูรายละเอียด/i").first();
       await expect(caseLink).toBeVisible({ timeout: 10_000 });
-      await page.waitForTimeout(800);
+      await page.waitForTimeout(1000);
       await caseLink.click();
       await page.waitForTimeout(1500);
 
-      // 2. บันทึกข้อสังเกต Free-text
-      const obsInput = page.locator("textarea[placeholder*='ข้อสังเกต'], textarea[name*='observation'], textarea").first();
-      if (await obsInput.isVisible()) {
-        await obsInput.fill("วันนี้นักเรียนดูเหนื่อยล้าและไม่ค่อยพูดคุยกับเพื่อน");
-        await page.waitForTimeout(800);
-        const saveObsBtn = page.getByRole("button", { name: /บันทึกข้อสังเกต|บันทึก/i }).first();
-        await saveObsBtn.click();
-        await page.waitForTimeout(1500);
-      }
+      // 2. บันทึกข้อสังเกต Free-text (ระบุข้อความ -> กดปุ่มบันทึกข้อสังเกต -> รอให้บันทึกสำเร็จ)
+      const obsInput = page.locator("#observation-note, textarea[placeholder*='ข้อสังเกต'], textarea").first();
+      await expect(obsInput).toBeVisible({ timeout: 10_000 });
+      await obsInput.fill("วันนี้นักเรียนดูเหนื่อยล้าและไม่ค่อยพูดคุยกับเพื่อน");
+      await page.waitForTimeout(1000);
 
-      // 3. เลื่อนหรือนำทางไปยังส่วนวิเคราะห์ AI และกดปุ่มวิเคราะห์
-      const navToAiBtn = page.locator("button, a").filter({ hasText: /ไปยังส่วนวิเคราะห์|วิเคราะห์และประเมิน/i }).first();
+      const saveObsBtn = page.locator("#add-observation-btn");
+      await expect(saveObsBtn).toBeVisible({ timeout: 10_000 });
+      await expect(saveObsBtn).toBeEnabled({ timeout: 10_000 });
+      await saveObsBtn.click();
+
+      // ตรวจสอบว่าข้อสังเกตถูกบันทึกและแสดงผลบนหน้าจอ
+      await expect(page.getByText("วันนี้นักเรียนดูเหนื่อยล้าและไม่ค่อยพูดคุยกับเพื่อน").first()).toBeVisible({ timeout: 10_000 });
+      await page.waitForTimeout(1500);
+
+      // 3. เลื่อนหรือนำทางไปยังส่วนวิเคราะห์ AI
+      const navToAiBtn = page.locator("a[href='#case-analysis'], button, a").filter({ hasText: /การวิเคราะห์|วิเคราะห์และประเมิน|ไปยังส่วนวิเคราะห์/i }).first();
       if (await navToAiBtn.isVisible()) {
         await navToAiBtn.click();
         await page.waitForTimeout(1000);
+      } else {
+        await page.locator("#case-analysis, #case-overview").first().scrollIntoViewIfNeeded();
       }
 
-      const aiBtn = page.getByRole("button", { name: /วิเคราะห์จากบันทึกข้อสังเกต|วิเคราะห์เคสด้วย AI|วิเคราะห์ภาพรวม/i }).first();
-      if (await aiBtn.isVisible() && await aiBtn.isEnabled()) {
-        await aiBtn.click();
-        await page.waitForTimeout(1500);
-        // ตรวจสอบการแสดงผลลัพธ์จาก AI และแท็บข้อมูลประกอบ
-        await expect(page.locator("text=/ความเสี่ยง|สรุป|AI/i").first()).toBeVisible({ timeout: 10_000 });
-        await page.waitForTimeout(2000);
+      // 4. กดปุ่มวิเคราะห์เคสด้วย AI และรอให้ผลการวิเคราะห์แสดงผลจนเสร็จสมบูรณ์
+      const aiSection = page.locator("#case-analysis, #case-overview").first();
+      await aiSection.scrollIntoViewIfNeeded();
+      await page.waitForTimeout(800);
+
+      const aiBtn = aiSection.locator("button:has-text('วิเคราะห์จากบันทึกข้อสังเกตล่าสุด'), button:has-text('วิเคราะห์เคสด้วย AI'), button:has-text('วิเคราะห์ภาพรวม')").first();
+      if (await aiBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+        if (await aiBtn.isEnabled({ timeout: 5000 }).catch(() => false)) {
+          await aiBtn.click();
+          await page.waitForTimeout(1500);
+        }
       }
 
-      // 4. ตรวจสอบกระบวนการ Human Review เพื่อยืนยันผลการประเมิน
-      const confirmActionEl = page.locator("text=/ยืนยันผล|Human Review|ปิดเคส|ส่งต่อเคส/i").first();
-      if (await confirmActionEl.isVisible()) {
+      // ตรวจสอบการแสดงผลลัพธ์จาก AI (หมวดหมู่ปัญหา หรือ ความเสี่ยง หรือ ผลวิเคราะห์)
+      const aiResultEl = page.locator("text=/ประเภทปัญหาที่ AI ตรวจพบ|ความเสี่ยง|สรุป|AI Decision Support|ผลวิเคราะห์/i").first();
+      await expect(aiResultEl).toBeVisible({ timeout: 15_000 });
+      await page.waitForTimeout(2000);
+
+      // 5. ตรวจสอบกระบวนการ Human Review เพื่อยืนยันผลการประเมิน
+      const confirmActionEl = page.locator("text=/ยืนยันผล|Human Review|ปิดเคส|ส่งต่อเคส|คำแนะนำระดับความรุนแรง/i").first();
+      if (await confirmActionEl.isVisible({ timeout: 3000 }).catch(() => false)) {
         await expect(confirmActionEl).toBeVisible();
-        await page.waitForTimeout(2000);
       }
 
-      // หน่วงเวลาช่วงท้ายเพื่อให้ผู้ใช้ดูผลการแสดงผลบนหน้าจอจนครบถ้วนก่อนปิด
-      await page.waitForTimeout(3500);
+      // หน่วงเวลาช่วงท้ายเพื่อให้ผู้ใช้และ QA ดูผลการแสดงผลบนหน้าจอจนครบถ้วนก่อนปิด
+      await page.waitForTimeout(5000);
     });
   });
 });
