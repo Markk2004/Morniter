@@ -48,6 +48,14 @@ export interface TestThaiMeta {
 export function getTestThaiMeta(title: string): TestThaiMeta {
   const t = title.toUpperCase();
 
+  if (t.includes("TEACHER-COMPLETE-E2E") || t.includes("ALL-IN-ONE") || t.includes("หมวด 7") || t.includes("COMPLETE UAT WORKFLOW")) {
+    return {
+      role: "ครูประจำชั้น (UAT ครบวงจร)",
+      roleBadgeStyle: "border-emerald-500/30 bg-emerald-950/40 text-emerald-300",
+      description: "รันครบ 6 ขั้นตอนตาม UAT Script: เข้าสู่ระบบ → ดูสถิติ → เช็คชื่อ → ตรวจแดชบอร์ด → เปิดเคส → สังเกตพฤติกรรม & AI Insights",
+    };
+  }
+
   if (t.includes("AUTH-PLATFORM-ADMIN")) {
     return {
       role: "Platform Admin",
@@ -309,6 +317,22 @@ export function resolveFunctionCategory(
 ): FunctionCategoryMeta {
   const combined = `${title} ${relativePath} ${groupName}`.toUpperCase();
 
+  if (
+    combined.includes("FN-STS-00") ||
+    combined.includes("TEACHER-COMPLETE") ||
+    combined.includes("ALL-IN-ONE") ||
+    combined.includes("หมวด 7") ||
+    combined.includes("รันทุกฟังก์ชัน")
+  ) {
+    return {
+      code: "FN-STS-00",
+      name: "[UAT ครู] หมวด 7: รันทุกฟังก์ชัน All-in-One (Complete Workflow)",
+      shortName: "UAT ครู All-in-One",
+      icon: "🌟",
+      badgeStyle: "border-emerald-500/40 bg-emerald-950/60 text-emerald-300",
+    };
+  }
+
   if (combined.includes("AUTH") || combined.includes("LOGIN") || combined.includes("01-AUTH")) {
     return {
       code: "FN-STS-01",
@@ -452,6 +476,33 @@ export interface FunctionDetailedDoc {
 }
 
 export const FUNCTION_DETAILED_DOCS: Record<string, FunctionDetailedDoc> = {
+  "FN-STS-00": {
+    id: "FN-STS-00",
+    code: "FN-STS-00",
+    name: "[UAT ครู] หมวด 7: รันทุกฟังก์ชัน All-in-One (Complete Workflow)",
+    role: "ครูประจำชั้น (Teacher UAT ครบวงจร)",
+    workflow: "เข้าสู่ระบบ → ตรวจสอบแดชบอร์ด → เช็กชื่อประจำวัน → กลับหน้าแดชบอร์ด → จัดการเคสและเปิดเคส → บันทึกข้อสังเกตและ AI Insights",
+    overview: "ชุดทดสอบ UAT ครบวงจรสำหรับคุณครู (หัวข้อที่ 7 ใน UAT Spreadsheet) ที่รวมขั้นตอน 1 ถึง 6 มารันต่อเนื่องเป็นฟังก์ชันเดียวใน Code Workspace เพื่อตรวจสอบ Journey ของคุณครูตั้งแต่เริ่มปฏิบัติงานจนถึงการติดตามนักเรียนด้วยระบบ AI",
+    codeExplanation: "โค้ดรวมฟังก์ชันทดสอบเดียวพร้อม test.step() ครอบคลุม 6 หมวด: 1. ล็อกอินด้วยบัญชีครู (teacher_a) และตรวจสถานะครูที่ปรึกษา, 2. ตรวจสอบการ์ดสถิติและ Banner เตือนยังไม่ได้เช็กชื่อ, 3. เข้าสู่หน้าเช็กชื่อ ค้นหานักเรียน และกดบันทึกเป็นมาเรียนทั้งหมด, 4. สลับกลับมาดูแดชบอร์ดและแท็บเคสติดตาม, 5. เปิดเคสใหม่ให้นักเรียนกลุ่มเสี่ยง, 6. บันทึกข้อสังเกตพฤติกรรม กดประเมินด้วย AI Insights และตรวจสอบกระบวนการ Human Review",
+    steps: [
+      "1. เข้าสู่ระบบด้วยสถานะคุณครู (teacher_a / changeme) และตรวจเช็คสถานะครูที่ปรึกษา",
+      "2. ตรวจสอบแบนเนอร์แจ้งเตือนสถานะการเช็คชื่อบนหน้าแดชบอร์ดและกดเริ่มเช็คชื่อ",
+      "3. ค้นหารายชื่อนักเรียนในห้อง ทำการเช็คชื่อ และบันทึกข้อมูลการเข้าเรียนประจำวัน",
+      "4. กลับสู่หน้าแดชบอร์ดเพื่อตรวจสอบตัวเลขสถิติที่อัปเดตและสลับแท็บเคสติดตาม",
+      "5. ไปยังหน้ารายการเคส ค้นหา และเปิดเคสใหม่สำหรับนักเรียนกลุ่มเสี่ยงสูง",
+      "6. เปิดเคสนักเรียน บันทึกข้อสังเกตพฤติกรรม และกดปุ่มวิเคราะห์เคสด้วย AI Insights",
+    ],
+    expectedResult: "ทุกขั้นตอนทำงานอย่างราบรื่นต่อเนื่อง ข้อมูลสถิติและเคสได้รับการบันทึกและแสดงผลการวิเคราะห์ AI อย่างสมบูรณ์โดยไม่มีข้อผิดพลาด",
+    keySelectors: [
+      "#login-username, #login-password (ช่องเข้าสู่ระบบ)",
+      "main [role='heading']:has-text('ยังไม่ได้เช็คชื่อ') (แบนเนอร์เช็คชื่อ)",
+      "button:has-text('มาเรียนทั้งหมด'), button:has-text('บันทึก') (ปุ่มเช็คชื่อ)",
+      "table tr:has-text('CASE-') (รายการเคสนักเรียน)",
+      "textarea[placeholder*='ข้อสังเกต'] (ช่องบันทึกข้อสังเกต)",
+      "button:has-text('วิเคราะห์เคสด้วย AI') (ปุ่ม AI Insights)",
+    ],
+  },
+
   "FN-STS-01": {
     id: "FN-STS-01",
     code: "FN-STS-01",

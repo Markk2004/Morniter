@@ -75,23 +75,26 @@ export function resolveTestGroupName(groupPath: string[], fileName: string): str
   const baseName = fileName.replace(/\.(spec|test)\.[a-z]+$/i, "").toLowerCase();
 
   // STS module files follow explicit numeric prefixing or login in sts context
+  if (baseName.includes("00-teacher") || baseName.includes("all-in-one")) {
+    return "[UAT ครู] หมวด 7: รันทุกฟังก์ชัน All-in-One (Complete Workflow)";
+  }
   if (baseName.includes("02-dashboard")) {
-    return "FN-STS-08 · Dashboard Navigation (แดชบอร์ดตามบทบาทผู้ใช้)";
+    return "[UAT ครู] หมวด 2: แดชบอร์ดครูที่ปรึกษา (Dashboard Navigation)";
   }
   if (baseName.includes("03-student")) {
     return "FN-STS-03 · Students & Classrooms (รายชื่อนักเรียนและห้องเรียน)";
   }
   if (baseName.includes("04-attendance")) {
-    return "FN-STS-04 · Attendance (ระบบเช็คชื่อเข้าเรียน)";
+    return "[UAT ครู] หมวด 3: ระบบเช็กชื่อเข้าเรียน (Attendance)";
   }
   if (baseName.includes("05-case")) {
-    return "FN-STS-05 · Student Cases (ระบบจัดการเคสปัญหา)";
+    return "[UAT ครู] หมวด 4: ระบบจัดการเคสผู้เรียน (Student Cases)";
   }
   if (baseName.includes("06-report")) {
     return "FN-STS-06 · Reports & Export (ระบบรายงานสรุปและการส่งออก)";
   }
   if (baseName.includes("07-observation") || baseName.includes("tracking")) {
-    return "FN-STS-07 · Observations & Tracking (บันทึกพฤติกรรมและการติดตาม)";
+    return "[UAT ครู] หมวด 5: บันทึกข้อสังเกตและติดตามพฤติกรรม (Observations)";
   }
   if (baseName.includes("08-user")) {
     return "FN-STS-02 · User Management (ระบบจัดการผู้ใช้)";
@@ -103,7 +106,7 @@ export function resolveTestGroupName(groupPath: string[], fileName: string): str
     return "FN-STS-11 · Profile & Password (โปรไฟล์ส่วนตัวและการเปลี่ยนรหัสผ่าน)";
   }
   if (baseName.includes("11-ai")) {
-    return "FN-STS-09 · AI Insights & Evaluation (ระบบวิเคราะห์ AI)";
+    return "[UAT ครู] หมวด 6: ระบบวิเคราะห์และประเมินด้วย AI (AI Insights)";
   }
 
   const cleanPath = groupPath.filter((p) => p && p !== ".");
@@ -114,7 +117,7 @@ export function resolveTestGroupName(groupPath: string[], fileName: string): str
     cleanPath.length === 0 ||
     cleanPath.every((p) => p.toLowerCase() === "specs");
   if (isSts && (baseName.includes("login") || baseName.includes("auth"))) {
-    return "FN-STS-01 · Authentication (ระบบยืนยันตัวตน)";
+    return "[UAT ครู] หมวด 1: ระบบยืนยันตัวตนและการเข้าสู่ระบบ (Authentication)";
   }
 
   // Generic folder-based grouping for standard playwright setups
