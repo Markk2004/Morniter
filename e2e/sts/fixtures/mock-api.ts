@@ -406,7 +406,32 @@ export async function setupStsApiMocks(page: Page) {
 
   // 9.1 Attendance query mock (handles /api/attendance?enrollmentId=... or /api/attendance/...)
   await page.route(/\/api\/attendance/, async (route) => {
-    const url = route.request().url();
+    const req = route.request();
+    const url = req.url();
+    const method = req.method();
+
+    if (method === "PATCH" || url.includes("/bulk")) {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          succeeded: 5,
+          failed: [],
+        }),
+      });
+    }
+
+    if (method === "POST") {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          success: true,
+          count: 5,
+        }),
+      });
+    }
+
     if (url.includes("/sessions/")) {
       return route.fulfill({
         status: 200,
@@ -488,6 +513,31 @@ export async function setupStsApiMocks(page: Page) {
           firstName: "ชาญชัย",
           lastName: "มีสุข",
           studentCode: "50002",
+        },
+        classroom: {
+          roomName: "1",
+          gradeLevel: { name: "ม.3" },
+        },
+      },
+    },
+    {
+      id: 203,
+      caseNumber: "CASE-2569-00003",
+      case_number: "CASE-2569-00003",
+      title: "นักเรียนขาดเรียนและมีภาวะซึมเศร้า",
+      description: "วันนี้นักเรียนดูเหนื่อยล้าและไม่ค่อยพูดคุยกับเพื่อน",
+      problemTypes: ["behavioral_problem"],
+      severity: "high",
+      status: "open",
+      createdAt: "2026-08-20T08:00:00Z",
+      updatedAt: "2026-08-20T08:00:00Z",
+      enrollment: {
+        studentId: 104,
+        student: {
+          id: 104,
+          firstName: "กนกวรรณ",
+          lastName: "ทองดี",
+          studentCode: "aa692004",
         },
         classroom: {
           roomName: "1",
@@ -1098,7 +1148,103 @@ export async function setupStsApiMocks(page: Page) {
             },
           ],
         },
+        {
+          id: 104,
+          studentCode: "aa692004",
+          firstName: "กนกวรรณ",
+          lastName: "ทองดี",
+          first_name: "กนกวรรณ",
+          last_name: "ทองดี",
+          student_id: "aa692004",
+          absentCountThisSemester: 3,
+          absent_count_this_semester: 3,
+          risk_level: "high",
+          enrollments: [
+            {
+              id: 4,
+              isCurrent: true,
+              classroom: {
+                id: 1,
+                roomName: "1",
+                gradeLevel: { name: "มัธยมศึกษาปีที่ 3" },
+              },
+            },
+          ],
+        },
+        {
+          id: 105,
+          studentCode: "aa692003",
+          firstName: "กมล",
+          lastName: "ทองประเสริฐ",
+          first_name: "กมล",
+          last_name: "ทองประเสริฐ",
+          student_id: "aa692003",
+          absentCountThisSemester: 1,
+          absent_count_this_semester: 1,
+          risk_level: "medium",
+          enrollments: [
+            {
+              id: 5,
+              isCurrent: true,
+              classroom: {
+                id: 1,
+                roomName: "1",
+                gradeLevel: { name: "มัธยมศึกษาปีที่ 3" },
+              },
+            },
+          ],
+        },
       ]),
+    });
+  });
+
+  // 11. Student Observations & Tracking mock
+  const observationsList: Array<{ id: number; studentId: number; text: string; createdAt: string }> = [
+    {
+      id: 1,
+      studentId: 104,
+      text: "วันนี้นักเรียนดูเหนื่อยล้าและไม่ค่อยพูดคุยกับเพื่อน",
+      createdAt: new Date().toISOString(),
+    },
+  ];
+
+  await page.route(/\/api\/observations/, async (route) => {
+    if (route.request().method() === "POST") {
+      let data: any = {};
+      try { data = route.request().postDataJSON(); } catch { data = {}; }
+      const newObs = {
+        id: observationsList.length + 1,
+        studentId: data.studentId || 104,
+        text: data.text || data.note || "ข้อสังเกตพฤติกรรม",
+        createdAt: new Date().toISOString(),
+      };
+      observationsList.unshift(newObs);
+      return route.fulfill({
+        status: 201,
+        contentType: "application/json",
+        body: JSON.stringify(newObs),
+      });
+    }
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(observationsList),
+    });
+  });
+
+  // 12. Case AI Insights and evaluation actions
+  await page.route(/\/api\/cases\/([0-9a-zA-Z_-]+)\/ai-insights/, async (route) => {
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        summary: "พบแนวโน้มความเสี่ยงด้านพฤติกรรมและการมีส่วนร่วมในชั้นเรียนต่ำ",
+        riskTrend: "HIGH",
+        suggestedActions: ["ปรึกษาผู้ปกครอง", "ติดตามพฤติกรรมในชั้นเรียนอย่างใกล้ชิด"],
+        confidenceScore: 0.92,
+        isAiGenerated: true,
+        humanReviewed: false,
+      }),
     });
   });
 }

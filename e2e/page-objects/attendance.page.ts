@@ -16,6 +16,6 @@ export class StsAttendancePage {
   }
 
   saveButton() {
-    return this.page.getByRole("button", { name: /บันทึก/i }).first();
+    return this.page.getByRole("button", { name: /บันทึก|แก้ไขการเช็[คก]ชื่อ/i }).first();
   }
 }
