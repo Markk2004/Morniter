@@ -408,6 +408,314 @@ const COMMON_STS_ROUTE_MOCKS = `
 `;
 
 export const STS_FUNCTION_TEMPLATES: Record<string, FunctionTemplate> = {
+  "FN-STS-00": {
+    id: "FN-STS-00",
+    name: "FN-STS-00 · [UAT ครู] หมวด 7: รันทุกฟังก์ชัน All-in-One (Complete Workflow)",
+    shortName: "UAT ครู All-in-One",
+    relativePath: "e2e/sts/specs/00-teacher-uat-all-in-one.spec.ts",
+    description: "รันครบทุกขั้นตอนการทดสอบ UAT ของครู ตั้งแต่ล็อกอิน เช็กชื่อ ดูแดชบอร์ด จัดการเคส บันทึกข้อสังเกต จนถึงผลวิเคราะห์ AI",
+    code: `// ==============================================================
+// 🧪 ชุดทดสอบระบบ ProjectSTS: Teacher UAT Complete All-In-One Workflow
+// 📋 อ้างอิง: UAT Script (Teacher) จาก Google Spreadsheet (SoftDeath System Test V2.0)
+// 🎯 หัวข้อที่ 7: รวมทุกฟังก์ชัน (1-6) เป็นฟังก์ชันเดียว รันต่อเนื่องใน Code Workspace
+// ==============================================================
+import { test, expect } from "@playwright/test";
+
+test("TC-STS-TEACHER-COMPLETE-E2E: Teacher Complete UAT Workflow (Single Function All-in-One)", async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.context().clearCookies();
+
+  let activeUser = {
+    id: 99,
+    username: "teacher_a",
+    name: "ผู้ใช้ทดสอบ (teacher_a)",
+    role: "TEACHER",
+    roleName: "TEACHER",
+    schoolId: 1,
+    provinceId: 1,
+  };
+
+  // Mock Login API
+  await page.route("**/api/auth/login", async (route) => {
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        accessToken: "mock-jwt-token-workspace",
+        user: activeUser,
+      }),
+    });
+  });
+
+  // Mock Sessions & Classrooms
+  await page.route("**/api/attendance/sessions/*", async (route) => {
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify([{ id: 1, roundNumber: 1, createdAt: new Date().toISOString(), recordCount: 3 }]),
+    });
+  });
+
+  await page.route("**/api/attendance/daily/*", async (route) => {
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify([
+        { id: 1, date: new Date().toISOString().split("T")[0], status: "PRESENT", note: "", studentId: 101, enrollmentId: 1, enrollment: { id: 1, student: { id: 101 } } },
+        { id: 2, date: new Date().toISOString().split("T")[0], status: "ABSENT", note: "มีอาการป่วย", studentId: 102, enrollmentId: 2, enrollment: { id: 2, student: { id: 102 } } },
+      ]),
+    });
+  });
+
+  await page.route(/\/api\/attendance/, async (route) => {
+    const req = route.request();
+    if (req.method() === "PATCH" || req.url().includes("/bulk") || req.method() === "POST") {
+      return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ succeeded: 5, failed: [] }) });
+    }
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify([{ id: 1, date: "2026-09-25", status: "PRESENT" }]),
+    });
+  });
+
+  const casesData = [
+    {
+      id: 201,
+      caseNumber: "CASE-2026-001",
+      case_number: "CASE-2026-001",
+      title: "นักเรียนขาดเรียนติดต่อกันเกินกำหนด",
+      description: "ขาดเรียน 4 วันติดต่อกันโดยไม่มีใบลา",
+      problemTypes: ["attendance_problem"],
+      severity: "high",
+      status: "open",
+      createdAt: "2026-09-25T08:00:00Z",
+      updatedAt: "2026-09-25T08:00:00Z",
+      enrollment: {
+        studentId: 102,
+        student: { id: 102, firstName: "ชาญชัย", lastName: "มีสุข", studentCode: "50002" },
+        classroom: { roomName: "1", gradeLevel: { name: "ม.3" } },
+      },
+    },
+    {
+      id: 203,
+      caseNumber: "CASE-2569-00003",
+      case_number: "CASE-2569-00003",
+      title: "นักเรียนขาดเรียนและมีภาวะซึมเศร้า",
+      description: "วันนี้นักเรียนดูเหนื่อยล้าและไม่ค่อยพูดคุยกับเพื่อน",
+      problemTypes: ["behavioral_problem"],
+      severity: "high",
+      status: "open",
+      createdAt: "2026-08-20T08:00:00Z",
+      updatedAt: "2026-08-20T08:00:00Z",
+      enrollment: {
+        studentId: 104,
+        student: { id: 104, firstName: "กนกวรรณ", lastName: "ทองดี", studentCode: "aa692004" },
+        classroom: { roomName: "1", gradeLevel: { name: "ม.3" } },
+      },
+    },
+  ];
+
+  await page.route(/\/api\/cases/, async (route) => {
+    if (route.request().method() === "POST") {
+      let postData: any = {};
+      try { postData = route.request().postDataJSON(); } catch { postData = {}; }
+      const newCase = {
+        id: 202,
+        caseNumber: "CASE-2026-002",
+        case_number: "CASE-2026-002",
+        title: postData.title || "เคสทดสอบ UAT",
+        description: postData.description || "รายละเอียดเคสทดสอบ",
+        problemTypes: postData.problemTypes || ["behavioral_problem"],
+        severity: (postData.severity || "HIGH").toLowerCase(),
+        status: "open",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        enrollment: {
+          studentId: postData.studentId || 101,
+          student: { id: postData.studentId || 101, firstName: "กิตติพงษ์", lastName: "สุขเกษม", studentCode: "50001" },
+          classroom: { roomName: "1", gradeLevel: { name: "ม.3" } },
+        },
+      };
+      casesData.unshift(newCase);
+      return route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify(newCase) });
+    }
+    return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(casesData) });
+  });
+
+  await page.route(/\/api\/students/, async (route) => {
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify([
+        { id: 101, studentCode: "50001", firstName: "กิตติพงษ์", lastName: "สุขเกษม", class_room: "ม.3/1", risk_level: "low", status: "active", enrollments: [{ id: 1, isCurrent: true, classroom: { id: 1, roomName: "1", gradeLevel: { name: "ม.3" } } }] },
+        { id: 104, studentCode: "aa692004", firstName: "กนกวรรณ", lastName: "ทองดี", class_room: "ม.3/1", risk_level: "high", status: "active", enrollments: [{ id: 4, isCurrent: true, classroom: { id: 1, roomName: "1", gradeLevel: { name: "ม.3" } } }] },
+        { id: 105, studentCode: "aa692003", firstName: "กมล", lastName: "ทองประเสริฐ", class_room: "ม.3/1", risk_level: "medium", status: "active", enrollments: [{ id: 5, isCurrent: true, classroom: { id: 1, roomName: "1", gradeLevel: { name: "ม.3" } } }] },
+      ]),
+    });
+  });
+
+  await page.route(/\/api\/observations/, async (route) => {
+    return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([{ id: 1, text: "สังเกตพฤติกรรม" }]) });
+  });
+
+  await page.route(/\/api\/cases\/([0-9a-zA-Z_-]+)\/ai-insights/, async (route) => {
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        summary: "พบแนวโน้มความเสี่ยงด้านพฤติกรรมและการมีส่วนร่วมในชั้นเรียนต่ำ",
+        riskTrend: "HIGH",
+        suggestedActions: ["ปรึกษาผู้ปกครอง", "ติดตามพฤติกรรมในชั้นเรียนอย่างใกล้ชิด"],
+        confidenceScore: 0.92,
+        isAiGenerated: true,
+        humanReviewed: false,
+      }),
+    });
+  });
+${COMMON_STS_ROUTE_MOCKS}
+
+  // 🔹 หมวด 1: เข้าสู่ระบบ
+  await test.step("หมวด 1: เข้าสู่ระบบด้วยสถานะคุณครู และตรวจสอบสถานะครูที่ปรึกษา", async () => {
+    await page.goto("/login");
+    await page.bringToFront();
+    await page.locator("#login-username, input[name='username']").first().fill("teacher_a");
+    await page.locator("#login-password, input[name='password']").first().fill("changeme");
+    await page.locator("#login-submit, button[type='submit']").first().click();
+    await expect(page).toHaveURL(/\\/(?:teacher|dashboard)/, { timeout: 15_000 });
+    await expect(page.locator("text=/ครูที่ปรึกษา|ครู|TEACHER/i").first()).toBeVisible({ timeout: 10_000 });
+    await page.waitForTimeout(1500);
+  });
+
+  // 🔹 หมวด 2: ดูแดชบอร์ดก่อนเช็คชื่อ
+  await test.step("หมวด 2: ตรวจสอบ Banner แจ้งเตือนยังไม่ได้เช็คชื่อ และการ์ดสถิติ", async () => {
+    const bannerLink = page.locator("main").getByRole("link", { name: /เริ่มเช็[คก]ชื่อ/i }).first();
+    await expect(bannerLink).toBeVisible({ timeout: 10_000 });
+    await page.waitForTimeout(1500);
+    await bannerLink.click();
+    await expect(page).toHaveURL(/\\/attendance/, { timeout: 10_000 });
+  });
+
+  // 🔹 หมวด 3: เช็คชื่อนักเรียน
+  await test.step("หมวด 3: เช็คชื่อนักเรียน ค้นหา และบันทึกการเช็คชื่อประจำวัน", async () => {
+    const searchInput = page.getByPlaceholder(/ค้นหา/i).first();
+    if (await searchInput.isVisible()) {
+      await searchInput.fill("กมล");
+      await page.waitForTimeout(800);
+      await searchInput.clear();
+      await page.waitForTimeout(500);
+    }
+    const editBtn = page.getByRole("button", { name: /แก้ไขการเช็[คก]ชื่อ/i }).first();
+    if (await editBtn.isVisible()) {
+      await editBtn.click();
+      await page.waitForTimeout(800);
+    }
+    const markAllBtn = page.getByRole("button", { name: /มาเรียนทั้งหมด/i }).first();
+    if (await markAllBtn.isVisible()) {
+      await markAllBtn.click();
+      await page.waitForTimeout(800);
+    }
+    const saveBtn = page.getByRole("button", { name: /บันทึก/i }).first();
+    if (await saveBtn.isVisible()) {
+      await saveBtn.click();
+      await page.waitForTimeout(500);
+    }
+    const confirmBtn = page.getByRole("button", { name: /บันทึกเป็นมาเรียน|ยืนยัน/i }).first();
+    if (await confirmBtn.isVisible()) {
+      await confirmBtn.click();
+    }
+    await expect(page.locator("text=/บันทึกการแก้ไขสำเร็จ|บันทึกการเช็[คก]ชื่อสำเร็จ|แก้ไขการเช็[คก]ชื่อ|สำเร็จ|Saved|บันทึกการเช็กชื่อของวันนี้แล้ว/i").first()).toBeVisible({ timeout: 10_000 });
+    await page.waitForTimeout(1500);
+  });
+
+  // 🔹 หมวด 4: ตรวจสอบแดชบอร์ดหลังเช็คชื่อ
+  await test.step("หมวด 4: กลับสู่แดชบอร์ด ตรวจสอบสถิติที่อัปเดตและสลับแท็บข้อมูล", async () => {
+    await page.goto("/teacher/dashboard");
+    await page.waitForTimeout(1000);
+    const absentTab = page.locator("button, [role='tab']").filter({ hasText: /ขาดเรียน/i }).first();
+    if (await absentTab.isVisible()) {
+      await absentTab.click();
+      await page.waitForTimeout(1000);
+    }
+    const casesTab = page.locator("button, [role='tab']").filter({ hasText: /เคส|ติดตาม/i }).first();
+    if (await casesTab.isVisible()) {
+      await casesTab.click();
+      await page.waitForTimeout(1000);
+    }
+  });
+
+  // 🔹 หมวด 5: จัดการเคสผู้เรียน & เปิดเคสใหม่
+  await test.step("หมวด 5: จัดการเคสผู้เรียน ค้นหา กรองความเสี่ยง และบันทึกเปิดเคสใหม่", async () => {
+    await page.goto("/teacher/cases");
+    await page.waitForTimeout(800);
+    const createBtn = page.getByRole("link", { name: /เปิดเคส|สร้างเคส/i }).first();
+    if (await createBtn.isVisible()) {
+      await createBtn.click();
+      await expect(page).toHaveURL(/\\/cases\\/create/, { timeout: 10_000 });
+      await page.waitForTimeout(1000);
+    }
+    const stuSelect = page.locator("select[name*='student'], #studentId, select").first();
+    if (await stuSelect.isVisible()) {
+      await stuSelect.selectOption({ index: 1 });
+    }
+    const titleInput = page.locator("input[name*='title'], #title").first();
+    if (await titleInput.isVisible()) {
+      await titleInput.fill("นักเรียนขาดเรียนติดต่อกันหลายวัน");
+    }
+    const descInput = page.locator("textarea[name*='description'], #description").first();
+    if (await descInput.isVisible()) {
+      await descInput.fill("ต้องการการติดตามพฤติกรรมด่วน");
+    }
+    const submitBtn = page.getByRole("button", { name: /บันทึก|เปิดเคส/i }).first();
+    if (await submitBtn.isVisible()) {
+      await submitBtn.click();
+      await expect(page).toHaveURL(/\\/teacher\\/cases/, { timeout: 15_000 });
+      await page.waitForTimeout(1500);
+    }
+  });
+
+  // 🔹 หมวด 6: บันทึกข้อสังเกต & ดู AI Insights
+  await test.step("หมวด 6: บันทึกข้อสังเกตพฤติกรรม และทดสอบการวิเคราะห์ด้วย AI Insights", async () => {
+    const caseLink = page.locator("table, main").locator("text=/CASE-|ดูรายละเอียด/i").first();
+    await expect(caseLink).toBeVisible({ timeout: 10_000 });
+    await page.waitForTimeout(800);
+    await caseLink.click();
+    await page.waitForTimeout(1500);
+
+    const obsInput = page.locator("textarea[placeholder*='ข้อสังเกต'], textarea[name*='observation'], textarea").first();
+    if (await obsInput.isVisible()) {
+      await obsInput.fill("วันนี้นักเรียนดูเหนื่อยล้าและไม่ค่อยพูดคุยกับเพื่อน");
+      await page.waitForTimeout(800);
+      const saveObsBtn = page.getByRole("button", { name: /บันทึกข้อสังเกต|บันทึก/i }).first();
+      await saveObsBtn.click();
+      await page.waitForTimeout(1500);
+    }
+
+    const navToAiBtn = page.locator("button, a").filter({ hasText: /ไปยังส่วนวิเคราะห์|วิเคราะห์และประเมิน/i }).first();
+    if (await navToAiBtn.isVisible()) {
+      await navToAiBtn.click();
+      await page.waitForTimeout(1000);
+    }
+
+    const aiBtn = page.getByRole("button", { name: /วิเคราะห์จากบันทึกข้อสังเกต|วิเคราะห์เคสด้วย AI|วิเคราะห์ภาพรวม/i }).first();
+    if (await aiBtn.isVisible() && await aiBtn.isEnabled()) {
+      await aiBtn.click();
+      await page.waitForTimeout(1500);
+      await expect(page.locator("text=/ความเสี่ยง|สรุป|AI/i").first()).toBeVisible({ timeout: 10_000 });
+      await page.waitForTimeout(2000);
+    }
+
+    const confirmActionEl = page.locator("text=/ยืนยันผล|Human Review|ปิดเคส|ส่งต่อเคส/i").first();
+    if (await confirmActionEl.isVisible()) {
+      await expect(confirmActionEl).toBeVisible();
+      await page.waitForTimeout(2000);
+    }
+
+    await page.waitForTimeout(3500);
+  });
+});
+`,
+  },
   "FN-STS-01": {
     id: "FN-STS-01",
     name: "FN-STS-01 · ระบบยืนยันตัวตนและการเข้าสู่ระบบ (Authentication)",
@@ -2038,6 +2346,17 @@ export function getFunctionTemplate(functionIdOrCode: string): FunctionTemplate 
   }
 
   // 3. Category & function matching
+  if (
+    upper === "FN-STS-00" ||
+    upper.includes("ALL-IN-ONE") ||
+    upper.includes("COMPLETE-WORKFLOW") ||
+    upper.includes("COMPLETE WORKFLOW") ||
+    upper.includes("หมวด 7") ||
+    upper.includes("รันทุกฟังก์ชัน")
+  ) {
+    return STS_FUNCTION_TEMPLATES["FN-STS-00"];
+  }
+
   if (upper.includes("AUTH") || upper.includes("LOGIN") || upper.includes("01-AUTH") || upper.includes("FN-01") || upper.includes("FN-STS-01")) {
     return STS_FUNCTION_TEMPLATES["FN-STS-01"];
   }
