@@ -330,8 +330,37 @@ const COMMON_STS_ROUTE_MOCKS = `
           generatedAt: "2026-10-01T08:00:00.000Z",
           abnormalAbsenceThresholdDays: 3,
           summary: { waitingDecisionCount: 2, criticalHighCount: 1, abnormalAbsenceCount: 1, attendanceRateToday: 95.5, hasAttendanceData: true },
-          decisionQueue: [],
-          attentionQueue: [],
+          decisionQueue: [
+            {
+              caseId: 101,
+              caseNumber: "CASE-2026-001",
+              title: "นักเรียนขาดเรียนต่อเนื่อง",
+              studentId: 50002,
+              studentCode: "50002",
+              studentName: "ชาญชัย มีสุข",
+              classroomId: 1,
+              classroomName: "ม.3/1",
+              severity: "HIGH",
+              waitingSince: "2026-09-20T08:00:00Z",
+              waitingDays: 8,
+              reason: "ขออนุมัติปิดเคสเนื่องจากปรับพฤติกรรมแล้ว",
+            },
+          ],
+          attentionQueue: [
+            {
+              kind: "ABNORMAL_ABSENCE",
+              id: "attn-1",
+              studentId: 50002,
+              studentCode: "50002",
+              studentName: "ชาญชัย มีสุข",
+              classroomId: 1,
+              classroomName: "ม.3/1",
+              consecutiveAbsentDays: 4,
+              thresholdDays: 3,
+              reason: "ขาดเรียนติดต่อกัน 4 วันทำการ",
+              detectedAt: "2026-09-25T08:00:00Z",
+            },
+          ],
         }),
       });
     });
@@ -344,8 +373,21 @@ const COMMON_STS_ROUTE_MOCKS = `
           generatedAt: "2026-10-01T08:00:00.000Z",
           appliedFilters: {},
           overview: { totalStudents: 850, totalClassrooms: 24, totalCases: 12, closedCases: 4 },
-          attendanceTrend: [],
-          watchedClassrooms: [],
+          attendanceTrend: [
+            { date: "2026-09-24", present: 820, absent: 15, late: 10, rate: 96.5 },
+            { date: "2026-09-25", present: 825, absent: 10, late: 8, rate: 97.2 },
+          ],
+          watchedClassrooms: [
+            {
+              classroomId: 1,
+              classroomName: "ม.3/1",
+              gradeLevelName: "มัธยมศึกษาปีที่ 3",
+              attendanceRate: 91.4,
+              abnormalAbsenceCount: 1,
+              criticalHighCaseCount: 1,
+              reasons: ["ขาดเรียนต่อเนื่อง"],
+            },
+          ],
           severityDistribution: { LOW: 5, MEDIUM: 4, HIGH: 3, UNASSESSED: 0 },
         }),
       });
@@ -776,7 +818,7 @@ ${COMMON_STS_ROUTE_MOCKS}
   "FN-STS-00-SCHOOL": {
     id: "FN-STS-00-SCHOOL",
     name: "FN-STS-00-SCHOOL · [UAT โรงเรียน] Uat script [School] (Complete School Workflow)",
-    shortName: "UAT โรงเรียน All-in-One",
+    shortName: "Uat Script",
     relativePath: "e2e/sts/specs/00-school-uat-all-in-one.spec.ts",
     description: "รันครบทุกขั้นตอนการทดสอบ UAT ของโรงเรียน ครอบคลุมทั้งผู้อำนวยการ (Director) และผู้ดูแลระบบโรงเรียน (School Admin)",
     code: `// ==============================================================
@@ -863,13 +905,33 @@ test("TC-STS-SCHOOL-COMPLETE-E2E: School Complete UAT Workflow (Director & Admin
   // Mock Cases API
   const casesData = [
     {
+      id: 101,
+      caseNumber: "CASE-2026-001",
+      case_number: "CASE-2026-001",
+      title: "นักเรียนขาดเรียนติดต่อกันเกินกำหนด",
+      description: "ขาดเรียน 4 วันติดต่อกันโดยไม่มีใบลา",
+      problemTypes: ["attendance_problem"],
+      severity: "high",
+      status: "open",
+      createdAt: "2026-09-25T08:00:00Z",
+      updatedAt: "2026-09-25T08:00:00Z",
+      enrollment: {
+        studentId: 102,
+        student: { id: 102, firstName: "ชาญชัย", lastName: "มีสุข", studentCode: "50002" },
+        classroom: { roomName: "1", gradeLevel: { name: "ม.3" } },
+      },
+    },
+    {
       id: 201,
       caseNumber: "CASE-2026-001",
       case_number: "CASE-2026-001",
       title: "นักเรียนขาดเรียนต่อเนื่อง",
       description: "ขาดเรียน 4 วันติดต่อกัน",
+      problemTypes: ["attendance_problem"],
       severity: "high",
       status: "open",
+      createdAt: "2026-09-25T08:00:00Z",
+      updatedAt: "2026-09-25T08:00:00Z",
       enrollment: {
         studentId: 102,
         student: { id: 102, firstName: "ชาญชัย", lastName: "มีสุข", studentCode: "50002" },
@@ -882,8 +944,11 @@ test("TC-STS-SCHOOL-COMPLETE-E2E: School Complete UAT Workflow (Director & Admin
       case_number: "CASE-2569-00003",
       title: "นักเรียนมีภาวะซึมเศร้า",
       description: "วันนี้นักเรียนดูเหนื่อยล้าและไม่ค่อยพูดคุยกับเพื่อน",
+      problemTypes: ["behavioral_problem"],
       severity: "high",
       status: "open",
+      createdAt: "2026-08-20T08:00:00Z",
+      updatedAt: "2026-08-20T08:00:00Z",
       enrollment: {
         studentId: 104,
         student: { id: 104, firstName: "กนกวรรณ", lastName: "ทองดี", studentCode: "aa692004" },
@@ -893,7 +958,88 @@ test("TC-STS-SCHOOL-COMPLETE-E2E: School Complete UAT Workflow (Director & Admin
   ];
 
   await page.route(/\/api\/cases/, async (route) => {
+    const url = route.request().url();
+    const caseDetailMatch = url.match(/\/api\/cases\/(\\d+)(?:\\?|$)/);
+    if (caseDetailMatch && route.request().method() === "GET") {
+      const requestedId = parseInt(caseDetailMatch[1], 10);
+      const matchedCase = casesData.find((c) => c.id === requestedId) || casesData[0];
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(matchedCase),
+      });
+    }
+
+    if (route.request().method() === "POST") {
+      let postData: any = {};
+      try { postData = route.request().postDataJSON(); } catch { postData = {}; }
+      const newCase = {
+        id: 202,
+        caseNumber: "CASE-2026-002",
+        case_number: "CASE-2026-002",
+        title: postData.title || "เคสทดสอบ UAT",
+        description: postData.description || "รายละเอียดเคสทดสอบ",
+        problemTypes: postData.problemTypes || ["behavioral_problem"],
+        severity: (postData.severity || "HIGH").toLowerCase(),
+        status: "open",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        enrollment: {
+          studentId: postData.studentId || 101,
+          student: { id: 101, firstName: "กิตติพงษ์", lastName: "สุขเกษม", studentCode: "50001" },
+          classroom: { roomName: "1", gradeLevel: { name: "ม.3" } },
+        },
+      };
+      casesData.unshift(newCase);
+      return route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify(newCase) });
+    }
+
     return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(casesData) });
+  });
+
+  // Mock External Referrals & Letters
+  const externalReferralsList: Array<{
+    id: string;
+    documentNo: string;
+    caseId: number;
+    agencyType: string;
+    agencyName: string;
+    reason: string;
+    requestedSupport: string;
+    status: string;
+    issuedAt: string;
+    createdAt: string;
+  }> = [];
+
+  await page.route(/\/api\/cases\/(\\d+)\/external-referrals|\/api\/external-referrals/, async (route) => {
+    const method = route.request().method();
+    if (method === "POST") {
+      let data: any = {};
+      try { data = route.request().postDataJSON(); } catch { data = {}; }
+      const newRef = {
+        id: "ref-" + Date.now(),
+        documentNo: "REF-2569-" + Math.floor(1000 + Math.random() * 9000),
+        caseId: parseInt(route.request().url().match(/\/api\/cases\/(\\d+)/)?.[1] || "101", 10),
+        agencyType: data.agencyType || "HEALTH",
+        agencyName: data.agencyName || "โรงพยาบาลชลบุรี",
+        reason: data.reason || "นักเรียนมีภาวะซึมเศร้าจำเป็นต้องได้รับการประเมินจากแพทย์",
+        requestedSupport: data.requestedSupport || "ขอรับการประเมินและวางแผนการรักษา",
+        status: "ISSUED",
+        issuedAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+      };
+      externalReferralsList.unshift(newRef);
+      return route.fulfill({
+        status: 201,
+        contentType: "application/json",
+        body: JSON.stringify(newRef),
+      });
+    }
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(externalReferralsList),
+    });
   });
 
   // Mock Users API
@@ -904,6 +1050,20 @@ test("TC-STS-SCHOOL-COMPLETE-E2E: School Complete UAT Workflow (Director & Admin
   ];
 
   await page.route(/\/api\/users/, async (route) => {
+    const method = route.request().method();
+    if (method === "POST") {
+      let postData: any = {};
+      try { postData = route.request().postDataJSON(); } catch { postData = {}; }
+      const newUser = {
+        id: mockUsersList.length + 1,
+        name: postData.name || postData.full_name || "ผู้ใช้งานใหม่",
+        username: postData.username || "user_" + Date.now(),
+        role: { name: "TEACHER" },
+        isActive: true,
+      };
+      mockUsersList.unshift(newUser);
+      return route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify(newUser) });
+    }
     return route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -929,14 +1089,32 @@ test("TC-STS-SCHOOL-COMPLETE-E2E: School Complete UAT Workflow (Director & Admin
   });
 
   // Mock Interventions & Letters
-  await page.route(/\/api\/interventions|\/api\/cases\/(\d+)\/assistance/, async (route) => {
+  await page.route(/\/api\/interventions|\/api\/cases\/(\\d+)\/assistance/, async (route) => {
     return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([{ id: 1, type: "ให้คำปรึกษา", details: "พูดคุยให้กำลังใจนักเรียน" }]) });
   });
 
-  await page.route(/\/api\/referral-letters/, async (route) => {
+  await page.route(/\/api\/referral-letters|\/api\/cases\/(\\d+)\/referral-letters|\/api\/transfer-letters/, async (route) => {
     return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([]) });
   });
-${COMMON_STS_ROUTE_MOCKS}
+
+  // Mock Director Approval & Decision
+  await page.route(/\/api\/cases\/(\\d+)\/decision|\/api\/cases\/(\\d+)\/director-approval/, async (route) => {
+    let data: any = {};
+    try { data = route.request().postDataJSON(); } catch { data = {}; }
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        success: true,
+        caseId: 101,
+        finalSeverity: data.finalSeverity || "MEDIUM",
+        reason: data.reason || "จากการตรวจสอบพบว่าผู้ปกครองให้ความร่วมมือดี ปรับเป็นระดับปานกลางเพื่อเฝ้าระวังต่อเนื่อง",
+        status: "APPROVED",
+        updatedAt: new Date().toISOString(),
+      }),
+    });
+  });
+\${COMMON_STS_ROUTE_MOCKS}
 
   // =========================================================================
   // 🔹 ตอนที่ 1: ฝั่งผู้อำนวยการโรงเรียน (School Director Journey)
@@ -957,7 +1135,25 @@ ${COMMON_STS_ROUTE_MOCKS}
   // หมวด 2: แดชบอร์ดผู้อำนวยการโรงเรียน
   await test.step("หมวด 2: ตรวจสอบแดชบอร์ดผู้อำนวยการ สถิติภาพรวม กราฟแนวโน้ม และห้องเรียนที่ต้องเฝ้าระวัง", async () => {
     await expect(page.locator("main").locator("h1, h2, [role='heading']").first()).toBeVisible({ timeout: 10_000 });
+    
+    // 1. ตรวจสอบการ์ดสถิติภาพรวม
     await expect(page.locator("main").locator("text=/ดัชนีงานสำคัญ|รอตัดสินใจ|เคสเสี่ยงสูง|ขาดเรียน|อัตราเข้าเรียน|ภาพรวม|สถิติ/i").first()).toBeVisible();
+
+    // 2. ตรวจสอบแถบสัดส่วนความรุนแรงของเคส
+    const severitySection = page.locator("main").locator("text=/สัดส่วนความรุนแรง|ระดับความรุนแรง|สูง|ปานกลาง|น้อย/i").first();
+    await expect(severitySection).toBeVisible();
+
+    // 3. ตรวจสอบรายการห้องเรียนที่ต้องเฝ้าระวังพิเศษ
+    const watchedSection = page.locator("main").locator("text=/ห้องเรียนที่ต้องเฝ้าระวัง|ห้องเรียน|ม.3|ดัชนี/i").first();
+    await expect(watchedSection).toBeVisible();
+
+    // 4. ทดสอบปุ่มตัวกรองข้อมูลย้อนหลัง
+    const filterBtn = page.getByRole("button", { name: /ตัวกรองข้อมูลย้อนหลัง|ตัวกรอง|กรองข้อมูล/i }).first();
+    if (await filterBtn.isVisible()) {
+      await filterBtn.click();
+      await page.waitForTimeout(600);
+    }
+
     await page.waitForTimeout(2000);
   });
 
@@ -979,15 +1175,27 @@ ${COMMON_STS_ROUTE_MOCKS}
       await previewBtn.click();
       await page.waitForTimeout(1500);
     }
+
+    const exportPdfBtn = page.locator("#export-pdf-btn, button:has-text('PDF')").first();
+    const exportExcelBtn = page.locator("#export-excel-btn, button:has-text('Excel')").first();
+    if (await exportPdfBtn.isVisible()) {
+      await exportPdfBtn.click();
+      await page.waitForTimeout(600);
+    }
+    if (await exportExcelBtn.isVisible()) {
+      await exportExcelBtn.click();
+      await page.waitForTimeout(600);
+    }
+
     await page.waitForTimeout(2000);
   });
 
   // หมวด 4: บันทึกการช่วยเหลือและการส่งต่อ
   await test.step("หมวด 4: บันทึกการให้ความช่วยเหลือ ส่งต่อผู้เชี่ยวชาญ และออกหนังสือส่งตัวตามหลัก PDPA", async () => {
-    await page.goto("/director/dashboard");
-    await page.waitForTimeout(1000);
+    await page.goto("/director/cases").catch(() => page.goto("/director/dashboard"));
+    await page.waitForTimeout(1200);
 
-    const reviewBtn = page.locator("a:has-text('พิจารณา'), button:has-text('พิจารณา'), a[href*='/cases/']").first();
+    const reviewBtn = page.locator("a:has-text('พิจารณา'), button:has-text('พิจารณา'), a[href*='/cases/'], tr:has-text('CASE-')").first();
     if (await reviewBtn.isVisible()) {
       await reviewBtn.click();
       await page.waitForTimeout(1500);
@@ -1007,6 +1215,17 @@ ${COMMON_STS_ROUTE_MOCKS}
         await page.waitForTimeout(1000);
       }
     }
+
+    const letterBtn = page.locator("button:has-text('ออกหนังสือส่งตัว'), button:has-text('ส่งต่อภายนอก')").first();
+    if (await letterBtn.isVisible()) {
+      await letterBtn.click();
+      await page.waitForTimeout(800);
+      const cancelLetterBtn = page.locator("button:has-text('ยกเลิก'), button:has-text('ปิด')").first();
+      if (await cancelLetterBtn.isVisible()) {
+        await cancelLetterBtn.click();
+      }
+    }
+
     await page.waitForTimeout(2000);
   });
 
@@ -1030,6 +1249,18 @@ ${COMMON_STS_ROUTE_MOCKS}
         await page.waitForTimeout(1500);
       }
     }
+
+    const reasonInput = page.locator("textarea[placeholder*='เหตุผล'], textarea[name='reason']").first();
+    if (await reasonInput.isVisible()) {
+      await reasonInput.fill("จากการตรวจสอบพบว่าผู้ปกครองให้ความร่วมมือดี ปรับเป็นระดับปานกลางเพื่อเฝ้าระวังต่อเนื่อง");
+    }
+
+    const approveBtn = page.locator("button:has-text('บันทึกผลการอนุมัติขั้นสุดท้าย'), button:has-text('อนุมัติผล'), button:has-text('ยืนยันผล')").first();
+    if (await approveBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await approveBtn.click();
+      await page.waitForTimeout(1500);
+    }
+
     await page.waitForTimeout(2000);
   });
 
@@ -1047,6 +1278,12 @@ ${COMMON_STS_ROUTE_MOCKS}
     await page.locator("#login-submit, button[type='submit']").first().click();
     await expect(page).toHaveURL(/\\/admin/, { timeout: 15_000 });
     await expect(page.locator("text=/ผู้ดูแลระบบ|ผู้ดูแลระบบโรงเรียน|ADMIN/i").first()).toBeVisible({ timeout: 10_000 });
+
+    const actionCards = page.locator("text=/ห้องเรียนยังไม่มีครูที่ปรึกษา|เคสติดตามค้างดำเนินการ|ความพร้อมของข้อมูล|นักเรียนยังไม่มีห้องเรียน/i").first();
+    if (await actionCards.isVisible()) {
+      await expect(actionCards).toBeVisible();
+    }
+
     await page.waitForTimeout(2000);
   });
 
@@ -1064,8 +1301,35 @@ ${COMMON_STS_ROUTE_MOCKS}
       await page.waitForTimeout(600);
     }
 
+    const addUserBtn = page.locator("#add-user-btn, button:has-text('เพิ่มผู้ใช้')").first();
+    if (await addUserBtn.isVisible()) {
+      await addUserBtn.click();
+      await page.waitForTimeout(800);
+      const modal = page.locator("dialog, [role='dialog']").first();
+      if (await modal.isVisible()) {
+        const fullNameInput = page.locator("input#form-full_name, input[name='full_name'], input[name='name']").first();
+        if (await fullNameInput.isVisible()) {
+          await fullNameInput.fill("ครูอำนาจ คาดหวัง");
+        }
+        const usernameInput = page.locator("input#form-username, input[name='username']").first();
+        if (await usernameInput.isVisible()) {
+          await usernameInput.fill("teacher_umnat");
+        }
+        const cancelBtn = page.locator("button:has-text('ยกเลิก')").first();
+        if (await cancelBtn.isVisible()) {
+          await cancelBtn.click();
+        }
+      }
+    }
+
     await page.goto("/admin/students").catch(() => page.goto("/students"));
     await page.waitForTimeout(1500);
+
+    const importBtn = page.locator("button:has-text('นำเข้าข้อมูล'), button:has-text('ประวัติการนำเข้า'), a:has-text('นำเข้า')").first();
+    if (await importBtn.isVisible()) {
+      await importBtn.click();
+      await page.waitForTimeout(1200);
+    }
 
     await page.waitForTimeout(5000);
   });

@@ -342,7 +342,7 @@ export function resolveFunctionCategory(
     return {
       code: "FN-STS-00-SCHOOL",
       name: "[UAT โรงเรียน] Uat script [School] (Complete School Workflow)",
-      shortName: "Uat script [School]",
+      shortName: "Uat Script",
       icon: "🏫",
       badgeStyle: "border-indigo-500/40 bg-indigo-950/60 text-indigo-300",
     };

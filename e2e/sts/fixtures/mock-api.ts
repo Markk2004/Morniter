@@ -560,6 +560,31 @@ export async function setupStsApiMocks(page: Page) {
   // 9.2 Cases query mock
   const casesData = [
     {
+      id: 101,
+      caseNumber: "CASE-2026-001",
+      case_number: "CASE-2026-001",
+      title: "นักเรียนขาดเรียนติดต่อกันเกินกำหนด",
+      description: "ขาดเรียน 4 วันติดต่อกันโดยไม่มีใบลา",
+      problemTypes: ["attendance_problem"],
+      severity: "high",
+      status: "open",
+      createdAt: "2026-09-25T08:00:00Z",
+      updatedAt: "2026-09-25T08:00:00Z",
+      enrollment: {
+        studentId: 102,
+        student: {
+          id: 102,
+          firstName: "ชาญชัย",
+          lastName: "มีสุข",
+          studentCode: "50002",
+        },
+        classroom: {
+          roomName: "1",
+          gradeLevel: { name: "ม.3" },
+        },
+      },
+    },
+    {
       id: 201,
       caseNumber: "CASE-2026-001",
       case_number: "CASE-2026-001",
@@ -1466,7 +1491,51 @@ export async function setupStsApiMocks(page: Page) {
     });
   });
 
-  // 14. Referrals & Transfer Letters mock for Director UAT
+  // 14. Referrals, External Referrals & Transfer Letters mock for Director UAT
+  const externalReferralsList: Array<{
+    id: string;
+    documentNo: string;
+    caseId: number;
+    agencyType: string;
+    agencyName: string;
+    reason: string;
+    requestedSupport: string;
+    status: string;
+    issuedAt: string;
+    createdAt: string;
+  }> = [];
+
+  await page.route(/\/api\/cases\/(\d+)\/external-referrals|\/api\/external-referrals/, async (route) => {
+    const method = route.request().method();
+    if (method === "POST") {
+      let data: any = {};
+      try { data = route.request().postDataJSON(); } catch { data = {}; }
+      const newRef = {
+        id: "ref-" + Date.now(),
+        documentNo: "REF-2569-" + Math.floor(1000 + Math.random() * 9000),
+        caseId: parseInt(route.request().url().match(/\/api\/cases\/(\d+)/)?.[1] || "101", 10),
+        agencyType: data.agencyType || "HEALTH",
+        agencyName: data.agencyName || "โรงพยาบาลชลบุรี",
+        reason: data.reason || "นักเรียนมีภาวะซึมเศร้าจำเป็นต้องได้รับการประเมินจากแพทย์",
+        requestedSupport: data.requestedSupport || "ขอรับการประเมินและวางแผนการรักษา",
+        status: "ISSUED",
+        issuedAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+      };
+      externalReferralsList.unshift(newRef);
+      return route.fulfill({
+        status: 201,
+        contentType: "application/json",
+        body: JSON.stringify(newRef),
+      });
+    }
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(externalReferralsList),
+    });
+  });
+
   const referralLettersList: Array<{ id: number; caseId: number; agencyType: string; agencyName: string; reason: string; assistanceNeeded: string; createdAt: string }> = [];
 
   await page.route(/\/api\/referral-letters|\/api\/cases\/(\d+)\/referral-letters|\/api\/transfer-letters/, async (route) => {
@@ -1477,7 +1546,7 @@ export async function setupStsApiMocks(page: Page) {
       const newLetter = {
         id: referralLettersList.length + 1,
         caseId: data.caseId || 201,
-        agencyType: data.agencyType || "โรงพยาบาล/สาธารณสุข",
+        agencyType: data.agencyType || "HEALTH",
         agencyName: data.agencyName || "โรงพยาบาลชลบุรี",
         reason: data.reason || "นักเรียนมีภาวะซึมเศร้าจำเป็นต้องได้รับการประเมินจากแพทย์",
         assistanceNeeded: data.assistanceNeeded || "ขอรับการประเมินและวางแผนการรักษา",
