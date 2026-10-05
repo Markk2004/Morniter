@@ -1653,7 +1653,31 @@ export async function setupStsApiMocks(page: Page) {
     });
   });
 
-  // 15. Student Bulk Import & Templates for School Admin UAT (จำลองประวัติการนำเข้าไฟล์ข้อมูลนักเรียน)
+  // 15. Active import jobs check (ป้องกันการค้างที่สถานะกำลังประมวลผล)
+  await page.route("**/api/students/import/jobs/active*", async (route) => {
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ activeJobs: [], hasActiveJob: false }),
+    });
+  });
+
+  // 16. Student Bulk Import POST upload/submission
+  await page.route(/\/api\/students\/import(?:\?.*)?$/, async (route) => {
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        success: true,
+        totalRows: 40,
+        successCount: 40,
+        failedCount: 0,
+        message: "นำเข้าไฟล์สำเร็จ 40 รายการ",
+      }),
+    });
+  });
+
+  // 17. Student Bulk Import History for School Admin UAT (จำลองประวัติการนำเข้าไฟล์ข้อมูลนักเรียน)
   await page.route(/\/api\/students\/import\/history|\/api\/students\/import-history/, async (route) => {
     const historyData = [
       {
@@ -1704,21 +1728,7 @@ export async function setupStsApiMocks(page: Page) {
       body: JSON.stringify({
         data: historyData,
         items: historyData,
-        meta: { total: historyData.length, page: 1, limit: 25, totalPages: 1 },
-      }),
-    });
-  });
-
-  await page.route(/\/api\/students\/import/, async (route) => {
-    return route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        success: true,
-        totalRows: 40,
-        successCount: 40,
-        failedCount: 0,
-        message: "นำเข้าไฟล์สำเร็จ 40 รายการ",
+        meta: { total: historyData.length, page: 1, limit: 25, lastPage: 1, totalPages: 1 },
       }),
     });
   });

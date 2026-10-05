@@ -471,6 +471,84 @@ const COMMON_STS_ROUTE_MOCKS = `
         body: JSON.stringify({ success: true, message: "เปลี่ยนรหัสผ่านสำเร็จแล้ว" }),
       });
     });
+
+    // [Central Route Mocks]: ข้อมูลประวัติการนำเข้านักเรียน (Bulk Import History & Active Jobs)
+    await page.route("**/api/students/import/jobs/active*", async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ activeJobs: [], hasActiveJob: false }),
+      });
+    });
+
+    await page.route(/\/api\/students\/import(?:\?.*)?$/, async (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          success: true,
+          totalRows: 40,
+          successCount: 40,
+          failedCount: 0,
+          message: "นำเข้าไฟล์สำเร็จ 40 รายการ",
+        }),
+      });
+    });
+
+    await page.route(/\/api\/students\/import\/history|\/api\/students\/import-history/, async (route) => {
+      const historyData = [
+        {
+          id: "imp-2569-001",
+          fileName: "students_m3_term1_2569.xlsx",
+          originalFileName: "students_m3_term1_2569.xlsx",
+          fileSize: 45200,
+          totalRows: 35,
+          successCount: 35,
+          createdCount: 35,
+          insertedCount: 35,
+          updatedCount: 0,
+          skippedCount: 0,
+          failedCount: 0,
+          errorCount: 0,
+          status: "COMPLETED",
+          importedAt: "2026-09-28T09:30:00.000Z",
+          createdAt: "2026-09-28T09:30:00.000Z",
+          importedByUser: { id: 1, name: "สมชาย ผู้ดูแลระบบ (Admin)", username: "admin_a" },
+          importedBy: { id: 1, name: "สมชาย ผู้ดูแลระบบ (Admin)", username: "admin_a" },
+          user: { id: 1, name: "สมชาย ผู้ดูแลระบบ (Admin)", username: "admin_a" },
+        },
+        {
+          id: "imp-2569-002",
+          fileName: "students_m1_term1_2569.csv",
+          originalFileName: "students_m1_term1_2569.csv",
+          fileSize: 32400,
+          totalRows: 40,
+          successCount: 38,
+          createdCount: 38,
+          insertedCount: 38,
+          updatedCount: 0,
+          skippedCount: 0,
+          failedCount: 2,
+          errorCount: 2,
+          status: "COMPLETED_WITH_ERRORS",
+          importedAt: "2026-09-25T14:15:00.000Z",
+          createdAt: "2026-09-25T14:15:00.000Z",
+          importedByUser: { id: 1, name: "สมชาย ผู้ดูแลระบบ (Admin)", username: "admin_a" },
+          importedBy: { id: 1, name: "สมชาย ผู้ดูแลระบบ (Admin)", username: "admin_a" },
+          user: { id: 1, name: "สมชาย ผู้ดูแลระบบ (Admin)", username: "admin_a" },
+        },
+      ];
+
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          data: historyData,
+          items: historyData,
+          meta: { total: historyData.length, page: 1, limit: 25, lastPage: 1, totalPages: 1 },
+        }),
+      });
+    });
     
 `;
 
@@ -1108,6 +1186,15 @@ test("TC-STS-SCHOOL-COMPLETE-E2E: School Complete UAT Workflow (Director & Admin
     });
   });
 
+  // Mock Active Import Jobs
+  await page.route("**/api/students/import/jobs/active*", async (route) => {
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ activeJobs: [], hasActiveJob: false }),
+    });
+  });
+
   // Mock Students Import History API
   await page.route(/\/api\/students\/import\/history|\/api\/students\/import-history/, async (route) => {
     const historyData = [
@@ -1158,7 +1245,7 @@ test("TC-STS-SCHOOL-COMPLETE-E2E: School Complete UAT Workflow (Director & Admin
       body: JSON.stringify({
         data: historyData,
         items: historyData,
-        meta: { total: historyData.length, page: 1, limit: 25, totalPages: 1 },
+        meta: { total: historyData.length, page: 1, limit: 25, lastPage: 1, totalPages: 1 },
       }),
     });
   });
