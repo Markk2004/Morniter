@@ -12,8 +12,8 @@ import { StsUsersPage } from "../page-objects/users.page";
 import { StsStudentsPage } from "../page-objects/students.page";
 import { DEMO_CREDENTIALS } from "../fixtures/auth-data";
 
-test.describe("[UAT โรงเรียน] Uat script [School] (Complete School Workflow)", () => {
-  test("TC-STS-SCHOOL-COMPLETE-E2E: School Complete UAT Workflow (Director & Admin All-in-One)", async ({ page }) => {
+test.describe("[UAT โรงเรียน] Uat script [STS School Director] (Complete School Workflow)", () => {
+  test("TC-STS-SCHOOL-DIRECTOR-COMPLETE-E2E: School Complete UAT Workflow (Director & Admin All-in-One)", async ({ page }) => {
     test.setTimeout(180_000);
     // [Precondition]: เตรียม Mock API สำหรับทุกโมดูล
     await page.context().clearCookies();

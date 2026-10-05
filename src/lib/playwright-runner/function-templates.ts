@@ -931,7 +931,7 @@ ${COMMON_STS_ROUTE_MOCKS}
 // ==============================================================
 import { test, expect } from "@playwright/test";
 
-test("TC-STS-SCHOOL-COMPLETE-E2E: School Complete UAT Workflow (Director & Admin All-in-One)", async ({ page }) => {
+test("TC-STS-SCHOOL-DIRECTOR-COMPLETE-E2E: School Complete UAT Workflow (Director & Admin All-in-One)", async ({ page }) => {
   test.setTimeout(180_000);
   await page.context().clearCookies();
 

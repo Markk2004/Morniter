@@ -51,6 +51,8 @@ export function getTestEditorTitle(test: { relativePath?: string; title?: string
 
   if (
     rel.includes("00-school-uat-all-in-one") ||
+    tit.includes("TC-STS-SCHOOL-DIRECTOR") ||
+    tit.includes("SCHOOL-DIRECTOR") ||
     tit.includes("SCHOOL-COMPLETE") ||
     tit.includes("FN-STS-00-SCHOOL") ||
     tit.includes("SCHOOL COMPLETE UAT")
@@ -74,6 +76,8 @@ export function getTestThaiMeta(title: string, relativePath: string = ""): TestT
 
   if (
     t.includes("FN-STS-00-SCHOOL") ||
+    t.includes("TC-STS-SCHOOL-DIRECTOR") ||
+    t.includes("SCHOOL-DIRECTOR") ||
     t.includes("SCHOOL-UAT-ALL-IN-ONE") ||
     t.includes("00-SCHOOL") ||
     t.includes("UAT SCRIPT [SCHOOL]") ||
@@ -534,8 +538,8 @@ export const FUNCTION_DETAILED_DOCS: Record<string, FunctionDetailedDoc> = {
   "FN-STS-00-SCHOOL": {
     id: "FN-STS-00-SCHOOL",
     code: "FN-STS-00-SCHOOL",
-    name: "[UAT โรงเรียน] Uat script [School] (Complete School Workflow)",
-    role: "ผู้บริหารสถานศึกษา & แอดมินโรงเรียน (School Director & School Admin)",
+    name: "[UAT โรงเรียน] Uat script [STS School Director] (Complete School Workflow)",
+    role: "STS School Director & Admin (ผู้อำนวยการและแอดมินโรงเรียน)",
     workflow: "เข้าสู่ระบบ ผอ. → ตรวจสอบสถิติ KPI สถานศึกษา → บริหารจัดการเคส & ส่งต่อภายนอก (PDPA) → สลับบทบาทแอดมิน → จัดการผู้ใช้ & กำหนดสิทธิ์ → จัดการห้องเรียน & ครูประจำชั้น → นำเข้าข้อมูลนักเรียน Bulk Import",
     overview: "ชุดทดสอบ UAT ครบวงจรสำหรับระดับโรงเรียน (ตาม Google Spreadsheet ทั้งฝั่ง School Director และ School Admin) ครอบคลุมผู้บริหารสถานศึกษาในการติดตามสถานการณ์นักเรียนกลุ่มเสี่ยง อนุมัติความช่วยเหลือ ส่งต่อหน่วยงานภายนอก พร้อมเจ้าหน้าที่ธุรการ/แอดมินในการจัดการสิทธิ์ผู้ใช้ โครงสร้างชั้นเรียน และนำเข้าข้อมูลนักเรียน",
     codeExplanation: "โค้ดรวมฟังก์ชันทดสอบเดียวพร้อม test.step() ครอบคลุม 7 ขั้นตอนหลัก: 1. ล็อกอินด้วยบัญชีผู้อำนวยการ (director_a / changeme) และตรวจเช็คการนำทางสู่หน้าหลัก, 2. ตรวจสอบ KPI Cards และกราฟสถิตินักเรียนกลุ่มเสี่ยง, 3. เปิดดูเคสนักเรียนกลุ่มเสี่ยง บันทึกมาตรการช่วยเหลือ บันทึกผลการตัดสินใจ AI และตรวจสอบหนังสือส่งต่อภายนอก (PDPA), 4. ออกจากระบบและเข้าสู่ระบบด้วยบัญชีแอดมินโรงเรียน (admin_a / changeme), 5. จัดการผู้ใช้งานในโรงเรียน (ค้นหา, กรองสถานะ, ตรวจสอบสิทธิ์), 6. บริหารจัดการข้อมูลชั้นเรียนและมอบหมายครูประจำชั้น, 7. ตรวจสอบระบบนำเข้าข้อมูลนักเรียน (Bulk Import History & Template Validation)",
