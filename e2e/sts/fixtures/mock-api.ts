@@ -645,6 +645,23 @@ export async function setupStsApiMocks(page: Page) {
       return route.fulfill({
         status: 200,
         contentType: "application/json",
+        body: JSON.stringify({
+          ...matchedCase,
+          interventions: interventionsList,
+          assistances: interventionsList,
+        }),
+      });
+    }
+
+    if (caseDetailMatch && (route.request().method() === "PATCH" || route.request().method() === "PUT")) {
+      let patchData: any = {};
+      try { patchData = route.request().postDataJSON(); } catch { patchData = {}; }
+      const requestedId = parseInt(caseDetailMatch[1], 10);
+      const matchedCase = casesData.find((c) => c.id === requestedId) || casesData[0];
+      Object.assign(matchedCase, patchData, { updatedAt: new Date().toISOString() });
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
         body: JSON.stringify(matchedCase),
       });
     }
@@ -1410,9 +1427,42 @@ export async function setupStsApiMocks(page: Page) {
       }),
     });
   });
-
-
-
+  // Mock ai-case-assessments for Director AI Analysis
+  await page.route(/\/api\/ai-case-assessments(?:\/cases\/(\d+)\/analyze|\/([a-zA-Z0-9_-]+))?/, async (route) => {
+    const url = route.request().url();
+    if (url.includes("/experiments/")) {
+      return route.fallback();
+    }
+    const sampleAssessment = {
+      publicId: "asm-uat-101",
+      status: "ANALYZED",
+      revision: 1,
+      absentDays: 4,
+      lateDays: 0,
+      lateDaysAvailable: true,
+      blindReview: false,
+      hasCompletedBlindReview: true,
+      createdAt: new Date().toISOString(),
+      lockedAt: null,
+      latestAttempt: {
+        problemLabels: ["behavioral_problem"],
+        labelProbabilities: { behavioral_problem: 0.92 },
+        recommendedSeverity: "HIGH",
+        severityConfidence: 0.94,
+        reasons: ["นักเรียนมีพฤติกรรมแยกตัว ขาดเรียนบ่อยครั้งติดต่อกัน และมีสัญญาณความเหนื่อยล้าเรื้อรัง"],
+        safetyFlag: false,
+        safetyReasons: [],
+        modelVersion: "v2.4-dss",
+        analysisMode: "REFERENCE_ASSISTED",
+      },
+      reviews: [],
+    };
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(sampleAssessment),
+    });
+  });
   await page.route(/\/api\/ai-dss\/cases\/(\d+)\/overview/, async (route) => {
     return route.fulfill({
       status: 200,
@@ -1465,7 +1515,7 @@ export async function setupStsApiMocks(page: Page) {
     },
   ];
 
-  await page.route(/\/api\/interventions|\/api\/cases\/(\d+)\/interventions|\/api\/cases\/(\d+)\/assistance/, async (route) => {
+  await page.route(/\/api\/interventions|\/api\/cases\/(\d+)\/interventions|\/api\/cases\/(\d+)\/assistance|\/api\/cases\/(\d+)\/assistances|\/api\/assistances/, async (route) => {
     const method = route.request().method();
     if (method === "POST") {
       let data: any = {};

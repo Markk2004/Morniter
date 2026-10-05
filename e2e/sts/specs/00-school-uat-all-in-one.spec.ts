@@ -67,25 +67,28 @@ test.describe("[UAT โรงเรียน] Uat script [School] (Complete Scho
       await expect(watchedSection).toBeVisible();
 
       // 4. ทดสอบตัวกรองข้อมูลย้อนหลัง (เปิด Modal เลือกตัวกรอง และกด 'นำไปใช้')
-      const filterBtn = page.getByRole("button", { name: /ตัวกรองข้อมูลย้อนหลัง|ตัวกรอง|กรองข้อมูล/i }).first();
+      const filterBtn = page.locator("button:has-text('ตัวกรองข้อมูลย้อนหลัง'), button[aria-label*='ตัวกรอง'], button:has-text('ตัวกรอง')").first();
       if (await filterBtn.isVisible()) {
+        await filterBtn.scrollIntoViewIfNeeded();
         await filterBtn.click();
-        await page.waitForTimeout(800);
+        await page.waitForTimeout(1200);
 
-        // กดปุ่ม 'นำไปใช้' ในหน้าต่างตัวกรอง
-        const applyFilterBtn = page.locator("button:has-text('นำไปใช้'), button:has-text('ตกลง')").first();
+        // กดปุ่ม 'นำไปใช้' ในหน้าต่างตัวกรอง และรอให้แดชบอร์ดอัปเดตผลลัพธ์
+        const applyFilterBtn = page.locator("button:has-text('นำไปใช้')").first();
         if (await applyFilterBtn.isVisible()) {
+          await applyFilterBtn.scrollIntoViewIfNeeded();
           await applyFilterBtn.click();
-          await page.waitForTimeout(1000);
+          await page.waitForTimeout(2000);
         } else {
           const closeFilterBtn = page.locator("button[data-filter-close], button:has-text('ปิด'), button:has-text('ยกเลิก')").first();
           if (await closeFilterBtn.isVisible()) {
             await closeFilterBtn.click();
+            await page.waitForTimeout(600);
           }
         }
       }
 
-      await page.waitForTimeout(2000);
+      await page.waitForTimeout(2500);
     });
 
     // =========================================================================
@@ -138,49 +141,96 @@ test.describe("[UAT โรงเรียน] Uat script [School] (Complete Scho
         await page.waitForTimeout(1500);
       }
 
-      // 1. บันทึกข้อมูลการให้ความช่วยเหลือ (Intervention Dialog)
-      const addHelpBtn = page.locator("button:has-text('บันทึกการช่วยเหลือ'), button:has-text('เพิ่มการช่วยเหลือ'), #add-intervention-btn").first();
+      // 1. บันทึกข้อมูลการให้ความช่วยเหลือ (Intervention / Assistance Dialog)
+      const addHelpBtn = page.locator("button:has-text('บันทึกความช่วยเหลือ'), button:has-text('บันทึกการช่วยเหลือ'), button:has-text('เพิ่มการช่วยเหลือ'), #add-assistance-btn, #add-intervention-btn").first();
       if (await addHelpBtn.isVisible()) {
+        await addHelpBtn.scrollIntoViewIfNeeded();
         await addHelpBtn.click();
-        await page.waitForTimeout(800);
+        await page.waitForTimeout(1000);
 
-        const helpType = page.locator("select[name='type'], input[name='type']").first();
-        if (await helpType.isVisible()) {
-          await helpType.fill("ให้คำปรึกษา");
-        }
-        const helpDetail = page.locator("textarea[name='details'], textarea").first();
-        if (await helpDetail.isVisible()) {
-          await helpDetail.fill("พูดคุยให้กำลังใจนักเรียนและวางแผนการเรียนร่วมกัน");
-        }
+        const helpDialog = page.locator("dialog[open], [role='dialog']").first();
+        if (await helpDialog.isVisible()) {
+          const helpType = helpDialog.locator("select[name='type'], input[name='type'], select, [role='combobox']").first();
+          if (await helpType.isVisible()) {
+            try {
+              await helpType.selectOption({ index: 1 });
+            } catch {
+              // ค่าเริ่มต้นคือ ให้คำปรึกษา
+            }
+          }
 
-        const saveHelpBtn = page.locator("button:has-text('บันทึก'), button[type='submit']").last();
-        if (await saveHelpBtn.isVisible()) {
-          await saveHelpBtn.click();
-          await page.waitForTimeout(1000);
+          const helpDetail = helpDialog.locator("textarea[placeholder*='อธิบาย'], textarea[name='details'], textarea").first();
+          if (await helpDetail.isVisible()) {
+            await helpDetail.fill("พูดคุยให้กำลังใจนักเรียนและวางแผนการเรียนร่วมกัน");
+            await page.waitForTimeout(300);
+          }
+
+          const helpResult = helpDialog.locator("textarea[placeholder*='ผล'], input[placeholder*='ผล'], textarea[name='result']").first();
+          if (await helpResult.isVisible()) {
+            await helpResult.fill("นักเรียนมีกำลังใจดีขึ้นและตั้งใจเข้าเรียนสม่ำเสมอ");
+            await page.waitForTimeout(300);
+          }
+
+          const saveHelpBtn = helpDialog.locator("button:has-text('บันทึก'), button[type='submit']").last();
+          if (await saveHelpBtn.isVisible() && await saveHelpBtn.isEnabled()) {
+            await saveHelpBtn.click();
+            await page.waitForTimeout(1500);
+          }
+
+          if (await helpDialog.isVisible()) {
+            const cancelHelpBtn = helpDialog.locator("button:has-text('ยกเลิก'), button:has-text('ปิด')").first();
+            if (await cancelHelpBtn.isVisible()) {
+              await cancelHelpBtn.click();
+              await page.waitForTimeout(600);
+            }
+          }
         }
       }
 
-      // 2. ทดสอบเปิดแบบฟอร์มออกหนังสือส่งตัว (Referral Letter Dialog)
+      // 2. ทดสอบเปิดแบบฟอร์มออกหนังสือส่งตัว (Referral Letter Dialog) และกรอกข้อมูลครบถ้วนทุกช่อง
       const letterBtn = page.locator("button:has-text('ออกหนังสือส่งตัว'), button:has-text('ส่งต่อภายนอก')").first();
       if (await letterBtn.isVisible()) {
+        await letterBtn.scrollIntoViewIfNeeded();
         await letterBtn.click();
-        await page.waitForTimeout(800);
+        await page.waitForTimeout(1000);
 
-        // กรอกข้อมูลหน่วยงานภายนอกจำลอง
+        const letterDialog = page.locator("dialog[open], [role='dialog']").first();
+        // กรอกข้อมูลหน่วยงานภายนอกจำลองให้ครบถ้วนทุกช่อง
         const agencyNameInput = page.locator("#agency-name, input[placeholder*='โรงพยาบาล']").first();
         if (await agencyNameInput.isVisible()) {
           await agencyNameInput.fill("โรงพยาบาลชลบุรี");
+          await page.waitForTimeout(400);
         }
-        const reasonInput = page.locator("#referral-reason, textarea[placeholder*='เหตุผล'], textarea").first();
+        const reasonInput = page.locator("#referral-reason, textarea[placeholder*='เหตุผล']").first();
         if (await reasonInput.isVisible()) {
-          await reasonInput.fill("นักเรียนมีภาวะเครียดและต้องการรับคำปรึกษาจากแพทย์ผู้เชี่ยวชาญ");
+          await reasonInput.fill("นักเรียนมีภาวะเครียดและต้องการรับคำปรึกษาจากแพทย์ผู้เชี่ยวชาญอย่างต่อเนื่อง");
+          await page.waitForTimeout(400);
+        }
+        const requestedSupportInput = page.locator("#requested-support, textarea[placeholder*='ความช่วยเหลือ']").first();
+        if (await requestedSupportInput.isVisible()) {
+          await requestedSupportInput.fill("ขอรับการประเมินและวางแผนการบำบัดรักษาฟื้นฟูสภาพจิตใจ");
+          await page.waitForTimeout(400);
         }
 
-        // ปิดหรือยกเลิก Modal
-        const cancelLetterBtn = page.locator("button:has-text('ยกเลิก'), button:has-text('ปิด')").last();
-        if (await cancelLetterBtn.isVisible()) {
-          await cancelLetterBtn.click();
-          await page.waitForTimeout(600);
+        // กดปุ่ม 'ออกหนังสือ' เพื่อส่งข้อมูลและออกหนังสือจริง
+        const submitLetterBtn = page.locator("button:has-text('ออกหนังสือ')").last();
+        if (await submitLetterBtn.isVisible() && await submitLetterBtn.isEnabled()) {
+          await submitLetterBtn.click();
+          await page.waitForTimeout(2000);
+        } else {
+          const cancelLetterBtn = page.locator("button:has-text('ยกเลิก'), button:has-text('ปิด')").last();
+          if (await cancelLetterBtn.isVisible()) {
+            await cancelLetterBtn.click();
+            await page.waitForTimeout(600);
+          }
+        }
+
+        if (await letterDialog.isVisible()) {
+          const closeLetterBtn = letterDialog.locator("button:has-text('ยกเลิก'), button:has-text('ปิด')").first();
+          if (await closeLetterBtn.isVisible()) {
+            await closeLetterBtn.click();
+            await page.waitForTimeout(600);
+          }
         }
       }
 
@@ -204,13 +254,15 @@ test.describe("[UAT โรงเรียน] Uat script [School] (Complete Scho
         }
       }
 
-      // 2. วิเคราะห์เคสด้วย AI และรอผลสำเร็จสมบูรณ์
+      // 2. วิเคราะห์เคสด้วย AI และรอผลสำเร็จสมบูรณ์ (พร้อมแสดง Confidence Gauge 94%)
       const aiBtn = page.locator("button:has-text('วิเคราะห์เคสด้วย AI'), button:has-text('วิเคราะห์จากบันทึกข้อสังเกตล่าสุด')").first();
-      if (await aiBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+      if (await aiBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
         if (await aiBtn.isEnabled()) {
+          await aiBtn.scrollIntoViewIfNeeded();
           await aiBtn.click();
-          // รอให้กระบวนการ AI ประมวลผลและเปิดเผยผลวิเคราะห์ (Progress -> Result Reveal -> Completed)
-          await page.waitForTimeout(4000);
+          // รอให้กระบวนการ AI ประมวลผลและเปิดเผยผลวิเคราะห์ครบถ้วน (Progress -> Result Reveal -> Completed)
+          await page.waitForTimeout(5000);
+          await expect(page.locator("text=/วิเคราะห์เรียบร้อย|ความมั่นใจของโมเดล|ความมั่นใจ/i").first()).toBeVisible({ timeout: 10_000 });
         }
       }
 
@@ -221,10 +273,12 @@ test.describe("[UAT โรงเรียน] Uat script [School] (Complete Scho
       }
 
       // 4. บันทึกผลการอนุมัติขั้นสุดท้าย
-      const approveBtn = page.locator("button:has-text('บันทึกผลการอนุมัติขั้นสุดท้าย'), button:has-text('อนุมัติผล'), button:has-text('ยืนยันผล')").first();
+      const approveBtn = page.locator("button:has-text('บันทึกผลการอนุมัติขั้นสุดท้าย'), button:has-text('ยืนยันผลการพิจารณา'), button:has-text('อนุมัติมาตรการ'), button:has-text('อนุมัติผล'), button:has-text('ยืนยันผล')").first();
       if (await approveBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await approveBtn.click();
-        await page.waitForTimeout(1500);
+        if (await approveBtn.isEnabled()) {
+          await approveBtn.click();
+          await page.waitForTimeout(1500);
+        }
       }
 
       await page.waitForTimeout(2000);
