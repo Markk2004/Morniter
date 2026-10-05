@@ -1246,7 +1246,7 @@ test("TC-STS-SCHOOL-COMPLETE-E2E: School Complete UAT Workflow (Director & Admin
     if (await aiBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
       if (await aiBtn.isEnabled()) {
         await aiBtn.click();
-        await page.waitForTimeout(1500);
+        await page.waitForTimeout(2500);
       }
     }
 
@@ -1278,6 +1278,7 @@ test("TC-STS-SCHOOL-COMPLETE-E2E: School Complete UAT Workflow (Director & Admin
     await page.locator("#login-submit, button[type='submit']").first().click();
     await expect(page).toHaveURL(/\\/admin/, { timeout: 15_000 });
     await expect(page.locator("text=/ผู้ดูแลระบบ|ผู้ดูแลระบบโรงเรียน|ADMIN/i").first()).toBeVisible({ timeout: 10_000 });
+    await page.waitForTimeout(2500);
 
     const actionCards = page.locator("text=/ห้องเรียนยังไม่มีครูที่ปรึกษา|เคสติดตามค้างดำเนินการ|ความพร้อมของข้อมูล|นักเรียนยังไม่มีห้องเรียน/i").first();
     if (await actionCards.isVisible()) {

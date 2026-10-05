@@ -184,7 +184,7 @@ test.describe("[UAT โรงเรียน] Uat script [School] (Complete Scho
       if (await aiBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
         if (await aiBtn.isEnabled()) {
           await aiBtn.click();
-          await page.waitForTimeout(1500);
+          await page.waitForTimeout(2500);
         }
       }
 
@@ -223,7 +223,7 @@ test.describe("[UAT โรงเรียน] Uat script [School] (Complete Scho
 
       // ตรวจสอบสถานะผู้ดูแลระบบโรงเรียน
       await expect(page.locator("text=/ผู้ดูแลระบบ|ผู้ดูแลระบบโรงเรียน|ADMIN/i").first()).toBeVisible({ timeout: 10_000 });
-      await page.waitForTimeout(1500);
+      await page.waitForTimeout(2500);
 
       // ตรวจสอบการ์ดงานที่ต้องดำเนินการ (Action Required Cards)
       const actionCards = page.locator("text=/ห้องเรียนยังไม่มีครูที่ปรึกษา|เคสติดตามค้างดำเนินการ|ความพร้อมของข้อมูล|นักเรียนยังไม่มีห้องเรียน/i").first();
