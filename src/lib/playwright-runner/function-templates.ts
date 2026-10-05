@@ -920,8 +920,8 @@ ${COMMON_STS_ROUTE_MOCKS}
   },
   "FN-STS-00-SCHOOL": {
     id: "FN-STS-00-SCHOOL",
-    name: "FN-STS-00-SCHOOL · [UAT โรงเรียน] Uat script [School] (Complete School Workflow)",
-    shortName: "Uat Script",
+    name: "FN-STS-00-SCHOOL · [UAT โรงเรียน] Uat script [STS School Director] (Complete School Workflow)",
+    shortName: "STS School Director",
     relativePath: "e2e/sts/specs/00-school-uat-all-in-one.spec.ts",
     description: "รันครบทุกขั้นตอนการทดสอบ UAT ของโรงเรียน ครอบคลุมทั้งผู้อำนวยการ (Director) และผู้ดูแลระบบโรงเรียน (School Admin)",
     code: `// ==============================================================

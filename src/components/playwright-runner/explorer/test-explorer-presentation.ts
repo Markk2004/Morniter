@@ -45,8 +45,32 @@ export interface TestThaiMeta {
   description: string;
 }
 
-export function getTestThaiMeta(title: string): TestThaiMeta {
-  const t = title.toUpperCase();
+export function getTestEditorTitle(test: { relativePath?: string; title?: string }): string {
+  const rel = test.relativePath || "";
+  const tit = (test.title || "").toUpperCase();
+
+  if (
+    rel.includes("00-school-uat-all-in-one") ||
+    tit.includes("SCHOOL-COMPLETE") ||
+    tit.includes("FN-STS-00-SCHOOL") ||
+    tit.includes("SCHOOL COMPLETE UAT")
+  ) {
+    return `[ฟังก์ชัน STS School Director] Open ${rel || "e2e/sts/specs/00-school-uat-all-in-one.spec.ts"} in editor`;
+  }
+
+  if (
+    rel.includes("00-teacher-uat-all-in-one") ||
+    tit.includes("TEACHER-COMPLETE") ||
+    tit.includes("FN-STS-00")
+  ) {
+    return `[ฟังก์ชัน STS Teacher] Open ${rel || "e2e/sts/specs/00-teacher-uat-all-in-one.spec.ts"} in editor`;
+  }
+
+  return `Open ${rel} in editor`;
+}
+
+export function getTestThaiMeta(title: string, relativePath: string = ""): TestThaiMeta {
+  const t = `${title} ${relativePath}`.toUpperCase();
 
   if (
     t.includes("FN-STS-00-SCHOOL") ||
@@ -57,7 +81,7 @@ export function getTestThaiMeta(title: string): TestThaiMeta {
     t.includes("COMPLETE SCHOOL WORKFLOW")
   ) {
     return {
-      role: "ผู้บริหารและแอดมินโรงเรียน (School UAT ครบวงจร)",
+      role: "STS School Director & Admin (ผู้อำนวยการและแอดมิน)",
       roleBadgeStyle: "border-indigo-500/30 bg-indigo-950/40 text-indigo-300",
       description: "รันครบ 7 ขั้นตอนตาม UAT Script โรงเรียน: เข้าสู่ระบบ ผอ. → มอนิเตอร์สถิติ KPI → บริหารเคสความเสี่ยงปานกลาง/สูง → สลับบทบาทแอดมิน → จัดการผู้ใช้ → จัดการชั้นเรียน → นำเข้าข้อมูลนักเรียน",
     };
@@ -341,8 +365,8 @@ export function resolveFunctionCategory(
   ) {
     return {
       code: "FN-STS-00-SCHOOL",
-      name: "[UAT โรงเรียน] Uat script [School] (Complete School Workflow)",
-      shortName: "Uat Script",
+      name: "[UAT โรงเรียน] Uat script [School Director & Admin] (Complete School Workflow)",
+      shortName: "STS School Director",
       icon: "🏫",
       badgeStyle: "border-indigo-500/40 bg-indigo-950/60 text-indigo-300",
     };

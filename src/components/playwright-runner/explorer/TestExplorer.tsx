@@ -12,6 +12,7 @@ import {
   partitionTestsByConfidence,
   getRunnerLabel,
   getTestThaiMeta,
+  getTestEditorTitle,
   resolveFunctionCategory,
 } from "./test-explorer-presentation";
 import { TestDetailDrawer } from "./TestDetailDrawer";
@@ -621,7 +622,7 @@ export function TestExplorer({
                                       )}
                                       <button
                                         type="button"
-                                        title={`Open ${test.relativePath} in editor`}
+                                        title={getTestEditorTitle(test)}
                                         disabled={disabled || !onLoadSource}
                                         onClick={() => onLoadSource?.(test.id)}
                                         className="truncate text-left cursor-pointer disabled:cursor-default disabled:opacity-100 flex-1 min-w-0"
@@ -835,7 +836,7 @@ export function TestExplorer({
                                       )}
                                       <button
                                         type="button"
-                                        title={`Open ${test.relativePath} in editor`}
+                                        title={getTestEditorTitle(test)}
                                         disabled={disabled || !onLoadSource}
                                         onClick={() => onLoadSource?.(test.id)}
                                         className="truncate text-left cursor-pointer disabled:cursor-default disabled:opacity-100 flex-1 min-w-0"

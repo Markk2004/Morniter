@@ -22,7 +22,7 @@
   "generatedRoot": "e2e/sts/generated",
   "functions": [
     { "id": "FN-STS-00", "name": "[UAT ครู] หมวด 7: รันทุกฟังก์ชัน All-in-One (Complete Workflow)", "keywords": ["uat", "teacher", "all-in-one", "workflow"] },
-    { "id": "FN-STS-00-SCHOOL", "name": "[UAT โรงเรียน] Uat script [School] (Complete School Workflow)", "keywords": ["uat", "school", "director", "admin", "all-in-one", "workflow"] },
+    { "id": "FN-STS-00-SCHOOL", "name": "[UAT โรงเรียน] Uat script [STS School Director] (Complete School Workflow)", "keywords": ["uat", "school", "director", "admin", "all-in-one", "workflow"] },
     { "id": "FN-STS-01", "name": "[UAT ครู] หมวด 1: ระบบยืนยันตัวตนและการเข้าสู่ระบบ (Authentication)", "keywords": ["auth", "login", "password", "session", "teacher"] },
     { "id": "FN-STS-02", "name": "User Management (ระบบจัดการผู้ใช้)", "keywords": ["user", "role", "permission", "management"] },
     { "id": "FN-STS-03", "name": "Students & Classrooms (รายชื่อนักเรียนและห้องเรียน)", "keywords": ["student", "classroom", "profile"] },
