@@ -48,6 +48,21 @@ export interface TestThaiMeta {
 export function getTestThaiMeta(title: string): TestThaiMeta {
   const t = title.toUpperCase();
 
+  if (
+    t.includes("FN-STS-00-SCHOOL") ||
+    t.includes("SCHOOL-UAT-ALL-IN-ONE") ||
+    t.includes("00-SCHOOL") ||
+    t.includes("UAT SCRIPT [SCHOOL]") ||
+    t.includes("UAT โรงเรียน") ||
+    t.includes("COMPLETE SCHOOL WORKFLOW")
+  ) {
+    return {
+      role: "ผู้บริหารและแอดมินโรงเรียน (School UAT ครบวงจร)",
+      roleBadgeStyle: "border-indigo-500/30 bg-indigo-950/40 text-indigo-300",
+      description: "รันครบ 7 ขั้นตอนตาม UAT Script โรงเรียน: เข้าสู่ระบบ ผอ. → มอนิเตอร์สถิติ KPI → บริหารเคสความเสี่ยงปานกลาง/สูง → สลับบทบาทแอดมิน → จัดการผู้ใช้ → จัดการชั้นเรียน → นำเข้าข้อมูลนักเรียน",
+    };
+  }
+
   if (t.includes("TEACHER-COMPLETE-E2E") || t.includes("ALL-IN-ONE") || t.includes("หมวด 7") || t.includes("COMPLETE UAT WORKFLOW")) {
     return {
       role: "ครูประจำชั้น (UAT ครบวงจร)",
@@ -318,6 +333,22 @@ export function resolveFunctionCategory(
   const combined = `${title} ${relativePath} ${groupName}`.toUpperCase();
 
   if (
+    combined.includes("FN-STS-00-SCHOOL") ||
+    combined.includes("00-SCHOOL") ||
+    combined.includes("SCHOOL-UAT") ||
+    combined.includes("UAT SCRIPT [SCHOOL]") ||
+    combined.includes("UAT โรงเรียน")
+  ) {
+    return {
+      code: "FN-STS-00-SCHOOL",
+      name: "[UAT โรงเรียน] Uat script [School] (Complete School Workflow)",
+      shortName: "Uat script [School]",
+      icon: "🏫",
+      badgeStyle: "border-indigo-500/40 bg-indigo-950/60 text-indigo-300",
+    };
+  }
+
+  if (
     combined.includes("FN-STS-00") ||
     combined.includes("TEACHER-COMPLETE") ||
     combined.includes("ALL-IN-ONE") ||
@@ -476,6 +507,34 @@ export interface FunctionDetailedDoc {
 }
 
 export const FUNCTION_DETAILED_DOCS: Record<string, FunctionDetailedDoc> = {
+  "FN-STS-00-SCHOOL": {
+    id: "FN-STS-00-SCHOOL",
+    code: "FN-STS-00-SCHOOL",
+    name: "[UAT โรงเรียน] Uat script [School] (Complete School Workflow)",
+    role: "ผู้บริหารสถานศึกษา & แอดมินโรงเรียน (School Director & School Admin)",
+    workflow: "เข้าสู่ระบบ ผอ. → ตรวจสอบสถิติ KPI สถานศึกษา → บริหารจัดการเคส & ส่งต่อภายนอก (PDPA) → สลับบทบาทแอดมิน → จัดการผู้ใช้ & กำหนดสิทธิ์ → จัดการห้องเรียน & ครูประจำชั้น → นำเข้าข้อมูลนักเรียน Bulk Import",
+    overview: "ชุดทดสอบ UAT ครบวงจรสำหรับระดับโรงเรียน (ตาม Google Spreadsheet ทั้งฝั่ง School Director และ School Admin) ครอบคลุมผู้บริหารสถานศึกษาในการติดตามสถานการณ์นักเรียนกลุ่มเสี่ยง อนุมัติความช่วยเหลือ ส่งต่อหน่วยงานภายนอก พร้อมเจ้าหน้าที่ธุรการ/แอดมินในการจัดการสิทธิ์ผู้ใช้ โครงสร้างชั้นเรียน และนำเข้าข้อมูลนักเรียน",
+    codeExplanation: "โค้ดรวมฟังก์ชันทดสอบเดียวพร้อม test.step() ครอบคลุม 7 ขั้นตอนหลัก: 1. ล็อกอินด้วยบัญชีผู้อำนวยการ (director_a / changeme) และตรวจเช็คการนำทางสู่หน้าหลัก, 2. ตรวจสอบ KPI Cards และกราฟสถิตินักเรียนกลุ่มเสี่ยง, 3. เปิดดูเคสนักเรียนกลุ่มเสี่ยง บันทึกมาตรการช่วยเหลือ บันทึกผลการตัดสินใจ AI และตรวจสอบหนังสือส่งต่อภายนอก (PDPA), 4. ออกจากระบบและเข้าสู่ระบบด้วยบัญชีแอดมินโรงเรียน (admin_a / changeme), 5. จัดการผู้ใช้งานในโรงเรียน (ค้นหา, กรองสถานะ, ตรวจสอบสิทธิ์), 6. บริหารจัดการข้อมูลชั้นเรียนและมอบหมายครูประจำชั้น, 7. ตรวจสอบระบบนำเข้าข้อมูลนักเรียน (Bulk Import History & Template Validation)",
+    steps: [
+      "1. เข้าสู่ระบบด้วยสถานะผู้อำนวยการโรงเรียน (director_a / changeme) และตรวจเช็คการนำทางสู่หน้าหลัก",
+      "2. ตรวจสอบข้อมูลสถิติภาพรวมโรงเรียน (KPI Cards: อัตรามาเรียน, นักเรียนกลุ่มเสี่ยง, เคสรอติดตาม) และกราฟวิเคราะห์",
+      "3. จัดการเคสนักเรียนกลุ่มเสี่ยงปานกลาง/สูง บันทึกมาตรการช่วยเหลือ อนุมัติผล AI Decision และสร้างหนังสือส่งต่อภายนอก (PDPA)",
+      "4. ล็อกเอาต์และเข้าสู่ระบบด้วยสถานะแอดมินโรงเรียน (admin_a / changeme)",
+      "5. เข้าสู่โมดูลจัดการผู้ใช้โรงเรียน ตรวจสอบรายชื่อ ค้นหา กรองสถานะ และตรวจสอบสิทธิ์การใช้งาน",
+      "6. เข้าสู่โมดูลบริหารจัดการห้องเรียน ตรวจสอบโครงสร้างชั้นเรียน และการมอบหมายครูประจำชั้น",
+      "7. ตรวจสอบระบบนำเข้าข้อมูลนักเรียน (Bulk Import) ตรวจสอบประวัติการนำเข้าและแบบฟอร์มเทมเพลต",
+    ],
+    expectedResult: "ทุกขั้นตอนของทั้งบทบาทผู้อำนวยการและแอดมินโรงเรียนทำงานอย่างราบรื่นต่อเนื่อง ข้อมูลสถิติ เคส การจัดการผู้ใช้ ห้องเรียน และการนำเข้าข้อมูลนักเรียนแสดงผลสมบูรณ์โดยไม่มีข้อผิดพลาด",
+    keySelectors: [
+      "#login-username, #login-password (ช่องเข้าสู่ระบบ)",
+      "main [role='heading'], .text-2xl (หัวข้อหน้าแดชบอร์ด/คอนโซล)",
+      "table tr:has-text('CASE-') (ตารางเคสนักเรียน)",
+      "button:has-text('ช่วยเหลือ'), button:has-text('ส่งต่อ') (ปุ่มดำเนินการเคส)",
+      "table tr:has-text('USER-'), input[placeholder*='ค้นหาผู้ใช้'] (ระบบจัดการผู้ใช้)",
+      "button:has-text('นำเข้า'), [data-testid='import-history'] (ระบบนำเข้าข้อมูลนักเรียน)",
+    ],
+  },
+
   "FN-STS-00": {
     id: "FN-STS-00",
     code: "FN-STS-00",

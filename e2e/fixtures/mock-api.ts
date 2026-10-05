@@ -1424,4 +1424,136 @@ export async function setupStsApiMocks(page: Page) {
       }),
     });
   });
+
+  // 13. Assistance / Interventions mock for Director UAT
+  const interventionsList: Array<{ id: number; caseId: number; type: string; details: string; result: string; date: string; createdAt: string }> = [
+    {
+      id: 1,
+      caseId: 201,
+      type: "ให้คำปรึกษา",
+      details: "พูดคุยให้กำลังใจนักเรียน",
+      result: "นักเรียนรับทราบและให้ความร่วมมือ",
+      date: "2026-09-26",
+      createdAt: new Date().toISOString(),
+    },
+  ];
+
+  await page.route(/\/api\/interventions|\/api\/cases\/(\d+)\/interventions|\/api\/cases\/(\d+)\/assistance/, async (route) => {
+    const method = route.request().method();
+    if (method === "POST") {
+      let data: any = {};
+      try { data = route.request().postDataJSON(); } catch { data = {}; }
+      const newIntervention = {
+        id: interventionsList.length + 1,
+        caseId: data.caseId || 201,
+        type: data.type || "ให้คำปรึกษา",
+        details: data.details || data.description || "พูดคุยให้กำลังใจนักเรียน",
+        result: data.result || "นักเรียนรับทราบและให้ความร่วมมือ",
+        date: data.date || new Date().toISOString().split("T")[0],
+        createdAt: new Date().toISOString(),
+      };
+      interventionsList.unshift(newIntervention);
+      return route.fulfill({
+        status: 201,
+        contentType: "application/json",
+        body: JSON.stringify(newIntervention),
+      });
+    }
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(interventionsList),
+    });
+  });
+
+  // 14. Referrals & Transfer Letters mock for Director UAT
+  const referralLettersList: Array<{ id: number; caseId: number; agencyType: string; agencyName: string; reason: string; assistanceNeeded: string; createdAt: string }> = [];
+
+  await page.route(/\/api\/referral-letters|\/api\/cases\/(\d+)\/referral-letters|\/api\/transfer-letters/, async (route) => {
+    const method = route.request().method();
+    if (method === "POST") {
+      let data: any = {};
+      try { data = route.request().postDataJSON(); } catch { data = {}; }
+      const newLetter = {
+        id: referralLettersList.length + 1,
+        caseId: data.caseId || 201,
+        agencyType: data.agencyType || "โรงพยาบาล/สาธารณสุข",
+        agencyName: data.agencyName || "โรงพยาบาลชลบุรี",
+        reason: data.reason || "นักเรียนมีภาวะซึมเศร้าจำเป็นต้องได้รับการประเมินจากแพทย์",
+        assistanceNeeded: data.assistanceNeeded || "ขอรับการประเมินและวางแผนการรักษา",
+        createdAt: new Date().toISOString(),
+      };
+      referralLettersList.unshift(newLetter);
+      return route.fulfill({
+        status: 201,
+        contentType: "application/json",
+        body: JSON.stringify(newLetter),
+      });
+    }
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(referralLettersList),
+    });
+  });
+
+  // 15. Student Bulk Import & Templates for School Admin UAT
+  await page.route(/\/api\/students\/import-history/, async (route) => {
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify([
+        {
+          id: "imp-1",
+          fileName: "student_mock.csv",
+          totalRows: 40,
+          successCount: 40,
+          failedCount: 0,
+          importedAt: new Date().toISOString(),
+          status: "SUCCESS",
+        },
+      ]),
+    });
+  });
+
+  await page.route(/\/api\/students\/import/, async (route) => {
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        success: true,
+        totalRows: 40,
+        successCount: 40,
+        failedCount: 0,
+        message: "นำเข้าไฟล์สำเร็จ 40 รายการ",
+      }),
+    });
+  });
+
+  await page.route(/\/api\/students\/template/, async (route) => {
+    return route.fulfill({
+      status: 200,
+      contentType: "text/csv",
+      headers: { "Content-Disposition": 'attachment; filename="student_template.csv"' },
+      body: "studentCode,firstName,lastName,gender,birthDate,classroom\naa111111,มนต์แคน,แก่นคูน,ชาย,2005-01-27,ม.1/1\n",
+    });
+  });
+
+  // 16. Director Approval & Decision mock
+  await page.route(/\/api\/cases\/(\d+)\/decision|\/api\/cases\/(\d+)\/director-approval/, async (route) => {
+    let data: any = {};
+    try { data = route.request().postDataJSON(); } catch { data = {}; }
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        success: true,
+        caseId: 201,
+        finalSeverity: data.finalSeverity || "MEDIUM",
+        reason: data.reason || "จากการตรวจสอบพบว่าผู้ปกครองให้ความร่วมมือดี ปรับเป็นระดับปานกลางเพื่อเฝ้าระวังต่อเนื่อง",
+        status: "APPROVED",
+        updatedAt: new Date().toISOString(),
+      }),
+    });
+  });
 }

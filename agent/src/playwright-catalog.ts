@@ -75,6 +75,9 @@ export function resolveTestGroupName(groupPath: string[], fileName: string): str
   const baseName = fileName.replace(/\.(spec|test)\.[a-z]+$/i, "").toLowerCase();
 
   // STS module files follow explicit numeric prefixing or login in sts context
+  if (baseName.includes("00-school") || (baseName.includes("school") && baseName.includes("all-in-one"))) {
+    return "[UAT โรงเรียน] Uat script [School] (Complete School Workflow)";
+  }
   if (baseName.includes("00-teacher") || baseName.includes("all-in-one")) {
     return "[UAT ครู] หมวด 7: รันทุกฟังก์ชัน All-in-One (Complete Workflow)";
   }
