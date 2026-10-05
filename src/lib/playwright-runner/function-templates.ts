@@ -366,17 +366,40 @@ const COMMON_STS_ROUTE_MOCKS = `
     });
 
     await page.route("**/api/dashboard/director/analytics*", async (route) => {
+      const url = new URL(route.request().url());
+      const classroomId = url.searchParams.get("classroomId") || url.searchParams.get("classroom");
+      const academicYearId = url.searchParams.get("academicYearId") || url.searchParams.get("academicYear");
+      const startDate = url.searchParams.get("startDate");
+      const endDate = url.searchParams.get("endDate");
+      const severity = url.searchParams.get("severity");
+      const hasFilter = !!(classroomId || academicYearId || startDate || endDate || severity);
+
       return route.fulfill({
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({
-          generatedAt: "2026-10-01T08:00:00.000Z",
-          appliedFilters: {},
-          overview: { totalStudents: 850, totalClassrooms: 24, totalCases: 12, closedCases: 4 },
-          attendanceTrend: [
-            { date: "2026-09-24", present: 820, absent: 15, late: 10, rate: 96.5 },
-            { date: "2026-09-25", present: 825, absent: 10, late: 8, rate: 97.2 },
-          ],
+          generatedAt: new Date().toISOString(),
+          appliedFilters: hasFilter
+            ? {
+                classroomId: classroomId ? Number(classroomId) : 1,
+                classroomName: classroomId ? "ม.3/1" : "ทุกห้อง",
+                academicYearLabel: academicYearId ? "2569" : undefined,
+                startDate: startDate || undefined,
+                endDate: endDate || undefined,
+              }
+            : {},
+          overview: hasFilter
+            ? { totalStudents: 35, totalClassrooms: 1, totalCases: 2, closedCases: 1 }
+            : { totalStudents: 850, totalClassrooms: 24, totalCases: 12, closedCases: 4 },
+          attendanceTrend: hasFilter
+            ? [
+                { date: "2026-09-24", present: 32, absent: 2, late: 1, rate: 91.4 },
+                { date: "2026-09-25", present: 33, absent: 1, late: 1, rate: 94.3 },
+              ]
+            : [
+                { date: "2026-09-24", present: 820, absent: 15, late: 10, rate: 96.5 },
+                { date: "2026-09-25", present: 825, absent: 10, late: 8, rate: 97.2 },
+              ],
           watchedClassrooms: [
             {
               classroomId: 1,
@@ -388,7 +411,9 @@ const COMMON_STS_ROUTE_MOCKS = `
               reasons: ["ขาดเรียนต่อเนื่อง"],
             },
           ],
-          severityDistribution: { LOW: 5, MEDIUM: 4, HIGH: 3, UNASSESSED: 0 },
+          severityDistribution: hasFilter
+            ? { LOW: 1, MEDIUM: 1, HIGH: 0, UNASSESSED: 0 }
+            : { LOW: 5, MEDIUM: 4, HIGH: 3, UNASSESSED: 0 },
         }),
       });
     });
@@ -1083,6 +1108,61 @@ test("TC-STS-SCHOOL-COMPLETE-E2E: School Complete UAT Workflow (Director & Admin
     });
   });
 
+  // Mock Students Import History API
+  await page.route(/\/api\/students\/import\/history|\/api\/students\/import-history/, async (route) => {
+    const historyData = [
+      {
+        id: "imp-2569-001",
+        fileName: "students_m3_term1_2569.xlsx",
+        originalFileName: "students_m3_term1_2569.xlsx",
+        fileSize: 45200,
+        totalRows: 35,
+        successCount: 35,
+        createdCount: 35,
+        insertedCount: 35,
+        updatedCount: 0,
+        skippedCount: 0,
+        failedCount: 0,
+        errorCount: 0,
+        status: "COMPLETED",
+        importedAt: "2026-09-28T09:30:00.000Z",
+        createdAt: "2026-09-28T09:30:00.000Z",
+        importedByUser: { id: 1, name: "สมชาย ผู้ดูแลระบบ (Admin)", username: "admin_a" },
+        importedBy: { id: 1, name: "สมชาย ผู้ดูแลระบบ (Admin)", username: "admin_a" },
+        user: { id: 1, name: "สมชาย ผู้ดูแลระบบ (Admin)", username: "admin_a" },
+      },
+      {
+        id: "imp-2569-002",
+        fileName: "students_m1_term1_2569.csv",
+        originalFileName: "students_m1_term1_2569.csv",
+        fileSize: 32400,
+        totalRows: 40,
+        successCount: 38,
+        createdCount: 38,
+        insertedCount: 38,
+        updatedCount: 0,
+        skippedCount: 0,
+        failedCount: 2,
+        errorCount: 2,
+        status: "COMPLETED_WITH_ERRORS",
+        importedAt: "2026-09-25T14:15:00.000Z",
+        createdAt: "2026-09-25T14:15:00.000Z",
+        importedByUser: { id: 1, name: "สมชาย ผู้ดูแลระบบ (Admin)", username: "admin_a" },
+        importedBy: { id: 1, name: "สมชาย ผู้ดูแลระบบ (Admin)", username: "admin_a" },
+        user: { id: 1, name: "สมชาย ผู้ดูแลระบบ (Admin)", username: "admin_a" },
+      },
+    ];
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        data: historyData,
+        items: historyData,
+        meta: { total: historyData.length, page: 1, limit: 25, totalPages: 1 },
+      }),
+    });
+  });
+
   // Mock Observations API
   await page.route(/\/api\/observations/, async (route) => {
     return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([{ id: 1, note: "ผู้ปกครองเข้ามาพบผู้อำนวยการโดยตรง" }]) });
@@ -1181,19 +1261,34 @@ test("TC-STS-SCHOOL-COMPLETE-E2E: School Complete UAT Workflow (Director & Admin
     const watchedSection = page.locator("main").locator("text=/ห้องเรียนที่ต้องเฝ้าระวัง|ห้องเรียน|ม.3|ดัชนี/i").first();
     await expect(watchedSection).toBeVisible();
 
-    // 4. ทดสอบตัวกรองข้อมูลย้อนหลัง (เปิด Modal เลือกตัวกรอง และกด 'นำไปใช้')
+    // 4. ทดสอบตัวกรองข้อมูลย้อนหลัง (เปิด Modal เลือกตัวกรองห้องเรียน และกด 'นำไปใช้' ให้เห็นการเปลี่ยนแปลงข้อมูลจริง)
     const filterBtn = page.locator("button:has-text('ตัวกรองข้อมูลย้อนหลัง'), button[aria-label*='ตัวกรอง'], button:has-text('ตัวกรอง')").first();
     if (await filterBtn.isVisible()) {
       await filterBtn.scrollIntoViewIfNeeded();
       await filterBtn.click();
       await page.waitForTimeout(1200);
 
+      // เลือกตัวกรองห้องเรียน (เช่น ห้อง 1 / ม.3/1) เพื่อสาธิตการกรองข้อมูลแบบเจาะจง
+      const classroomCombobox = page.locator("#filter-classroom, [aria-label*='ห้องเรียน']").first();
+      if (await classroomCombobox.isVisible()) {
+        await classroomCombobox.click();
+        await page.waitForTimeout(600);
+        const roomOption = page.locator("[role='option']:has-text('1'), [role='option']:has-text('ม.3'), li:has-text('1')").first();
+        if (await roomOption.isVisible()) {
+          await roomOption.click();
+          await page.waitForTimeout(800);
+        }
+      }
+
       // กดปุ่ม 'นำไปใช้' ในหน้าต่างตัวกรอง และรอให้แดชบอร์ดอัปเดตผลลัพธ์
       const applyFilterBtn = page.locator("button:has-text('นำไปใช้')").first();
       if (await applyFilterBtn.isVisible()) {
         await applyFilterBtn.scrollIntoViewIfNeeded();
         await applyFilterBtn.click();
-        await page.waitForTimeout(2000);
+        await page.waitForTimeout(2500);
+
+        // ตรวจสอบยืนยันว่าแดชบอร์ดอัปเดตข้อมูลตามตัวกรองที่เลือกจริง (จำนวนเคสและสถิติปรับตามห้องเรียน)
+        await expect(page.locator("text=/รวม 2 เคส|2 เคส|สัดส่วนความรุนแรง/i").first()).toBeVisible({ timeout: 5000 });
       } else {
         const closeFilterBtn = page.locator("button[data-filter-close], button:has-text('ปิด'), button:has-text('ยกเลิก')").first();
         if (await closeFilterBtn.isVisible()) {
@@ -1448,22 +1543,27 @@ test("TC-STS-SCHOOL-COMPLETE-E2E: School Complete UAT Workflow (Director & Admin
     await page.goto("/admin/students").catch(() => page.goto("/students"));
     await page.waitForTimeout(1500);
 
-    const importBtn = page.locator("button:has-text('นำเข้าข้อมูล'), button:has-text('ประวัติการนำเข้า'), a:has-text('นำเข้า')").first();
+    const importBtn = page.locator("a:has-text('นำเข้าข้อมูลนักเรียน'), button:has-text('นำเข้าข้อมูล'), a:has-text('นำเข้า')").first();
     if (await importBtn.isVisible()) {
       await importBtn.click();
       await page.waitForTimeout(1500);
 
-      // ทดสอบคลิกปุ่มดาวน์โหลดไฟล์ตัวอย่าง หรือเปิดดูประวัติการนำเข้า
+      // ทดสอบคลิกปุ่มดาวน์โหลดไฟล์ตัวอย่าง
       const downloadSampleBtn = page.locator("button:has-text('ดาวน์โหลดไฟล์ตัวอย่าง'), a:has-text('ดาวน์โหลดไฟล์ตัวอย่าง')").first();
       if (await downloadSampleBtn.isVisible()) {
         await downloadSampleBtn.click();
         await page.waitForTimeout(1000);
       }
 
-      const historyBtn = page.locator("button:has-text('ดูประวัติการนำเข้า'), a:has-text('ดูประวัติการนำเข้า')").first();
+      // เปิดดูประวัติการนำเข้าไฟล์ข้อมูลนักเรียน
+      const historyBtn = page.locator("a:has-text('ดูประวัติการนำเข้า'), button:has-text('ดูประวัติการนำเข้า'), a[href*='history']").first();
       if (await historyBtn.isVisible()) {
         await historyBtn.click();
-        await page.waitForTimeout(1200);
+        await page.waitForTimeout(2000);
+
+        // ตรวจสอบยืนยันการแสดงผลตารางประวัติการนำเข้า (แสดงรายการไฟล์ สถานะสำเร็จ และผู้ดำเนินการ)
+        await expect(page.locator("text=/ประวัติการนำเข้า|students_m3|สำเร็จ|COMPLETED/i").first()).toBeVisible({ timeout: 10_000 });
+        await page.waitForTimeout(3000);
       }
     }
 

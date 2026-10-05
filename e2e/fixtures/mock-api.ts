@@ -302,24 +302,52 @@ export async function setupStsApiMocks(page: Page) {
     });
   });
 
-  // 7. Director Analytics mock
+  // 7. Director Analytics mock (รองรับการจำลองผลลัพธ์ตัวกรองห้องเรียน/ช่วงเวลา)
   await page.route("**/api/dashboard/director/analytics*", async (route) => {
+    const url = new URL(route.request().url());
+    const classroomId = url.searchParams.get("classroomId") || url.searchParams.get("classroom");
+    const academicYearId = url.searchParams.get("academicYearId") || url.searchParams.get("academicYear");
+    const startDate = url.searchParams.get("startDate");
+    const endDate = url.searchParams.get("endDate");
+    const severity = url.searchParams.get("severity");
+    const hasFilter = !!(classroomId || academicYearId || startDate || endDate || severity);
+
     return route.fulfill({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
         generatedAt: new Date().toISOString(),
-        appliedFilters: {},
-        overview: {
-          totalStudents: 850,
-          totalClassrooms: 24,
-          totalCases: 12,
-          closedCases: 4,
-        },
-        attendanceTrend: [
-          { date: "2026-09-24", present: 820, absent: 15, late: 10, rate: 96.5 },
-          { date: "2026-09-25", present: 825, absent: 10, late: 8, rate: 97.2 },
-        ],
+        appliedFilters: hasFilter
+          ? {
+              classroomId: classroomId ? Number(classroomId) : 1,
+              classroomName: classroomId ? "ม.3/1" : "ทุกห้อง",
+              academicYearLabel: academicYearId ? "2569" : undefined,
+              startDate: startDate || undefined,
+              endDate: endDate || undefined,
+            }
+          : {},
+        overview: hasFilter
+          ? {
+              totalStudents: 35,
+              totalClassrooms: 1,
+              totalCases: 2,
+              closedCases: 1,
+            }
+          : {
+              totalStudents: 850,
+              totalClassrooms: 24,
+              totalCases: 12,
+              closedCases: 4,
+            },
+        attendanceTrend: hasFilter
+          ? [
+              { date: "2026-09-24", present: 32, absent: 2, late: 1, rate: 91.4 },
+              { date: "2026-09-25", present: 33, absent: 1, late: 1, rate: 94.3 },
+            ]
+          : [
+              { date: "2026-09-24", present: 820, absent: 15, late: 10, rate: 96.5 },
+              { date: "2026-09-25", present: 825, absent: 10, late: 8, rate: 97.2 },
+            ],
         watchedClassrooms: [
           {
             classroomId: 1,
@@ -331,12 +359,19 @@ export async function setupStsApiMocks(page: Page) {
             reasons: ["ขาดเรียนต่อเนื่อง"],
           },
         ],
-        severityDistribution: {
-          LOW: 5,
-          MEDIUM: 4,
-          HIGH: 3,
-          UNASSESSED: 0,
-        },
+        severityDistribution: hasFilter
+          ? {
+              LOW: 1,
+              MEDIUM: 1,
+              HIGH: 0,
+              UNASSESSED: 0,
+            }
+          : {
+              LOW: 5,
+              MEDIUM: 4,
+              HIGH: 3,
+              UNASSESSED: 0,
+            },
       }),
     });
   });
@@ -1618,22 +1653,59 @@ export async function setupStsApiMocks(page: Page) {
     });
   });
 
-  // 15. Student Bulk Import & Templates for School Admin UAT
-  await page.route(/\/api\/students\/import-history/, async (route) => {
+  // 15. Student Bulk Import & Templates for School Admin UAT (จำลองประวัติการนำเข้าไฟล์ข้อมูลนักเรียน)
+  await page.route(/\/api\/students\/import\/history|\/api\/students\/import-history/, async (route) => {
+    const historyData = [
+      {
+        id: "imp-2569-001",
+        fileName: "students_m3_term1_2569.xlsx",
+        originalFileName: "students_m3_term1_2569.xlsx",
+        fileSize: 45200,
+        totalRows: 35,
+        successCount: 35,
+        createdCount: 35,
+        insertedCount: 35,
+        updatedCount: 0,
+        skippedCount: 0,
+        failedCount: 0,
+        errorCount: 0,
+        status: "COMPLETED",
+        importedAt: "2026-09-28T09:30:00.000Z",
+        createdAt: "2026-09-28T09:30:00.000Z",
+        importedByUser: { id: 1, name: "สมชาย ผู้ดูแลระบบ (Admin)", username: "admin_a" },
+        importedBy: { id: 1, name: "สมชาย ผู้ดูแลระบบ (Admin)", username: "admin_a" },
+        user: { id: 1, name: "สมชาย ผู้ดูแลระบบ (Admin)", username: "admin_a" },
+      },
+      {
+        id: "imp-2569-002",
+        fileName: "students_m1_term1_2569.csv",
+        originalFileName: "students_m1_term1_2569.csv",
+        fileSize: 32400,
+        totalRows: 40,
+        successCount: 38,
+        createdCount: 38,
+        insertedCount: 38,
+        updatedCount: 0,
+        skippedCount: 0,
+        failedCount: 2,
+        errorCount: 2,
+        status: "COMPLETED_WITH_ERRORS",
+        importedAt: "2026-09-25T14:15:00.000Z",
+        createdAt: "2026-09-25T14:15:00.000Z",
+        importedByUser: { id: 1, name: "สมชาย ผู้ดูแลระบบ (Admin)", username: "admin_a" },
+        importedBy: { id: 1, name: "สมชาย ผู้ดูแลระบบ (Admin)", username: "admin_a" },
+        user: { id: 1, name: "สมชาย ผู้ดูแลระบบ (Admin)", username: "admin_a" },
+      },
+    ];
+
     return route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify([
-        {
-          id: "imp-1",
-          fileName: "student_mock.csv",
-          totalRows: 40,
-          successCount: 40,
-          failedCount: 0,
-          importedAt: new Date().toISOString(),
-          status: "SUCCESS",
-        },
-      ]),
+      body: JSON.stringify({
+        data: historyData,
+        items: historyData,
+        meta: { total: historyData.length, page: 1, limit: 25, totalPages: 1 },
+      }),
     });
   });
 
