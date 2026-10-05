@@ -1097,6 +1097,40 @@ test("TC-STS-SCHOOL-COMPLETE-E2E: School Complete UAT Workflow (Director & Admin
     return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([]) });
   });
 
+  // Mock AI Case Assessments
+  await page.route(/\/api\/ai-case-assessments(?:\/cases\/(\\d+)\/analyze|\/([a-zA-Z0-9_-]+))?/, async (route) => {
+    const url = route.request().url();
+    if (url.includes("/experiments/")) return route.fallback();
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        publicId: "asm-uat-101",
+        status: "ANALYZED",
+        revision: 1,
+        absentDays: 4,
+        lateDays: 0,
+        lateDaysAvailable: true,
+        blindReview: false,
+        hasCompletedBlindReview: true,
+        createdAt: new Date().toISOString(),
+        lockedAt: null,
+        latestAttempt: {
+          problemLabels: ["behavioral_problem"],
+          labelProbabilities: { behavioral_problem: 0.92 },
+          recommendedSeverity: "HIGH",
+          severityConfidence: 0.94,
+          reasons: ["นักเรียนมีพฤติกรรมแยกตัว ขาดเรียนบ่อยครั้งติดต่อกัน และมีสัญญาณความเหนื่อยล้าเรื้อรัง"],
+          safetyFlag: false,
+          safetyReasons: [],
+          modelVersion: "v2.4-dss",
+          analysisMode: "REFERENCE_ASSISTED",
+        },
+        reviews: [],
+      }),
+    });
+  });
+
   // Mock Director Approval & Decision
   await page.route(/\/api\/cases\/(\\d+)\/decision|\/api\/cases\/(\\d+)\/director-approval/, async (route) => {
     let data: any = {};
@@ -1147,11 +1181,23 @@ test("TC-STS-SCHOOL-COMPLETE-E2E: School Complete UAT Workflow (Director & Admin
     const watchedSection = page.locator("main").locator("text=/ห้องเรียนที่ต้องเฝ้าระวัง|ห้องเรียน|ม.3|ดัชนี/i").first();
     await expect(watchedSection).toBeVisible();
 
-    // 4. ทดสอบปุ่มตัวกรองข้อมูลย้อนหลัง
+    // 4. ทดสอบตัวกรองข้อมูลย้อนหลัง (เปิด Modal เลือกตัวกรอง และกด 'นำไปใช้')
     const filterBtn = page.getByRole("button", { name: /ตัวกรองข้อมูลย้อนหลัง|ตัวกรอง|กรองข้อมูล/i }).first();
     if (await filterBtn.isVisible()) {
       await filterBtn.click();
-      await page.waitForTimeout(600);
+      await page.waitForTimeout(800);
+
+      // กดปุ่ม 'นำไปใช้' ในหน้าต่างตัวกรอง
+      const applyFilterBtn = page.locator("button:has-text('นำไปใช้'), button:has-text('ตกลง')").first();
+      if (await applyFilterBtn.isVisible()) {
+        await applyFilterBtn.click();
+        await page.waitForTimeout(1000);
+      } else {
+        const closeFilterBtn = page.locator("button[data-filter-close], button:has-text('ปิด'), button:has-text('ยกเลิก')").first();
+        if (await closeFilterBtn.isVisible()) {
+          await closeFilterBtn.click();
+        }
+      }
     }
 
     await page.waitForTimeout(2000);
@@ -1216,13 +1262,27 @@ test("TC-STS-SCHOOL-COMPLETE-E2E: School Complete UAT Workflow (Director & Admin
       }
     }
 
+    // 2. ทดสอบเปิดแบบฟอร์มออกหนังสือส่งตัว (Referral Letter Dialog)
     const letterBtn = page.locator("button:has-text('ออกหนังสือส่งตัว'), button:has-text('ส่งต่อภายนอก')").first();
     if (await letterBtn.isVisible()) {
       await letterBtn.click();
       await page.waitForTimeout(800);
-      const cancelLetterBtn = page.locator("button:has-text('ยกเลิก'), button:has-text('ปิด')").first();
+
+      // กรอกข้อมูลหน่วยงานภายนอกจำลอง
+      const agencyNameInput = page.locator("#agency-name, input[placeholder*='โรงพยาบาล']").first();
+      if (await agencyNameInput.isVisible()) {
+        await agencyNameInput.fill("โรงพยาบาลชลบุรี");
+      }
+      const reasonInput = page.locator("#referral-reason, textarea[placeholder*='เหตุผล'], textarea").first();
+      if (await reasonInput.isVisible()) {
+        await reasonInput.fill("นักเรียนมีภาวะเครียดและต้องการรับคำปรึกษาจากแพทย์ผู้เชี่ยวชาญ");
+      }
+
+      // ปิดหรือยกเลิก Modal
+      const cancelLetterBtn = page.locator("button:has-text('ยกเลิก'), button:has-text('ปิด')").last();
       if (await cancelLetterBtn.isVisible()) {
         await cancelLetterBtn.click();
+        await page.waitForTimeout(600);
       }
     }
 
@@ -1242,11 +1302,13 @@ test("TC-STS-SCHOOL-COMPLETE-E2E: School Complete UAT Workflow (Director & Admin
       }
     }
 
+    // 2. วิเคราะห์เคสด้วย AI และรอผลสำเร็จสมบูรณ์
     const aiBtn = page.locator("button:has-text('วิเคราะห์เคสด้วย AI'), button:has-text('วิเคราะห์จากบันทึกข้อสังเกตล่าสุด')").first();
     if (await aiBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
       if (await aiBtn.isEnabled()) {
         await aiBtn.click();
-        await page.waitForTimeout(2500);
+        // รอให้กระบวนการ AI ประมวลผลและเปิดเผยผลวิเคราะห์ (Progress -> Result Reveal -> Completed)
+        await page.waitForTimeout(4000);
       }
     }
 
@@ -1329,7 +1391,20 @@ test("TC-STS-SCHOOL-COMPLETE-E2E: School Complete UAT Workflow (Director & Admin
     const importBtn = page.locator("button:has-text('นำเข้าข้อมูล'), button:has-text('ประวัติการนำเข้า'), a:has-text('นำเข้า')").first();
     if (await importBtn.isVisible()) {
       await importBtn.click();
-      await page.waitForTimeout(1200);
+      await page.waitForTimeout(1500);
+
+      // ทดสอบคลิกปุ่มดาวน์โหลดไฟล์ตัวอย่าง หรือเปิดดูประวัติการนำเข้า
+      const downloadSampleBtn = page.locator("button:has-text('ดาวน์โหลดไฟล์ตัวอย่าง'), a:has-text('ดาวน์โหลดไฟล์ตัวอย่าง')").first();
+      if (await downloadSampleBtn.isVisible()) {
+        await downloadSampleBtn.click();
+        await page.waitForTimeout(1000);
+      }
+
+      const historyBtn = page.locator("button:has-text('ดูประวัติการนำเข้า'), a:has-text('ดูประวัติการนำเข้า')").first();
+      if (await historyBtn.isVisible()) {
+        await historyBtn.click();
+        await page.waitForTimeout(1200);
+      }
     }
 
     await page.waitForTimeout(5000);

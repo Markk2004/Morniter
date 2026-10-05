@@ -1411,6 +1411,8 @@ export async function setupStsApiMocks(page: Page) {
     });
   });
 
+
+
   await page.route(/\/api\/ai-dss\/cases\/(\d+)\/overview/, async (route) => {
     return route.fulfill({
       status: 200,
