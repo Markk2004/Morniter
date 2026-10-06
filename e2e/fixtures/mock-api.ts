@@ -93,6 +93,17 @@ export async function setupStsApiMocks(
     });
   });
 
+  await page.route("**/api/auth/step-up/user-access", async (route) => {
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        stepUpToken: "mock-step-up-token-12345",
+        expiresAt: new Date(Date.now() + 300000).toISOString(),
+      }),
+    });
+  });
+
   // 1.1 Auth refresh mock (essential for page reloads / deep linking with AuthGate)
   await page.route("**/api/auth/refresh*", async (route) => {
     return route.fulfill({
@@ -955,7 +966,7 @@ export async function setupStsApiMocks(
       email: "teacher_a@example.com",
       phone: "0823456789",
       isActive: true,
-      mustSetPassword: false,
+      mustSetPassword: true,
       isPasswordExpired: false,
       provinceId: 1,
       schoolId: 1,
@@ -1021,12 +1032,22 @@ export async function setupStsApiMocks(
       });
     }
 
-    // Check suspend
-    if (url.includes("/suspend")) {
+    // Check suspend or toggle-active
+    if (url.includes("/suspend") || url.includes("/toggle-active")) {
+      const match = url.match(/\/api\/users\/(\d+)\/(?:suspend|toggle-active)/);
+      let targetUser: any = null;
+      if (match) {
+        const uId = Number(match[1]);
+        const target = mockUsersList.find((u) => u.id === uId);
+        if (target) {
+          target.isActive = false;
+          targetUser = target;
+        }
+      }
       return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ success: true }),
+        body: JSON.stringify(targetUser ? { ...targetUser, isActive: false } : { success: true, isActive: false }),
       });
     }
 
@@ -1061,6 +1082,39 @@ export async function setupStsApiMocks(
 
     // PATCH update user
     if (method === "PATCH" || method === "PUT") {
+      let patchData: Record<string, unknown> = {};
+      try {
+        patchData = (route.request().postDataJSON() as Record<string, unknown>) || {};
+      } catch {
+        patchData = {};
+      }
+      const match = url.match(/\/api\/users\/(\d+)/);
+      if (match) {
+        const uId = Number(match[1]);
+        const target = mockUsersList.find((u) => u.id === uId);
+        if (target) {
+          if (patchData.full_name) target.name = patchData.full_name as string;
+          if (patchData.name) target.name = patchData.name as string;
+          if (patchData.isActive !== undefined) target.isActive = Boolean(patchData.isActive);
+        }
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ success: true }),
+      });
+    }
+
+    // DELETE delete user
+    if (method === "DELETE") {
+      const match = url.match(/\/api\/users\/(\d+)/);
+      if (match) {
+        const uId = Number(match[1]);
+        const idx = mockUsersList.findIndex((u) => u.id === uId);
+        if (idx !== -1) {
+          mockUsersList.splice(idx, 1);
+        }
+      }
       return route.fulfill({
         status: 200,
         contentType: "application/json",

@@ -138,186 +138,252 @@ test.describe("[UAT ผู้ดูแลระบบโรงเรียน] U
       await page.waitForTimeout(1500);
       await expect(page.locator("h1").first()).toBeVisible({ timeout: 10_000 });
 
-      // TC-STS-02-30-02: ตรวจสอบปุ่มเพิ่มผู้ใช้ เมื่อไม่กรอกข้อมูล
-      const addUserBtn = page.locator("#add-user-btn");
-      if (await addUserBtn.isVisible()) {
-        await addUserBtn.click();
-        await page.waitForTimeout(600);
-        const formModal = page.locator(".users-form-modal, dialog").first();
-        await expect(formModal).toBeVisible();
+      // =======================================================================
+      // 1. TC-STS-02-30-02: ตรวจสอบการทำงานของปุ่มเพิ่มผู้ใช้ ในเพิ่มผู้ใช้ใหม่ (เมื่อไม่มีการกรอกข้อมูล)
+      // =======================================================================
+      const addUserBtn = page.locator("#add-user-btn, button:has-text('เพิ่มผู้ใช้')").first();
+      await expect(addUserBtn).toBeVisible({ timeout: 10_000 });
+      await addUserBtn.click();
+      await page.waitForTimeout(600);
 
-        // ไม่กรอกอะไรแล้วกดปุ่ม "เพิ่มผู้ใช้"
-        const submitAddBtn = formModal.getByRole("button", { name: "เพิ่มผู้ใช้" }).first();
-        if (await submitAddBtn.isVisible()) {
-          await submitAddBtn.click();
+      const addModal = page.locator(".users-form-modal, dialog[open], [role='dialog']").first();
+      await expect(addModal).toBeVisible();
+
+      // ไม่กรอกข้อมูลแล้วกดปุ่ม "เพิ่มผู้ใช้"
+      const submitAddBtn = addModal.getByRole("button", { name: "เพิ่มผู้ใช้" }).first();
+      await submitAddBtn.click();
+      await page.waitForTimeout(400);
+      // TC-STS-02-30-02 Expected: ไม่สามารถเพิ่มผู้ใช้ได้ มีแจ้งเตือนกรอกข้อมูลให้ครบ
+      await expect(addModal).toBeVisible();
+      await expect(page.locator("text=/กรุณากรอก|จำเป็น/i").first()).toBeVisible();
+
+      // =======================================================================
+      // 2. TC-STS-02-31-03: ตรวจสอบการกรอกข้อมูล ในเพิ่มผู้ใช้ใหม่ (ชื่อผู้ใช้ภาษาไทย: "มอมแมม")
+      // =======================================================================
+      const usernameInput = addModal.locator("input#form-username");
+      await usernameInput.fill("มอมแมม");
+      await page.waitForTimeout(300);
+      const thaiVal = await usernameInput.inputValue();
+      // TC-STS-02-31-03 Expected: ไม่สามารถกรอกข้อมูลได้ (ภาษาไทยถูก sanitize บล็อกออก)
+      expect(thaiVal).not.toContain("มอมแมม");
+
+      // =======================================================================
+      // 3. TC-STS-02-34-01: ตรวจสอบการแสดงผลข้อมูลผู้ใช้งาน หลังการเพิ่ม
+      // ข้อมูลทดสอบ: ชื่อ-นามสกุล : ครูอำนาจ คาดหวัง, บทบาท : ครูที่ปรึกษา
+      // =======================================================================
+      const fullNameInput = addModal.locator("input#form-full_name");
+      await fullNameInput.fill("ครูอำนาจ คาดหวัง");
+      await usernameInput.fill("teacher_umnat");
+
+      // กดปุ่ม สุ่มรหัสผ่าน
+      const randomPassBtn = addModal.getByRole("button", { name: /สุ่ม|สร้าง/i }).first();
+      if (await randomPassBtn.isVisible()) {
+        await randomPassBtn.click();
+        await page.waitForTimeout(300);
+      }
+
+      // เลือก บทบาท: ครูที่ปรึกษา
+      const roleSelect = addModal.locator("select#form-role");
+      if (await roleSelect.isVisible()) {
+        await roleSelect.selectOption({ label: "ครูที่ปรึกษา (Teacher)" }).catch(() => roleSelect.selectOption({ index: 1 }));
+      }
+
+      // กดปุ่ม เพิ่มผู้ใช้ เพื่อบันทึก
+      await submitAddBtn.click();
+      await page.waitForTimeout(1000);
+
+      // ปิด Handoff modal (ข้อมูลเข้าสู่ระบบ / ปุ่ม "เสร็จสิ้น") หากปรากฏขึ้นมา
+      const handoffDoneBtn = page.locator(".users-handoff-modal button:has-text('เสร็จสิ้น'), button:has-text('เสร็จสิ้น')").first();
+      if (await handoffDoneBtn.isVisible()) {
+        await handoffDoneBtn.click();
+        await page.waitForTimeout(500);
+      }
+
+      // TC-STS-02-34-01 Expected: เพิ่มผู้ใช้งานสำเร็จ กลับไปยังหน้าจอตาราง และแสดงผลถูกต้อง
+      await expect(page.locator("tbody")).toContainText("ครูอำนาจ คาดหวัง");
+
+      // =======================================================================
+      // 4. TC-STS-02-24-01: ตรวจสอบการทำงานของปุ่มบันทึก ในแก้ไขผู้ใช้ (เมื่อไม่กรอกชื่อผู้ใช้)
+      // =======================================================================
+      // คลิกแถวของผู้ใช้ "ครูอำนาจ คาดหวัง" เพื่อเปิดเมนู
+      const createdRow = page.locator("tbody tr:has-text('ครูอำนาจ คาดหวัง')").first();
+      const rowForEdit = (await createdRow.isVisible()) ? createdRow : page.locator("tbody tr").first();
+      await rowForEdit.click();
+      await page.waitForTimeout(500);
+
+      const editMenuItem = page.locator("button[role='menuitem']:has-text('แก้ไข')").first();
+      await expect(editMenuItem).toBeVisible();
+      await editMenuItem.click();
+      await page.waitForTimeout(600);
+
+      const editModal = page.locator(".users-form-modal, dialog[open], [role='dialog']").first();
+      await expect(editModal).toBeVisible();
+
+      // ลบข้อมูลชื่อผู้ใช้
+      const editNameInput = editModal.locator("input#form-full_name");
+      await editNameInput.clear();
+
+      // กดปุ่ม บันทึก
+      const saveBtn = editModal.getByRole("button", { name: "บันทึก" }).first();
+      await saveBtn.click();
+      await page.waitForTimeout(400);
+      // TC-STS-02-24-01 Expected: ไม่สามารถบันทึกได้สำเร็จ มีแจ้งเตือนยังกรอกข้อมูลไม่ครบ
+      await expect(editModal).toBeVisible();
+      await expect(page.locator("text=/กรุณากรอก|จำเป็น/i").first()).toBeVisible();
+
+      // =======================================================================
+      // 5. TC-STS-02-35-02: ตรวจสอบการแสดงผลข้อมูลผู้ใช้งาน หลังการแก้ไข (ครูหวัง คาดหวัง)
+      // =======================================================================
+      await editNameInput.fill("ครูหวัง คาดหวัง");
+      await saveBtn.click();
+      await page.waitForTimeout(1000);
+      // TC-STS-02-35-02 Expected: แสดงข้อมูลบนตารางถูกต้องครบถ้วน ("ครูหวัง คาดหวัง")
+      await expect(page.locator("tbody")).toContainText("ครูหวัง คาดหวัง");
+
+      // =======================================================================
+      // 6. TC-STS-02-26-01: ตรวจสอบการทำงานของ Dialog ลบผู้ใช้งาน (เมื่อกดยกเลิก)
+      // =======================================================================
+      const targetRowForDelete = page.locator("tbody tr:has-text('ครูหวัง คาดหวัง')").first();
+      await targetRowForDelete.click();
+      await page.waitForTimeout(500);
+
+      const editMenuForDelete = page.locator("button[role='menuitem']:has-text('แก้ไข')").first();
+      await editMenuForDelete.click();
+      await page.waitForTimeout(600);
+
+      // ใน Edit Modal กดปุ่ม "ลบผู้ใช้"
+      const deleteUserBtn = page.locator("button.users-delete-button, button:has-text('ลบผู้ใช้')").first();
+      if (await deleteUserBtn.isVisible()) {
+        await deleteUserBtn.click();
+        await page.waitForTimeout(500);
+
+        // ตรวจสอบ Dialog ลบผู้ใช้งาน แสดงขึ้นมา (ConfirmDialog มักจะเป็น top-most / max-w-sm)
+        const deleteConfirmDialog = page.locator("dialog[open]").filter({ hasText: "คุณต้องการลบ" }).first();
+        if (await deleteConfirmDialog.isVisible()) {
+          // กดปุ่ม ยกเลิก
+          const cancelDeleteBtn = deleteConfirmDialog.locator("button:has-text('ยกเลิก')").first();
+          await cancelDeleteBtn.click();
           await page.waitForTimeout(400);
-          // TC-STS-02-30-02 Expected: ไม่สามารถเพิ่มผู้ใช้ได้ มีแจ้งเตือนกรอกข้อมูลให้ครบ
-          await expect(formModal).toBeVisible();
-          await expect(page.locator("text=/กรุณากรอก|จำเป็น/i").first()).toBeVisible();
-        }
-
-        // TC-STS-02-31-03: ตรวจสอบการกรอกข้อมูลชื่อผู้ใช้เป็นภาษาไทย (ระบบต้อง sanitize / ป้องกัน)
-        const usernameInput = formModal.locator("input#form-username");
-        if (await usernameInput.isVisible()) {
-          await usernameInput.fill("มอมแมม");
-          await page.waitForTimeout(300);
-          const val = await usernameInput.inputValue();
-          // ภาษาไทยต้องถูก sanitize ออก (ค่าว่าง หรือไม่อนุญาต)
-          expect(val).not.toContain("มอมแมม");
-        }
-
-        // TC-STS-02-34-01: ตรวจสอบการแสดงผลเมื่อเพิ่มผู้ใช้งานใหม่ กรอกครบ สุ่มรหัสผ่าน
-        const fullNameInput = formModal.locator("input#form-full_name");
-        if (await fullNameInput.isVisible()) {
-          await fullNameInput.fill("ครูอำนาจ คาดหวัง");
-        }
-        if (await usernameInput.isVisible()) {
-          await usernameInput.fill("teacher_umnat");
-        }
-        // กดปุ่มสุ่มรหัสผ่าน
-        const randomPassBtn = formModal.getByRole("button", { name: /สุ่ม|สร้าง/i }).first();
-        if (await randomPassBtn.isVisible()) {
-          await randomPassBtn.click();
-          await page.waitForTimeout(300);
-        }
-        // เลือกบทบาท ครูที่ปรึกษา
-        const roleSelect = formModal.locator("select#form-role");
-        if (await roleSelect.isVisible()) {
-          await roleSelect.selectOption({ label: "ครูที่ปรึกษา (Teacher)" }).catch(() => roleSelect.selectOption({ index: 1 }));
-        }
-
-        // กดยกเลิกฟอร์ม (เพื่อทดสอบ Dialog ยกเลิก TC-STS-02-26-01)
-        const cancelFormBtn = formModal.getByRole("button", { name: "ยกเลิก" }).first();
-        if (await cancelFormBtn.isVisible()) {
-          await cancelFormBtn.click();
-          await page.waitForTimeout(500);
-          // ยืนยันยกเลิกใน Confirm Dialog
-          const confirmCancel = page.getByRole("dialog").getByRole("button", { name: /ยืนยัน|ยกเลิกการเพิ่ม/i }).first();
-          if (await confirmCancel.isVisible()) {
-            await confirmCancel.click();
-            await page.waitForTimeout(800);
-          }
-        }
-        // ตรวจสอบว่า dialog ปิดหมดแล้ว
-        await page.keyboard.press("Escape").catch(() => {});
-        await page.waitForTimeout(500);
-      }
-
-      // TC-STS-02-24-01: ตรวจสอบปุ่มบันทึก เมื่อไม่กรอกชื่อผู้ใช้ ในแก้ไขผู้ใช้
-      // TC-STS-02-35-02: ตรวจสอบการแสดงผล เมื่อแก้ไขข้อมูลแล้วกดบันทึก
-      // คลิกแถวในตารางเพื่อเปิด Context Menu
-      const firstRow = page.locator("tbody tr").first();
-      if (await firstRow.isVisible()) {
-        await firstRow.click();
-        await page.waitForTimeout(500);
-
-        // ตรวจสอบเมนูแก้ไข
-        const editMenuItem = page.locator("button[role='menuitem']:has-text('แก้ไข')").first();
-        if (await editMenuItem.isVisible()) {
-          await editMenuItem.click();
-          await page.waitForTimeout(600);
-
-          const editModal = page.locator(".users-form-modal, dialog").first();
-          if (await editModal.isVisible()) {
-            const nameInput = editModal.locator("input#form-full_name");
-            // ลบชื่อผู้ใช้ เพื่อทดสอบ TC-STS-02-24-01
-            await nameInput.clear();
-            const saveBtn = editModal.getByRole("button", { name: "บันทึก" }).first();
-            await saveBtn.click();
-            await page.waitForTimeout(300);
-            await expect(page.locator("text=/กรุณากรอก|จำเป็น/i").first()).toBeVisible();
-
-            // กรอกชื่อใหม่ตาม TC-STS-02-35-02 (ครูหวัง คาดหวัง)
-            await nameInput.fill("ครูหวัง คาดหวัง");
-            await saveBtn.click();
-            await page.waitForTimeout(800);
-          }
         }
       }
 
-      // TC-STS-02-32-04: ตรวจสอบการกรอกข้อมูล บทบาท ต้องยืนยันรหัสผ่านก่อน (ปรับเปลี่ยนสิทธิ์)
-      if (await firstRow.isVisible()) {
-        await firstRow.click();
-        await page.waitForTimeout(500);
-        const changeAccessBtn = page.locator("button[role='menuitem']:has-text('เปลี่ยนสิทธิ์')").first();
-        if (await changeAccessBtn.isVisible()) {
-          await changeAccessBtn.click();
-          await page.waitForTimeout(600);
-
-          // ใน Modal เปลี่ยนสิทธิ์ ให้กดปุ่มยกเลิก
-          const openDialog = page.locator("dialog[open]");
-          if (await openDialog.isVisible()) {
-            const cancelBtn = openDialog.getByRole("button", { name: "ยกเลิก", exact: true }).first();
-            if (await cancelBtn.isVisible()) {
-              await cancelBtn.click({ force: true });
-              await page.waitForTimeout(400);
-
-              // ถ้ามี Confirmation Prompt Overlay ขึ้นมา ให้กดปุ่มยืนยันยกเลิก
-              const discardBtn = openDialog.locator("button.btn-danger").first();
-              if (await discardBtn.isVisible()) {
-                await discardBtn.click({ force: true });
-                await page.waitForTimeout(400);
-              }
-            }
-          }
-        }
-        // ตรวจสอบและปิด dialog ทั้งหมดที่อาจค้างอยู่ใน DOM
-        await page.evaluate(() => {
-          document.querySelectorAll('dialog[open]').forEach(d => (d as HTMLDialogElement).close());
-        });
-        await page.keyboard.press("Escape").catch(() => {});
+      // ปิด Edit Modal ถ้ายังเปิดอยู่
+      const closeEditModalBtn = page.locator("dialog[open]").filter({ hasText: "แก้ไขผู้ใช้" }).locator("button:has-text('ยกเลิก'), button:has-text('ปิด')").first();
+      if (await closeEditModalBtn.isVisible()) {
+        await closeEditModalBtn.click();
         await page.waitForTimeout(400);
       }
+      await page.evaluate(() => {
+        document.querySelectorAll('dialog[open]').forEach(d => (d as HTMLDialogElement).close());
+      });
+      // TC-STS-02-26-01 Expected: ยกเลิกการลบข้อมูล ผู้ใช้ยังคงอยู่บนตาราง
+      await expect(page.locator("tbody")).toContainText("ครูหวัง คาดหวัง");
 
-      // เลือก row อื่นที่ไม่ใช่ตัวเอง (เช่นแถวที่ 2 ซึ่งเป็นครู) สำหรับ Suspend และ Reset Password
-      const targetRow = page.locator("tbody tr").nth(1);
-      const rowToUse = (await targetRow.isVisible()) ? targetRow : firstRow;
+      // =======================================================================
+      // 7. TC-STS-02-28-02: ตรวจสอบการทำงานของ Dialog ระงับผู้ใช้
+      // 8. TC-STS-02-36-01: ตรวจสอบการแสดงผลข้อมูลผู้ใช้งาน หลังระงับการใช้งาน
+      // =======================================================================
+      const targetRowForSuspend = page.locator("tbody tr:has-text('ครูหวัง คาดหวัง')").first();
+      await targetRowForSuspend.click();
+      await page.waitForTimeout(500);
 
-      // TC-STS-02-28-02 & TC-STS-02-36-01: ตรวจสอบ Dialog ระงับผู้ใช้ / แสดงผลระงับ
-      if (await rowToUse.isVisible()) {
-        await rowToUse.click();
+      const suspendMenuItem = page.locator("button[role='menuitem']:has-text('ระงับ')").first();
+      await expect(suspendMenuItem).toBeVisible();
+      await suspendMenuItem.click();
+      await page.waitForTimeout(500);
+
+      // ตรวจสอบ Dialog ระงับผู้ใช้ แสดงขึ้นมา
+      const suspendDialog = page.locator("dialog[open]").filter({ hasText: /ระงับ/ }).last();
+      await expect(suspendDialog).toBeVisible();
+
+      // กดยืนยันระงับผู้ใช้
+      const confirmSuspendBtn = suspendDialog.locator("button:has-text('ระงับ')").last();
+      await confirmSuspendBtn.click();
+      await page.waitForTimeout(1000);
+
+      // TC-STS-02-36-01 Expected: แสดงข้อมูลบนตารางเป็นระงับ
+      await expect(page.locator("tbody tr:has-text('ครูหวัง คาดหวัง')").first()).toContainText(/ถูกระงับ|ระงับ/);
+
+      // =======================================================================
+      // 9. TC-STS-02-29-02: ตรวจสอบการทำงานของ Dialog รีเซ็ตรหัสผ่าน เมื่อกดยืนยันรีเซ็ตรหัสผ่าน
+      // =======================================================================
+      // เลือกแถวที่มี mustSetPassword (สมหญิง ครูประจำชั้น แถวที่ 2)
+      const targetRowForReset = page.locator("tbody tr").nth(1);
+      await targetRowForReset.click();
+      await page.waitForTimeout(500);
+
+      const resetPassMenuItem = page.locator("button[role='menuitem']:has-text('รหัสผ่าน')").first();
+      if (await resetPassMenuItem.isVisible()) {
+        await resetPassMenuItem.click();
         await page.waitForTimeout(500);
-        const suspendMenuItem = page.locator("button[role='menuitem']:has-text('ระงับ')").first();
-        if (await suspendMenuItem.isVisible()) {
-          await suspendMenuItem.click();
-          await page.waitForTimeout(500);
-          // ปิด Dialog ระงับ
-          const cancelSuspend = page.locator("dialog[open] button, .users-suspend-dialog button, button").filter({ hasText: "ยกเลิก" }).first();
-          if (await cancelSuspend.isVisible()) {
-            await cancelSuspend.click();
-            await page.waitForTimeout(400);
-          }
-        }
-        await page.evaluate(() => {
-          document.querySelectorAll('dialog[open]').forEach(d => (d as HTMLDialogElement).close());
-        });
-        await page.keyboard.press("Escape").catch(() => {});
-        await page.waitForTimeout(300);
-      }
 
-      // TC-STS-02-29-02: ตรวจสอบ Dialog รีเซ็ตรหัสผ่าน
-      if (await rowToUse.isVisible()) {
-        await rowToUse.click();
-        await page.waitForTimeout(500);
-        const resetPassMenuItem = page.locator("button[role='menuitem']:has-text('รหัสผ่าน')").first();
-        if (await resetPassMenuItem.isVisible()) {
-          await resetPassMenuItem.click();
-          await page.waitForTimeout(500);
-          const closeReset = page.locator("dialog[open] button, button").filter({ hasText: /ยกเลิก|ปิด/ }).first();
-          if (await closeReset.isVisible()) {
-            await closeReset.click();
-            await page.waitForTimeout(400);
-          }
-        }
-        await page.evaluate(() => {
-          document.querySelectorAll('dialog[open]').forEach(d => (d as HTMLDialogElement).close());
-        });
-        await page.keyboard.press("Escape").catch(() => {});
-        await page.waitForTimeout(300);
-      }
+        // ตรวจสอบ Dialog รีเซ็ตรหัสผ่าน แสดงขึ้นมา
+        const resetDialog = page.locator("dialog[open], .users-reset-dialog, [role='dialog']").first();
+        await expect(resetDialog).toBeVisible();
 
-      // TC-STS-02-26-01: ตรวจสอบ Dialog ลบผู้ใช้งาน เมื่อกดยกเลิก
-      // (เปิดจากฟอร์มแก้ไขหรือเมนูแล้วกดยกเลิก)
+        // กดปุ่ม ยืนยันรีเซ็ตรหัสผ่าน
+        const confirmResetBtn = resetDialog.getByRole("button", { name: /รีเซ็ตรหัสผ่าน/i }).first();
+        await confirmResetBtn.click();
+        await page.waitForTimeout(800);
+
+        // TC-STS-02-29-02 Expected: สร้างรหัสผ่านชั่วคราวสำเร็จ
+        await expect(page.locator("text=/สร้างรหัสผ่านชั่วคราวแล้ว|รหัสผ่านชั่วคราว/i").first()).toBeVisible();
+
+        // ปิด Dialog
+        const closeResetBtn = page.locator("dialog[open] button:has-text('ปิด'), dialog[open] button:has-text('ยกเลิก')").first();
+        if (await closeResetBtn.isVisible()) {
+          await closeResetBtn.click();
+          await page.waitForTimeout(400);
+        }
+      }
+      await page.evaluate(() => {
+        document.querySelectorAll('dialog[open]').forEach(d => (d as HTMLDialogElement).close());
+      });
+
+      // =======================================================================
+      // 10. TC-STS-02-32-04: ตรวจสอบการกรอกข้อมูล บทบาท ต้องยืนยันรหัสผ่านก่อน (ปรับเปลี่ยนสิทธิ์)
+      // =======================================================================
+      const targetRowForAccess = page.locator("tbody tr").nth(1);
+      await targetRowForAccess.click();
+      await page.waitForTimeout(500);
+
+      const changeAccessBtn = page.locator("button[role='menuitem']:has-text('เปลี่ยนสิทธิ์')").first();
+      await expect(changeAccessBtn).toBeVisible();
+      await changeAccessBtn.click();
+      await page.waitForTimeout(600);
+
+      const accessModal = page.locator("dialog[open]").first();
+      await expect(accessModal).toBeVisible();
+
+      // ตรวจสอบข้อความแจ้งเตือน "ต้องยืนยันตัวตนขั้นสูง" และ combobox บทบาทถูก disabled ก่อนยืนยันรหัสผ่าน
+      await expect(accessModal.locator("text=/ต้องยืนยันตัวตนขั้นสูง/i")).toBeVisible();
+      const roleCombobox = accessModal.locator("#target-role, [role='combobox']").first();
+      await expect(roleCombobox).toBeDisabled();
+
+      // ยืนยันรหัสผ่าน (changeme)
+      const verifyPasswordInput = accessModal.locator("input[type='password']").first();
+      await verifyPasswordInput.fill("changeme");
+      const confirmVerifyBtn = accessModal.locator("button:has-text('ยืนยัน')").first();
+      await confirmVerifyBtn.click();
+      await page.waitForTimeout(600);
+
+      // TC-STS-02-32-04 Expected: สามารถเปลี่ยนบทบาทได้ (combobox ปลดล็อกให้เลือกได้)
+      await expect(roleCombobox).toBeEnabled();
+
+      // ปิด Modal
+      const cancelAccessBtn = accessModal.getByRole("button", { name: "ยกเลิก", exact: true }).first();
+      if (await cancelAccessBtn.isVisible()) {
+        await cancelAccessBtn.click({ force: true });
+        await page.waitForTimeout(400);
+        const discardBtn = accessModal.locator("button.btn-danger").first();
+        if (await discardBtn.isVisible()) {
+          await discardBtn.click({ force: true });
+          await page.waitForTimeout(400);
+        }
+      }
+      await page.evaluate(() => {
+        document.querySelectorAll('dialog[open]').forEach(d => (d as HTMLDialogElement).close());
+      });
       await page.waitForTimeout(1000);
     });
 
