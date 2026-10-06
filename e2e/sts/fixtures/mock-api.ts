@@ -1,7 +1,10 @@
 import type { Page } from "@playwright/test";
 import { DEMO_CREDENTIALS } from "./auth-data";
 
-export async function setupStsApiMocks(page: Page) {
+export async function setupStsApiMocks(
+  page: Page,
+  options?: { enableAdminTwoFactor?: boolean },
+) {
   let activeUser = {
     id: 99,
     username: "teacher_a",
@@ -36,6 +39,19 @@ export async function setupStsApiMocks(page: Page) {
         provinceId: 1,
       };
 
+      // หากเปิดใช้งาน enableAdminTwoFactor สำหรับผู้ดูแลระบบ ให้ส่ง requiresTwoFactor challenge
+      if (options?.enableAdminTwoFactor && (username === "admin_a" || username === "admin_school1")) {
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            requiresTwoFactor: true,
+            challengeId: "mock-2fa-admin-a",
+            maskedEmail: "admin_a@example.com",
+          }),
+        });
+      }
+
       return route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -50,6 +66,30 @@ export async function setupStsApiMocks(page: Page) {
       status: 401,
       contentType: "application/json",
       body: JSON.stringify({ message: "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง" }),
+    });
+  });
+
+  // 1.05 Auth 2FA login mock
+  await page.route("**/api/auth/login/2fa", async (route) => {
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        accessToken: "mock-jwt-token-from-monitor",
+        user: activeUser,
+      }),
+    });
+  });
+
+  await page.route("**/api/auth/login/2fa/resend", async (route) => {
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        requiresTwoFactor: true,
+        challengeId: "mock-2fa-admin-a-resend",
+        maskedEmail: "admin_a@example.com",
+      }),
     });
   });
 

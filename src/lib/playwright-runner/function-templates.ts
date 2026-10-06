@@ -2983,9 +2983,9 @@ test.describe("[UAT ผู้ดูแลระบบโรงเรียน] U
   test("TC-STS-SCHOOL-ADMIN-COMPLETE-E2E: School Admin Full 29-TC Workflow", async ({ page }) => {
     test.setTimeout(240_000);
 
-    // [Precondition]: ล้าง Cookies และเตรียม Mock API
+    // [Precondition]: ล้าง Cookies และเตรียม Mock API (เปิด enableAdminTwoFactor สำหรับทดสอบการยืนยันตัวตน)
     await page.context().clearCookies();
-    await setupStsApiMocks(page);
+    await setupStsApiMocks(page, { enableAdminTwoFactor: true });
     await page.setViewportSize({ width: 1440, height: 900 });
 
     const loginPage = new StsLoginPage(page);
@@ -3008,8 +3008,31 @@ test.describe("[UAT ผู้ดูแลระบบโรงเรียน] U
       await userInput.fill(adminCreds.username);
       await passInput.fill(adminCreds.password);
 
-      // กดปุ่มเข้าสู่ระบบ
+      // กดปุ่มเข้าสู่ระบบ -> ระบบต้องแสดงหน้าจอยืนยันตัวตนสองชั้น (ส่งรหัสไปทางอีเมล)
       await submitBtn.click();
+      await page.waitForTimeout(1000);
+
+      // ตรวจสอบหน้าจอยืนยันตัวตน (TC-STS-01-05-01: ส่งรหัสยืนยันไปที่อีเมล)
+      const verifyHeading = page.locator("text=/ยืนยันตัวตน/i").first();
+      await expect(verifyHeading).toBeVisible({ timeout: 10_000 });
+      const verifyEmailNotice = page.locator("text=/ส่งไปที่|ส่งรหัส/i").first();
+      await expect(verifyEmailNotice).toBeVisible();
+
+      // กรอกรหัสยืนยันตัวตน 6 หลัก (OTP: 123456)
+      const otpInputs = page.locator("input[inputmode='numeric']");
+      const count = await otpInputs.count();
+      if (count > 0) {
+        for (let i = 0; i < Math.min(count, 6); i++) {
+          await otpInputs.nth(i).fill(String((i % 9) + 1));
+          await page.waitForTimeout(80);
+        }
+      }
+
+      // กดปุ่มยืนยันและเข้าสู่ระบบ
+      const verifyBtn = page.locator("#login-verify-otp, button:has-text('ยืนยันและเข้าสู่ระบบ'), button:has-text('ยืนยัน')").first();
+      if (await verifyBtn.isVisible() && await verifyBtn.isEnabled()) {
+        await verifyBtn.click();
+      }
 
       // TC-STS-01-04-02: นำทางเข้าสู่หน้า Dashboard ทันทีหลังเข้าสู่ระบบสำเร็จ
       await expect(page).toHaveURL(/\\/admin/, { timeout: 15_000 });
