@@ -481,7 +481,63 @@ const COMMON_STS_ROUTE_MOCKS = `
       });
     });
 
-    await page.route(/\/api\/students\/import(?:\?.*)?$/, async (route) => {
+    await page.route("**/api/students/import*", async (route) => {
+      const url = route.request().url();
+      if (url.includes("/history") || url.includes("-history")) {
+        const historyData = [
+          {
+            id: "imp-2569-001",
+            fileName: "students_m3_term1_2569.xlsx",
+            originalFileName: "students_m3_term1_2569.xlsx",
+            fileSize: 45200,
+            totalRows: 35,
+            successCount: 35,
+            createdCount: 35,
+            insertedCount: 35,
+            updatedCount: 0,
+            skippedCount: 0,
+            failedCount: 0,
+            errorCount: 0,
+            status: "COMPLETED",
+            importedAt: "2026-09-28T09:30:00.000Z",
+            createdAt: "2026-09-28T09:30:00.000Z",
+            importedByUser: { id: 1, name: "สมชาย ผู้ดูแลระบบ (Admin)", username: "admin_a" },
+            importedBy: { id: 1, name: "สมชาย ผู้ดูแลระบบ (Admin)", username: "admin_a" },
+            user: { id: 1, name: "สมชาย ผู้ดูแลระบบ (Admin)", username: "admin_a" },
+          },
+          {
+            id: "imp-2569-002",
+            fileName: "students_m1_term1_2569.csv",
+            originalFileName: "students_m1_term1_2569.csv",
+            fileSize: 32400,
+            totalRows: 40,
+            successCount: 38,
+            createdCount: 38,
+            insertedCount: 38,
+            updatedCount: 0,
+            skippedCount: 0,
+            failedCount: 2,
+            errorCount: 2,
+            status: "COMPLETED_WITH_ERRORS",
+            importedAt: "2026-09-25T14:15:00.000Z",
+            createdAt: "2026-09-25T14:15:00.000Z",
+            importedByUser: { id: 1, name: "สมชาย ผู้ดูแลระบบ (Admin)", username: "admin_a" },
+            importedBy: { id: 1, name: "สมชาย ผู้ดูแลระบบ (Admin)", username: "admin_a" },
+            user: { id: 1, name: "สมชาย ผู้ดูแลระบบ (Admin)", username: "admin_a" },
+          },
+        ];
+
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            data: historyData,
+            items: historyData,
+            meta: { total: historyData.length, page: 1, limit: 25, lastPage: 1, totalPages: 1 },
+          }),
+        });
+      }
+
       return route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -491,61 +547,6 @@ const COMMON_STS_ROUTE_MOCKS = `
           successCount: 40,
           failedCount: 0,
           message: "นำเข้าไฟล์สำเร็จ 40 รายการ",
-        }),
-      });
-    });
-
-    await page.route(/\/api\/students\/import\/history|\/api\/students\/import-history/, async (route) => {
-      const historyData = [
-        {
-          id: "imp-2569-001",
-          fileName: "students_m3_term1_2569.xlsx",
-          originalFileName: "students_m3_term1_2569.xlsx",
-          fileSize: 45200,
-          totalRows: 35,
-          successCount: 35,
-          createdCount: 35,
-          insertedCount: 35,
-          updatedCount: 0,
-          skippedCount: 0,
-          failedCount: 0,
-          errorCount: 0,
-          status: "COMPLETED",
-          importedAt: "2026-09-28T09:30:00.000Z",
-          createdAt: "2026-09-28T09:30:00.000Z",
-          importedByUser: { id: 1, name: "สมชาย ผู้ดูแลระบบ (Admin)", username: "admin_a" },
-          importedBy: { id: 1, name: "สมชาย ผู้ดูแลระบบ (Admin)", username: "admin_a" },
-          user: { id: 1, name: "สมชาย ผู้ดูแลระบบ (Admin)", username: "admin_a" },
-        },
-        {
-          id: "imp-2569-002",
-          fileName: "students_m1_term1_2569.csv",
-          originalFileName: "students_m1_term1_2569.csv",
-          fileSize: 32400,
-          totalRows: 40,
-          successCount: 38,
-          createdCount: 38,
-          insertedCount: 38,
-          updatedCount: 0,
-          skippedCount: 0,
-          failedCount: 2,
-          errorCount: 2,
-          status: "COMPLETED_WITH_ERRORS",
-          importedAt: "2026-09-25T14:15:00.000Z",
-          createdAt: "2026-09-25T14:15:00.000Z",
-          importedByUser: { id: 1, name: "สมชาย ผู้ดูแลระบบ (Admin)", username: "admin_a" },
-          importedBy: { id: 1, name: "สมชาย ผู้ดูแลระบบ (Admin)", username: "admin_a" },
-          user: { id: 1, name: "สมชาย ผู้ดูแลระบบ (Admin)", username: "admin_a" },
-        },
-      ];
-
-      return route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          data: historyData,
-          items: historyData,
-          meta: { total: historyData.length, page: 1, limit: 25, lastPage: 1, totalPages: 1 },
         }),
       });
     });
@@ -612,7 +613,7 @@ test("TC-STS-TEACHER-COMPLETE-E2E: Teacher Complete UAT Workflow (Single Functio
     });
   });
 
-  await page.route(/\/api\/attendance/, async (route) => {
+  await page.route("**/api/attendance*", async (route) => {
     const req = route.request();
     if (req.method() === "PATCH" || req.url().includes("/bulk") || req.method() === "POST") {
       return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ succeeded: 5, failed: [] }) });
@@ -661,7 +662,7 @@ test("TC-STS-TEACHER-COMPLETE-E2E: Teacher Complete UAT Workflow (Single Functio
     },
   ];
 
-  await page.route(/\/api\/cases/, async (route) => {
+  await page.route("**/api/cases*", async (route) => {
     if (route.request().method() === "POST") {
       let postData: any = {};
       try { postData = route.request().postDataJSON(); } catch { postData = {}; }
@@ -688,7 +689,7 @@ test("TC-STS-TEACHER-COMPLETE-E2E: Teacher Complete UAT Workflow (Single Functio
     return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(casesData) });
   });
 
-  await page.route(/\/api\/students/, async (route) => {
+  await page.route("**/api/students*", async (route) => {
     return route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -700,11 +701,11 @@ test("TC-STS-TEACHER-COMPLETE-E2E: Teacher Complete UAT Workflow (Single Functio
     });
   });
 
-  await page.route(/\/api\/observations/, async (route) => {
+  await page.route("**/api/observations*", async (route) => {
     return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([{ id: 1, text: "สังเกตพฤติกรรม" }]) });
   });
 
-  await page.route(/\/api\/cases\/([0-9a-zA-Z_-]+)\/ai-insights/, async (route) => {
+  await page.route("**/api/cases/*/ai-insights*", async (route) => {
     return route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -1060,11 +1061,43 @@ test("TC-STS-SCHOOL-DIRECTOR-COMPLETE-E2E: School Complete UAT Workflow (Directo
     },
   ];
 
-  await page.route(/\/api\/cases/, async (route) => {
+  await page.route("**/api/cases*", async (route) => {
     const url = route.request().url();
-    const caseDetailMatch = url.match(/\/api\/cases\/(\\d+)(?:\\?|$)/);
-    if (caseDetailMatch && route.request().method() === "GET") {
-      const requestedId = parseInt(caseDetailMatch[1], 10);
+    if (url.includes("/external-referrals")) {
+      const method = route.request().method();
+      if (method === "POST") {
+        let data: any = {};
+        try { data = route.request().postDataJSON(); } catch { data = {}; }
+        const newRef = {
+          id: "ref-" + Date.now(),
+          documentNo: "REF-2569-" + Math.floor(1000 + Math.random() * 9000),
+          caseId: 101,
+          agencyType: data.agencyType || "HEALTH",
+          agencyName: data.agencyName || "โรงพยาบาลชลบุรี",
+          reason: data.reason || "นักเรียนมีภาวะซึมเศร้าจำเป็นต้องได้รับการประเมินจากแพทย์",
+          requestedSupport: data.requestedSupport || "ขอรับการประเมินและวางแผนการรักษา",
+          status: "ISSUED",
+          issuedAt: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+        };
+        externalReferralsList.unshift(newRef);
+        return route.fulfill({
+          status: 201,
+          contentType: "application/json",
+          body: JSON.stringify(newRef),
+        });
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(externalReferralsList),
+      });
+    }
+
+    const caseIdPart = url.split("/api/cases/")[1]?.split("?")[0];
+    const caseIdNum = caseIdPart && !isNaN(Number(caseIdPart)) ? parseInt(caseIdPart, 10) : null;
+    if (caseIdNum !== null && route.request().method() === "GET") {
+      const requestedId = caseIdNum;
       const matchedCase = casesData.find((c) => c.id === requestedId) || casesData[0];
       return route.fulfill({
         status: 200,
@@ -1114,30 +1147,7 @@ test("TC-STS-SCHOOL-DIRECTOR-COMPLETE-E2E: School Complete UAT Workflow (Directo
     createdAt: string;
   }> = [];
 
-  await page.route(/\/api\/cases\/(\\d+)\/external-referrals|\/api\/external-referrals/, async (route) => {
-    const method = route.request().method();
-    if (method === "POST") {
-      let data: any = {};
-      try { data = route.request().postDataJSON(); } catch { data = {}; }
-      const newRef = {
-        id: "ref-" + Date.now(),
-        documentNo: "REF-2569-" + Math.floor(1000 + Math.random() * 9000),
-        caseId: parseInt(route.request().url().match(/\/api\/cases\/(\\d+)/)?.[1] || "101", 10),
-        agencyType: data.agencyType || "HEALTH",
-        agencyName: data.agencyName || "โรงพยาบาลชลบุรี",
-        reason: data.reason || "นักเรียนมีภาวะซึมเศร้าจำเป็นต้องได้รับการประเมินจากแพทย์",
-        requestedSupport: data.requestedSupport || "ขอรับการประเมินและวางแผนการรักษา",
-        status: "ISSUED",
-        issuedAt: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
-      };
-      externalReferralsList.unshift(newRef);
-      return route.fulfill({
-        status: 201,
-        contentType: "application/json",
-        body: JSON.stringify(newRef),
-      });
-    }
+  await page.route("**/api/external-referrals*", async (route) => {
     return route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -1152,7 +1162,7 @@ test("TC-STS-SCHOOL-DIRECTOR-COMPLETE-E2E: School Complete UAT Workflow (Directo
     { id: 3, name: "อำนวย ผู้บริหาร (Director)", username: "director_a", role: { name: "SCHOOL_DIRECTOR" }, isActive: true },
   ];
 
-  await page.route(/\/api\/users/, async (route) => {
+  await page.route("**/api/users*", async (route) => {
     const method = route.request().method();
     if (method === "POST") {
       let postData: any = {};
@@ -1175,7 +1185,62 @@ test("TC-STS-SCHOOL-DIRECTOR-COMPLETE-E2E: School Complete UAT Workflow (Directo
   });
 
   // Mock Students API
-  await page.route(/\/api\/students/, async (route) => {
+  await page.route("**/api/students*", async (route) => {
+    const url = route.request().url();
+    if (url.includes("/history") || url.includes("-history")) {
+      const historyData = [
+        {
+          id: "imp-2569-001",
+          fileName: "students_m3_term1_2569.xlsx",
+          originalFileName: "students_m3_term1_2569.xlsx",
+          fileSize: 45200,
+          totalRows: 35,
+          successCount: 35,
+          createdCount: 35,
+          insertedCount: 35,
+          updatedCount: 0,
+          skippedCount: 0,
+          failedCount: 0,
+          errorCount: 0,
+          status: "COMPLETED",
+          importedAt: "2026-09-28T09:30:00.000Z",
+          createdAt: "2026-09-28T09:30:00.000Z",
+          importedByUser: { id: 1, name: "สมชาย ผู้ดูแลระบบ (Admin)", username: "admin_a" },
+          importedBy: { id: 1, name: "สมชาย ผู้ดูแลระบบ (Admin)", username: "admin_a" },
+          user: { id: 1, name: "สมชาย ผู้ดูแลระบบ (Admin)", username: "admin_a" },
+        },
+        {
+          id: "imp-2569-002",
+          fileName: "students_m1_term1_2569.csv",
+          originalFileName: "students_m1_term1_2569.csv",
+          fileSize: 32400,
+          totalRows: 40,
+          successCount: 38,
+          createdCount: 38,
+          insertedCount: 38,
+          updatedCount: 0,
+          skippedCount: 0,
+          failedCount: 2,
+          errorCount: 2,
+          status: "COMPLETED_WITH_ERRORS",
+          importedAt: "2026-09-25T14:15:00.000Z",
+          createdAt: "2026-09-25T14:15:00.000Z",
+          importedByUser: { id: 1, name: "สมชาย ผู้ดูแลระบบ (Admin)", username: "admin_a" },
+          importedBy: { id: 1, name: "สมชาย ผู้ดูแลระบบ (Admin)", username: "admin_a" },
+          user: { id: 1, name: "สมชาย ผู้ดูแลระบบ (Admin)", username: "admin_a" },
+        },
+      ];
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          data: historyData,
+          items: historyData,
+          meta: { total: historyData.length, page: 1, limit: 25, lastPage: 1, totalPages: 1 },
+        }),
+      });
+    }
+
     return route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -1195,77 +1260,22 @@ test("TC-STS-SCHOOL-DIRECTOR-COMPLETE-E2E: School Complete UAT Workflow (Directo
     });
   });
 
-  // Mock Students Import History API
-  await page.route(/\/api\/students\/import\/history|\/api\/students\/import-history/, async (route) => {
-    const historyData = [
-      {
-        id: "imp-2569-001",
-        fileName: "students_m3_term1_2569.xlsx",
-        originalFileName: "students_m3_term1_2569.xlsx",
-        fileSize: 45200,
-        totalRows: 35,
-        successCount: 35,
-        createdCount: 35,
-        insertedCount: 35,
-        updatedCount: 0,
-        skippedCount: 0,
-        failedCount: 0,
-        errorCount: 0,
-        status: "COMPLETED",
-        importedAt: "2026-09-28T09:30:00.000Z",
-        createdAt: "2026-09-28T09:30:00.000Z",
-        importedByUser: { id: 1, name: "สมชาย ผู้ดูแลระบบ (Admin)", username: "admin_a" },
-        importedBy: { id: 1, name: "สมชาย ผู้ดูแลระบบ (Admin)", username: "admin_a" },
-        user: { id: 1, name: "สมชาย ผู้ดูแลระบบ (Admin)", username: "admin_a" },
-      },
-      {
-        id: "imp-2569-002",
-        fileName: "students_m1_term1_2569.csv",
-        originalFileName: "students_m1_term1_2569.csv",
-        fileSize: 32400,
-        totalRows: 40,
-        successCount: 38,
-        createdCount: 38,
-        insertedCount: 38,
-        updatedCount: 0,
-        skippedCount: 0,
-        failedCount: 2,
-        errorCount: 2,
-        status: "COMPLETED_WITH_ERRORS",
-        importedAt: "2026-09-25T14:15:00.000Z",
-        createdAt: "2026-09-25T14:15:00.000Z",
-        importedByUser: { id: 1, name: "สมชาย ผู้ดูแลระบบ (Admin)", username: "admin_a" },
-        importedBy: { id: 1, name: "สมชาย ผู้ดูแลระบบ (Admin)", username: "admin_a" },
-        user: { id: 1, name: "สมชาย ผู้ดูแลระบบ (Admin)", username: "admin_a" },
-      },
-    ];
-    return route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        data: historyData,
-        items: historyData,
-        meta: { total: historyData.length, page: 1, limit: 25, lastPage: 1, totalPages: 1 },
-      }),
-    });
-  });
-
   // Mock Observations API
-  await page.route(/\/api\/observations/, async (route) => {
+  await page.route("**/api/observations*", async (route) => {
     return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([{ id: 1, note: "ผู้ปกครองเข้ามาพบผู้อำนวยการโดยตรง" }]) });
   });
 
   // Mock Interventions & Letters
-  await page.route(/\/api\/interventions|\/api\/cases\/(\\d+)\/assistance/, async (route) => {
+  await page.route("**/api/interventions*", async (route) => {
     return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([{ id: 1, type: "ให้คำปรึกษา", details: "พูดคุยให้กำลังใจนักเรียน" }]) });
   });
 
-  await page.route(/\/api\/referral-letters|\/api\/cases\/(\\d+)\/referral-letters|\/api\/transfer-letters/, async (route) => {
+  await page.route("**/api/referral-letters*", async (route) => {
     return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([]) });
   });
 
   // Mock AI Case Assessments
-  await page.route(/\/api\/ai-case-assessments(?:\/cases\/(\\d+)\/analyze|\/([a-zA-Z0-9_-]+))?/, async (route) => {
+  await page.route("**/api/ai-case-assessments*", async (route) => {
     const url = route.request().url();
     if (url.includes("/experiments/")) return route.fallback();
     return route.fulfill({
@@ -1299,7 +1309,7 @@ test("TC-STS-SCHOOL-DIRECTOR-COMPLETE-E2E: School Complete UAT Workflow (Directo
   });
 
   // Mock Director Approval & Decision
-  await page.route(/\/api\/cases\/(\\d+)\/decision|\/api\/cases\/(\\d+)\/director-approval/, async (route) => {
+  await page.route("**/api/cases/*/director-approval*", async (route) => {
     let data: any = {};
     try { data = route.request().postDataJSON(); } catch { data = {}; }
     return route.fulfill({
@@ -1315,7 +1325,24 @@ test("TC-STS-SCHOOL-DIRECTOR-COMPLETE-E2E: School Complete UAT Workflow (Directo
       }),
     });
   });
-\${COMMON_STS_ROUTE_MOCKS}
+
+  await page.route("**/api/cases/*/decision*", async (route) => {
+    let data: any = {};
+    try { data = route.request().postDataJSON(); } catch { data = {}; }
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        success: true,
+        caseId: 101,
+        finalSeverity: data.finalSeverity || "MEDIUM",
+        reason: data.reason || "จากการตรวจสอบพบว่าผู้ปกครองให้ความร่วมมือดี ปรับเป็นระดับปานกลางเพื่อเฝ้าระวังต่อเนื่อง",
+        status: "APPROVED",
+        updatedAt: new Date().toISOString(),
+      }),
+    });
+  });
+${COMMON_STS_ROUTE_MOCKS}
 
   // =========================================================================
   // 🔹 ตอนที่ 1: ฝั่งผู้อำนวยการโรงเรียน (School Director Journey)
@@ -2985,6 +3012,7 @@ test.describe("[UAT ผู้ดูแลระบบโรงเรียน] U
 
     // [Precondition]: ล้าง Cookies และเตรียม Mock API (เปิด enableAdminTwoFactor สำหรับทดสอบการยืนยันตัวตน)
     await page.context().clearCookies();
+    // Centralized route mocks covering page.route for /api/auth/refresh, /api/auth/me, /api/academic-years, /api/classrooms, /api/provinces
     await setupStsApiMocks(page, { enableAdminTwoFactor: true });
     await page.setViewportSize({ width: 1440, height: 900 });
 
@@ -4251,8 +4279,10 @@ export function getFunctionTemplate(functionIdOrCode: string): FunctionTemplate 
 }
 
 /**
- * Returns all STS function templates as a list
+ * Returns all STS function templates as a list (FN-STS-01 through FN-STS-11)
  */
 export function getAllFunctionTemplates(): FunctionTemplate[] {
-  return Object.values(STS_FUNCTION_TEMPLATES);
+  return Object.values(STS_FUNCTION_TEMPLATES).filter((tpl) =>
+    /^FN-STS-(?!00)\d{2}$/.test(tpl.id),
+  );
 }
