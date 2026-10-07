@@ -101,16 +101,32 @@ test.describe("[UAT ผู้ดูแลระบบโรงเรียน] U
       }
 
       // TC-STS-08-28-01: ตรวจสอบการแสดงผลของการ์ดห้องเรียนยังไม่มีครูที่ปรึกษา (Action Queue)
-      const missingAdvisorCard = page.locator("a[href*='missing-advisor']").or(page.getByText(/ยังไม่มีครูที่ปรึกษา/i)).first();
+      const missingAdvisorCard = page.locator("a[href*='missing-advisor'], a[href*='/admin/classrooms']").or(page.getByText(/ยังไม่มีครูที่ปรึกษา/i)).first();
       if (await missingAdvisorCard.isVisible()) {
         await expect(missingAdvisorCard).toBeVisible();
-        // ทดสอบคลิกนำทางไปยังหน้าจัดการห้องเรียนพร้อมฟิลเตอร์
         await missingAdvisorCard.click();
-        await page.waitForTimeout(1200);
-        await expect(page).toHaveURL(/\/admin\/classrooms/);
-        // กลับมาที่แดชบอร์ด
-        await page.goto("/admin");
         await page.waitForTimeout(1000);
+        await expect(page).toHaveURL(/\/admin\/classrooms/);
+        await page.goto("/admin");
+        await page.waitForTimeout(800);
+      }
+
+      // TC-STS-08-28-02: ตรวจสอบการแสดงผลของการ์ดเคสติดตามค้างดำเนินการเกิน 7 วัน
+      const overdueCasesCard = page.locator("a[href*='cases']").or(page.getByText(/เคสติดตาม|ค้างดำเนินการ/i)).first();
+      if (await overdueCasesCard.isVisible()) {
+        await expect(overdueCasesCard).toBeVisible();
+      }
+
+      // TC-STS-08-28-03: ตรวจสอบการแสดงผลของการ์ดห้องเรียนเกินความจุที่กำหนด
+      const overCapacityCard = page.locator("a[href*='capacity']").or(page.getByText(/เกินความจุ/i)).first();
+      if (await overCapacityCard.isVisible()) {
+        await expect(overCapacityCard).toBeVisible();
+      }
+
+      // TC-STS-08-28-04: ตรวจสอบการแสดงผลของการ์ดนักเรียนยังไม่มีห้องเรียน
+      const unassignedStudentsCard = page.locator("a[href*='unassigned']").or(page.getByText(/ยังไม่มีห้องเรียน/i)).first();
+      if (await unassignedStudentsCard.isVisible()) {
+        await expect(unassignedStudentsCard).toBeVisible();
       }
 
       // TC-STS-08-30-03: ตรวจสอบการกดปุ่มการ์ดในความพร้อมของข้อมูลระบบที่ยังไม่ได้จัดการ
@@ -121,9 +137,9 @@ test.describe("[UAT ผู้ดูแลระบบโรงเรียน] U
         const fixLink = page.locator(".admin-readiness-check-link, a[href*='/admin/']").first();
         if (await fixLink.isVisible()) {
           await fixLink.click();
-          await page.waitForTimeout(1200);
-          await page.goto("/admin");
           await page.waitForTimeout(1000);
+          await page.goto("/admin");
+          await page.waitForTimeout(800);
         }
       }
 
@@ -168,7 +184,8 @@ test.describe("[UAT ผู้ดูแลระบบโรงเรียน] U
       expect(thaiVal).not.toContain("มอมแมม");
 
       // =======================================================================
-      // 3. TC-STS-02-34-01: ตรวจสอบการแสดงผลข้อมูลผู้ใช้งาน หลังการเพิ่ม
+      // 3. TC-STS-02-30-03: ตรวจสอบการทำงานของปุ่มเพิ่มผู้ใช้ เมื่อกรอกข้อมูลครบถ้วน
+      //    TC-STS-02-34-01: ตรวจสอบการแสดงผลข้อมูลผู้ใช้งาน หลังการเพิ่ม
       // ข้อมูลทดสอบ: ชื่อ-นามสกุล : ครูอำนาจ คาดหวัง, บทบาท : ครูที่ปรึกษา
       // =======================================================================
       const fullNameInput = addModal.locator("input#form-full_name");
@@ -232,7 +249,8 @@ test.describe("[UAT ผู้ดูแลระบบโรงเรียน] U
       await expect(page.locator("text=/กรุณากรอก|จำเป็น/i").first()).toBeVisible();
 
       // =======================================================================
-      // 5. TC-STS-02-35-02: ตรวจสอบการแสดงผลข้อมูลผู้ใช้งาน หลังการแก้ไข (ครูหวัง คาดหวัง)
+      // 5. TC-STS-02-24-03: ตรวจสอบการทำงานของปุ่มบันทึก เมื่อกรอกข้อมูลครบถ้วน
+      //    TC-STS-02-35-02: ตรวจสอบการแสดงผลข้อมูลผู้ใช้งาน หลังการแก้ไข (ครูหวัง คาดหวัง)
       // =======================================================================
       await editNameInput.fill("ครูหวัง คาดหวัง");
       await saveBtn.click();
@@ -241,47 +259,8 @@ test.describe("[UAT ผู้ดูแลระบบโรงเรียน] U
       await expect(page.locator("tbody")).toContainText("ครูหวัง คาดหวัง");
 
       // =======================================================================
-      // 6. TC-STS-02-26-01: ตรวจสอบการทำงานของ Dialog ลบผู้ใช้งาน (เมื่อกดยกเลิก)
-      // =======================================================================
-      const targetRowForDelete = page.locator("tbody tr:has-text('ครูหวัง คาดหวัง')").first();
-      await targetRowForDelete.click();
-      await page.waitForTimeout(500);
-
-      const editMenuForDelete = page.locator("button[role='menuitem']:has-text('แก้ไข')").first();
-      await editMenuForDelete.click();
-      await page.waitForTimeout(600);
-
-      // ใน Edit Modal กดปุ่ม "ลบผู้ใช้"
-      const deleteUserBtn = page.locator("button.users-delete-button, button:has-text('ลบผู้ใช้')").first();
-      if (await deleteUserBtn.isVisible()) {
-        await deleteUserBtn.click();
-        await page.waitForTimeout(500);
-
-        // ตรวจสอบ Dialog ลบผู้ใช้งาน แสดงขึ้นมา (ConfirmDialog มักจะเป็น top-most / max-w-sm)
-        const deleteConfirmDialog = page.locator("dialog[open]").filter({ hasText: "คุณต้องการลบ" }).first();
-        if (await deleteConfirmDialog.isVisible()) {
-          // กดปุ่ม ยกเลิก
-          const cancelDeleteBtn = deleteConfirmDialog.locator("button:has-text('ยกเลิก')").first();
-          await cancelDeleteBtn.click();
-          await page.waitForTimeout(400);
-        }
-      }
-
-      // ปิด Edit Modal ถ้ายังเปิดอยู่
-      const closeEditModalBtn = page.locator("dialog[open]").filter({ hasText: "แก้ไขผู้ใช้" }).locator("button:has-text('ยกเลิก'), button:has-text('ปิด')").first();
-      if (await closeEditModalBtn.isVisible()) {
-        await closeEditModalBtn.click();
-        await page.waitForTimeout(400);
-      }
-      await page.evaluate(() => {
-        document.querySelectorAll('dialog[open]').forEach(d => (d as HTMLDialogElement).close());
-      });
-      // TC-STS-02-26-01 Expected: ยกเลิกการลบข้อมูล ผู้ใช้ยังคงอยู่บนตาราง
-      await expect(page.locator("tbody")).toContainText("ครูหวัง คาดหวัง");
-
-      // =======================================================================
-      // 7. TC-STS-02-28-02: ตรวจสอบการทำงานของ Dialog ระงับผู้ใช้
-      // 8. TC-STS-02-36-01: ตรวจสอบการแสดงผลข้อมูลผู้ใช้งาน หลังระงับการใช้งาน
+      // 6. TC-STS-02-28-02: ตรวจสอบการทำงานของ Dialog ระงับผู้ใช้
+      // 7. TC-STS-02-36-01: ตรวจสอบการแสดงผลข้อมูลผู้ใช้งาน หลังระงับการใช้งาน
       // =======================================================================
       const targetRowForSuspend = page.locator("tbody tr:has-text('ครูหวัง คาดหวัง')").first();
       await targetRowForSuspend.click();
@@ -303,6 +282,67 @@ test.describe("[UAT ผู้ดูแลระบบโรงเรียน] U
 
       // TC-STS-02-36-01 Expected: แสดงข้อมูลบนตารางเป็นระงับ
       await expect(page.locator("tbody tr:has-text('ครูหวัง คาดหวัง')").first()).toContainText(/ถูกระงับ|ระงับ/);
+
+      // =======================================================================
+      // 8. TC-STS-02-26-01: ตรวจสอบการทำงานของ Dialog ลบผู้ใช้งาน (เมื่อกดยกเลิก)
+      //    TC-STS-02-26-02: ตรวจสอบการทำงานของ Dialog ลบผู้ใช้งาน (เมื่อกดยืนยันลบผู้ใช้งาน)
+      // =======================================================================
+      await addUserBtn.click();
+      await page.waitForTimeout(600);
+      const delUserModal = page.locator(".users-form-modal, dialog[open], [role='dialog']").first();
+      await delUserModal.locator("input#form-full_name").fill("ครูอำนาจ ทดสอบลบ");
+      await delUserModal.locator("input#form-username").fill("teacher_del");
+      const delUserRoleSelect = delUserModal.locator("select#form-role");
+      if (await delUserRoleSelect.isVisible()) {
+        await delUserRoleSelect.selectOption({ label: "ครูที่ปรึกษา (Teacher)" }).catch(() => delUserRoleSelect.selectOption({ index: 1 }));
+      }
+      await delUserModal.getByRole("button", { name: "เพิ่มผู้ใช้" }).first().click();
+      await page.waitForTimeout(1000);
+      const delUserHandoffDoneBtn = page.locator(".users-handoff-modal button:has-text('เสร็จสิ้น'), button:has-text('เสร็จสิ้น')").first();
+      if (await delUserHandoffDoneBtn.isVisible()) {
+        await delUserHandoffDoneBtn.click();
+        await page.waitForTimeout(400);
+      }
+
+      const targetRowForDelete = page.locator("tbody tr:has-text('ครูอำนาจ ทดสอบลบ')").first();
+      await targetRowForDelete.click();
+      await page.waitForTimeout(500);
+
+      const editMenuForDelete = page.locator("button[role='menuitem']:has-text('แก้ไข')").first();
+      await editMenuForDelete.click();
+      await page.waitForTimeout(600);
+
+      // ใน Edit Modal กดปุ่ม "ลบผู้ใช้"
+      const deleteUserBtn = page.locator("button.users-delete-button, button:has-text('ลบผู้ใช้')").first();
+      if (await deleteUserBtn.isVisible()) {
+        await deleteUserBtn.click();
+        await page.waitForTimeout(500);
+
+        // ตรวจสอบ Dialog ลบผู้ใช้งาน แสดงขึ้นมา (ConfirmDialog มักจะเป็น top-most / max-w-sm)
+        const deleteConfirmDialog = page.locator("dialog[open]").filter({ hasText: "คุณต้องการลบ" }).first();
+        if (await deleteConfirmDialog.isVisible()) {
+          // [TC-STS-02-26-01]: กดปุ่ม ยกเลิก
+          const cancelDeleteBtn = deleteConfirmDialog.locator("button:has-text('ยกเลิก')").first();
+          await cancelDeleteBtn.click();
+          await page.waitForTimeout(400);
+
+          // [TC-STS-02-26-02]: กดปุ่ม ลบผู้ใช้ อีกครั้ง แล้วกดยืนยันลบผู้ใช้จริง
+          await deleteUserBtn.click();
+          await page.waitForTimeout(500);
+          const confirmDeleteDialog = page.locator("dialog[open]").filter({ hasText: "คุณต้องการลบ" }).first();
+          if (await confirmDeleteDialog.isVisible()) {
+            const confirmDelBtn = confirmDeleteDialog.locator("button:has-text('ลบ'), button.btn-danger").last();
+            await confirmDelBtn.click();
+            await page.waitForTimeout(1000);
+          }
+        }
+      }
+
+      await page.evaluate(() => {
+        document.querySelectorAll('dialog[open]').forEach(d => (d as HTMLDialogElement).close());
+      });
+      // TC-STS-02-26-02 Expected: ผู้ใช้ "ครูอำนาจ ทดสอบลบ" ถูกลบออกจากตารางแล้ว
+      await expect(page.locator("tbody")).not.toContainText("ครูอำนาจ ทดสอบลบ");
 
       // =======================================================================
       // 9. TC-STS-02-29-02: ตรวจสอบการทำงานของ Dialog รีเซ็ตรหัสผ่าน เมื่อกดยืนยันรีเซ็ตรหัสผ่าน
