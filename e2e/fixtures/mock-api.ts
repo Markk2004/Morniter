@@ -132,7 +132,7 @@ export async function setupStsApiMocks(
       contentType: "application/json",
       body: JSON.stringify({
         id: 1,
-        year: 2569,
+        year: "2569",
         startDate: "2026-05-16",
         endDate: "2027-03-31",
         isCurrent: true,
@@ -150,7 +150,7 @@ export async function setupStsApiMocks(
       body: JSON.stringify([
         {
           id: 1,
-          year: 2569,
+          year: "2569",
           startDate: "2026-05-16",
           endDate: "2027-03-31",
           isCurrent: true,
@@ -174,31 +174,267 @@ export async function setupStsApiMocks(
     });
   });
 
-  // 4. Classrooms list for filters & lookups
-  await page.route("**/api/classrooms*", async (route) => {
+  // 4. Classrooms list & CRUD for filters & lookups
+  const mockClassroomsList = [
+    {
+      id: 1,
+      roomName: "1",
+      room_number: "1",
+      roomNumber: "1",
+      grade: "ม.3",
+      name: "ม.3/1",
+      grade_level_id: 9,
+      gradeLevelId: 9,
+      gradeLevel: { id: 9, name: "มัธยมศึกษาปีที่ 3", code: "M3" },
+      academicYearId: 1,
+      academic_year_id: 1,
+      academicYear: "2569",
+      academic_year: "2569",
+      studentCount: 35,
+      student_count: 35,
+      capacity: 40,
+      isActive: true,
+      advisors: [
+        { teacherId: 2, role: "HOMEROOM", teacher: { id: 2, name: "สมหญิง ครูประจำชั้น (Teacher)", username: "teacher_a" } },
+      ],
+    },
+    {
+      id: 2,
+      roomName: "2",
+      room_number: "2",
+      roomNumber: "2",
+      grade: "ม.3",
+      name: "ม.3/2",
+      grade_level_id: 9,
+      gradeLevelId: 9,
+      gradeLevel: { id: 9, name: "มัธยมศึกษาปีที่ 3", code: "M3" },
+      academicYearId: 1,
+      academic_year_id: 1,
+      academicYear: "2569",
+      academic_year: "2569",
+      studentCount: 32,
+      student_count: 32,
+      capacity: 40,
+      isActive: true,
+      advisors: [],
+    },
+    {
+      id: 3,
+      roomName: "1",
+      room_number: "1",
+      roomNumber: "1",
+      grade: "ม.1",
+      name: "ม.1/1",
+      grade_level_id: 7,
+      gradeLevelId: 7,
+      gradeLevel: { id: 7, name: "มัธยมศึกษาปีที่ 1", code: "M1" },
+      academicYearId: 1,
+      academic_year_id: 1,
+      academicYear: "2569",
+      academic_year: "2569",
+      studentCount: 30,
+      student_count: 30,
+      capacity: 40,
+      isActive: true,
+      advisors: [],
+    },
+    {
+      id: 4,
+      roomName: "2",
+      room_number: "2",
+      roomNumber: "2",
+      grade: "ม.1",
+      name: "ม.1/2",
+      grade_level_id: 7,
+      gradeLevelId: 7,
+      gradeLevel: { id: 7, name: "มัธยมศึกษาปีที่ 1", code: "M1" },
+      academicYearId: 1,
+      academic_year_id: 1,
+      academicYear: "2569",
+      academic_year: "2569",
+      studentCount: 40, // ห้องเต็ม
+      student_count: 40,
+      capacity: 40,
+      isActive: true,
+      advisors: [],
+    },
+    {
+      id: 5,
+      roomName: "3",
+      room_number: "3",
+      roomNumber: "3",
+      grade: "ม.1",
+      name: "ม.1/3",
+      grade_level_id: 7,
+      gradeLevelId: 7,
+      gradeLevel: { id: 7, name: "มัธยมศึกษาปีที่ 1", code: "M1" },
+      academicYearId: 1,
+      academic_year_id: 1,
+      academicYear: "2569",
+      academic_year: "2569",
+      studentCount: 20,
+      student_count: 20,
+      capacity: 40,
+      isActive: true,
+      advisors: [],
+    },
+  ];
+
+  await page.route(/\/api\/lookups\/grade-level/, async (route) => {
     return route.fulfill({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify([
-        {
-          id: 1,
-          roomName: "1",
-          grade: "ม.3",
-          name: "ม.3/1",
-          grade_level_id: 9,
-          studentCount: 35,
-          academic_year_id: 1,
-        },
-        {
-          id: 2,
-          roomName: "2",
-          grade: "ม.3",
-          name: "ม.3/2",
-          grade_level_id: 9,
-          studentCount: 32,
-          academic_year_id: 1,
-        },
+        { id: 7, name: "มัธยมศึกษาปีที่ 1", code: "M1" },
+        { id: 8, name: "มัธยมศึกษาปีที่ 2", code: "M2" },
+        { id: 9, name: "มัธยมศึกษาปีที่ 3", code: "M3" },
+        { id: 10, name: "มัธยมศึกษาปีที่ 4", code: "M4" },
+        { id: 11, name: "มัธยมศึกษาปีที่ 5", code: "M5" },
+        { id: 12, name: "มัธยมศึกษาปีที่ 6", code: "M6" },
       ]),
+    });
+  });
+
+  await page.route(/\/api\/classrooms(?:\/.*)?/, async (route) => {
+    const url = route.request().url();
+    const method = route.request().method();
+
+    // Advisors endpoints
+    if (url.includes("/advisors")) {
+      const matchAdv = url.match(/\/api\/classrooms\/(\d+)\/advisors(?:\/(\d+))?/);
+      if (matchAdv) {
+        const clsId = Number(matchAdv[1]);
+        const teacherId = matchAdv[2] ? Number(matchAdv[2]) : null;
+        const targetCls = mockClassroomsList.find((c) => c.id === clsId);
+
+        if (method === "DELETE" && teacherId && targetCls) {
+          targetCls.advisors = targetCls.advisors.filter((a) => a.teacherId !== teacherId);
+          return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true }) });
+        }
+        if (method === "POST" && targetCls) {
+          let postData: any = {};
+          try { postData = route.request().postDataJSON(); } catch { postData = {}; }
+          const tId = Number(postData.teacherId);
+          // ลบครูคนนี้ออกจากห้องอื่นก่อน (ถ้า confirmMove)
+          mockClassroomsList.forEach((c) => {
+            c.advisors = c.advisors.filter((a) => a.teacherId !== tId);
+          });
+          targetCls.advisors.push({
+            teacherId: tId,
+            role: postData.role || "HOMEROOM",
+            teacher: { id: tId, name: tId === 2 ? "สมหญิง ครูประจำชั้น (Teacher)" : "ครูอำนาจ คาดหวัง", username: `teacher_${tId}` },
+          });
+          return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, advisor: { teacherId: tId } }) });
+        }
+      }
+      return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true }) });
+    }
+
+    // POST create classroom
+    if (method === "POST" && !url.includes("/bulk")) {
+      let data: any = {};
+      try { data = route.request().postDataJSON(); } catch { data = {}; }
+      const rName = String(data.roomName || data.room_number || "1");
+      const gId = Number(data.gradeLevelId || data.grade_level_id || 7);
+      if (rName === "1" && (gId === 7 || data.grade === "ม.1" || String(data.gradeLevel || "").includes("1"))) {
+        return route.fulfill({
+          status: 409,
+          contentType: "application/json",
+          body: JSON.stringify({ message: "มีห้องเรียนนี้อยู่แล้ว", error: "Conflict" }),
+        });
+      }
+      const newCls = {
+        id: mockClassroomsList.length + 1,
+        roomName: String(data.roomName || data.room_number || "1"),
+        room_number: String(data.roomName || data.room_number || "14"),
+        roomNumber: String(data.roomName || data.room_number || "14"),
+        grade: "ม.2",
+        name: `ม.2/${data.roomName || data.room_number || "14"}`,
+        grade_level_id: 8,
+        gradeLevelId: 8,
+        gradeLevel: { id: 8, name: "มัธยมศึกษาปีที่ 2", code: "M2" },
+        academicYearId: 1,
+        academic_year_id: 1,
+        academicYear: "2569",
+        academic_year: "2569",
+        studentCount: 0,
+        capacity: Number(data.capacity || 40),
+        isActive: true,
+        advisors: [],
+      };
+      mockClassroomsList.push(newCls);
+      return route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify(newCls) });
+    }
+
+    // PATCH update classroom
+    if (method === "PATCH") {
+      const matchId = url.match(/\/api\/classrooms\/(\d+)/);
+      if (matchId) {
+        const cId = Number(matchId[1]);
+        const targetCls = mockClassroomsList.find((c) => c.id === cId);
+        if (targetCls) {
+          let patchData: any = {};
+          try { patchData = route.request().postDataJSON(); } catch { patchData = {}; }
+          if (patchData.capacity !== undefined) targetCls.capacity = Number(patchData.capacity);
+          if (patchData.roomName !== undefined) targetCls.roomName = String(patchData.roomName);
+          return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(targetCls) });
+        }
+      }
+      return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true }) });
+    }
+
+    // GET single classroom: /api/classrooms/:id
+    const matchSingle = url.match(/\/api\/classrooms\/(\d+)(?:\?|$)/);
+    if (matchSingle && method === "GET") {
+      const cId = Number(matchSingle[1]);
+      const found = mockClassroomsList.find((c) => c.id === cId) || mockClassroomsList[0];
+      return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(found) });
+    }
+
+    // GET list
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(mockClassroomsList),
+    });
+  });
+
+  // Placement unassigned & batch mocks
+  await page.route(/\/api\/placement\/unassigned/, async (route) => {
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        data: [
+          {
+            studentId: 106,
+            studentCode: "aa691101",
+            name: "กมล บุญมาก",
+            gradeNumber: 1,
+            gpax: 3.45,
+          },
+          {
+            studentId: 107,
+            studentCode: "aa691102",
+            name: "กมล ปิ่นทอง",
+            gradeNumber: 1,
+            gpax: 3.12,
+          },
+        ],
+        meta: { total: 2, page: 1, limit: 50, lastPage: 1 },
+      }),
+    });
+  });
+
+  await page.route(/\/api\/placement\/batch|\/api\/enrollments\/batch/, async (route) => {
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        succeeded: [106],
+        failed: [],
+        warnings: [],
+      }),
     });
   });
 
@@ -1306,162 +1542,313 @@ export async function setupStsApiMocks(
     });
   });
 
-  // 10. Student list & detail mock with regex to match paths across slashes
-  await page.route(/\/api\/students/, async (route) => {
+  // 10. Student list & detail mock with stateful CRUD and search filtering
+  const mockStudentsList: Array<any> = [
+    {
+      id: 101,
+      studentCode: "50001",
+      firstName: "กิตติพงษ์",
+      lastName: "สุขเกษม",
+      first_name: "กิตติพงษ์",
+      last_name: "สุขเกษม",
+      student_id: "50001",
+      personId: "3101101123451",
+      person_id: "3101101123451",
+      parent_name: "สมศรี สุขเกษม",
+      parent_phone: "0812345678",
+      currentAddress: "123 กรุงเทพมหานคร",
+      address: "123 กรุงเทพมหานคร",
+      gender: { name: "ชาย" },
+      birthDate: "2011-06-15",
+      absentCountThisSemester: 0,
+      absent_count_this_semester: 0,
+      risk_level: "low",
+      enrollments: [
+        {
+          id: 1,
+          isCurrent: true,
+          classroom: {
+            id: 1,
+            roomName: "1",
+            gradeLevel: { name: "มัธยมศึกษาปีที่ 3", code: "M3" },
+          },
+        },
+      ],
+    },
+    {
+      id: 102,
+      studentCode: "50002",
+      firstName: "ชาญชัย",
+      lastName: "มีสุข",
+      first_name: "ชาญชัย",
+      last_name: "มีสุข",
+      student_id: "50002",
+      gender: { name: "ชาย" },
+      birthDate: "2011-07-20",
+      absentCountThisSemester: 4,
+      absent_count_this_semester: 4,
+      risk_level: "high",
+      enrollments: [
+        {
+          id: 2,
+          isCurrent: true,
+          classroom: {
+            id: 1,
+            roomName: "1",
+            gradeLevel: { name: "มัธยมศึกษาปีที่ 3", code: "M3" },
+          },
+        },
+      ],
+    },
+    {
+      id: 103,
+      studentCode: "50003",
+      firstName: "วิภาดา",
+      lastName: "แสงจันทร์",
+      first_name: "วิภาดา",
+      last_name: "แสงจันทร์",
+      student_id: "50003",
+      gender: { name: "หญิง" },
+      absentCountThisSemester: 2,
+      absent_count_this_semester: 2,
+      risk_level: "medium",
+      enrollments: [
+        {
+          id: 3,
+          isCurrent: true,
+          classroom: {
+            id: 1,
+            roomName: "1",
+            gradeLevel: { name: "มัธยมศึกษาปีที่ 3", code: "M3" },
+          },
+        },
+      ],
+    },
+    {
+      id: 104,
+      studentCode: "aa692004",
+      firstName: "กนกวรรณ",
+      lastName: "ทองดี",
+      first_name: "กนกวรรณ",
+      last_name: "ทองดี",
+      student_id: "aa692004",
+      parent_name: "บุหลัน ทองดี",
+      parent_phone: "0988888888",
+      personId: "3101101123450",
+      person_id: "3101101123450",
+      passportId: "AC5432109",
+      passport_id: "AC5432109",
+      currentAddress: "ตำบลแสนสุข",
+      address: "ตำบลแสนสุข",
+      gender: { name: "หญิง" },
+      absentCountThisSemester: 3,
+      absent_count_this_semester: 3,
+      risk_level: "high",
+      enrollments: [
+        {
+          id: 4,
+          isCurrent: true,
+          classroom: {
+            id: 1,
+            roomName: "1",
+            gradeLevel: { name: "มัธยมศึกษาปีที่ 3", code: "M3" },
+          },
+        },
+      ],
+    },
+    {
+      id: 105,
+      studentCode: "aa692003",
+      firstName: "กมล",
+      lastName: "ทองประเสริฐ",
+      first_name: "กมล",
+      last_name: "ทองประเสริฐ",
+      student_id: "aa692003",
+      gender: { name: "ชาย" },
+      absentCountThisSemester: 1,
+      absent_count_this_semester: 1,
+      risk_level: "medium",
+      enrollments: [
+        {
+          id: 5,
+          isCurrent: true,
+          classroom: {
+            id: 1,
+            roomName: "1",
+            gradeLevel: { name: "มัธยมศึกษาปีที่ 3", code: "M3" },
+          },
+        },
+      ],
+    },
+    {
+      id: 108,
+      studentCode: "aa691502",
+      firstName: "ศศิธร",
+      lastName: "บุญศรี",
+      first_name: "ศศิธร",
+      last_name: "บุญศรี",
+      student_id: "aa691502",
+      gender: { name: "หญิง" },
+      absentCountThisSemester: 0,
+      absent_count_this_semester: 0,
+      risk_level: "low",
+      enrollments: [
+        {
+          id: 6,
+          isCurrent: true,
+          classroom: {
+            id: 3,
+            roomName: "1",
+            gradeLevel: { name: "มัธยมศึกษาปีที่ 1", code: "M1" },
+          },
+        },
+      ],
+    },
+    {
+      id: 109,
+      studentCode: "aa691503",
+      firstName: "กมล",
+      lastName: "ชัยชนะ",
+      first_name: "กมล",
+      last_name: "ชัยชนะ",
+      student_id: "aa691503",
+      gender: { name: "ชาย" },
+      absentCountThisSemester: 0,
+      absent_count_this_semester: 0,
+      risk_level: "low",
+      enrollments: [
+        {
+          id: 7,
+          isCurrent: true,
+          classroom: {
+            id: 3,
+            roomName: "1",
+            gradeLevel: { name: "มัธยมศึกษาปีที่ 1", code: "M1" },
+          },
+        },
+      ],
+    },
+  ];
+
+  await page.route(/\/api\/enrollments(?:\/.*)?/, async (route) => {
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ success: true }),
+    });
+  });
+
+  await page.route(/\/api\/students(?:\/.*)?/, async (route) => {
     const url = route.request().url();
-    // Student detail check: /api/students/<id>
-    const matchDetail = url.match(/\/api\/students\/([0-9a-zA-Z_-]+)(?:\?|$)/);
-    if (matchDetail) {
-      const studentId = matchDetail[1];
-      return route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          id: studentId === "102" ? 102 : 101,
-          studentCode: "50001",
-          firstName: "กิตติพงษ์",
-          lastName: "สุขเกษม",
-          gender: { name: "ชาย" },
-          birthDate: "2011-06-15",
-          currentAddress: "123 กรุงเทพมหานคร",
-          enrollments: [
-            {
-              id: 1,
-              isCurrent: true,
-              classroom: {
-                id: 1,
-                roomName: "1",
-                gradeLevel: { name: "มัธยมศึกษาปีที่ 3" },
-              },
-            },
-          ],
-          absentCountThisSemester: 0,
-          cases: [],
-          attendance_stats: { present: 45, absent: 0, late: 1, leave: 0 },
-        }),
-      });
+    const method = route.request().method();
+
+    // Check detail / delete / update by ID
+    const matchId = url.match(/\/api\/students\/([0-9a-zA-Z_-]+)(?:\?|$)/);
+    if (matchId && matchId[1] !== "import" && matchId[1] !== "template") {
+      const sId = matchId[1];
+      const targetIdx = mockStudentsList.findIndex((s) => String(s.id) === String(sId) || s.studentCode === sId);
+
+      if (method === "DELETE") {
+        if (targetIdx !== -1) {
+          mockStudentsList.splice(targetIdx, 1);
+        }
+        return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true }) });
+      }
+
+      if (method === "PATCH") {
+        let patchData: any = {};
+        try { patchData = route.request().postDataJSON(); } catch { patchData = {}; }
+        if (targetIdx !== -1) {
+          const s = mockStudentsList[targetIdx];
+          if (patchData.firstName) { s.firstName = patchData.firstName; s.first_name = patchData.firstName; }
+          if (patchData.lastName) { s.lastName = patchData.lastName; s.last_name = patchData.lastName; }
+          if (patchData.parent_name) s.parent_name = patchData.parent_name;
+          if (patchData.parent_phone) s.parent_phone = patchData.parent_phone;
+          if (patchData.personId) { s.personId = patchData.personId; s.person_id = patchData.personId; }
+          if (patchData.passportId) { s.passportId = patchData.passportId; s.passport_id = patchData.passportId; }
+          if (patchData.currentAddress) { s.currentAddress = patchData.currentAddress; s.address = patchData.currentAddress; }
+          return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(s) });
+        }
+        return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true }) });
+      }
+
+      if (method === "GET") {
+        const found = targetIdx !== -1 ? mockStudentsList[targetIdx] : mockStudentsList[0];
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            ...found,
+            attendance_stats: { present: 45, absent: 0, late: 1, leave: 0 },
+            cases: [],
+          }),
+        });
+      }
+    }
+
+    // POST create student
+    if (method === "POST" && !url.includes("import")) {
+      let postData: any = {};
+      try { postData = route.request().postDataJSON(); } catch { postData = {}; }
+
+      // Check duplicate studentCode
+      if (postData.studentCode && mockStudentsList.some((s) => s.studentCode === postData.studentCode)) {
+        return route.fulfill({
+          status: 409,
+          contentType: "application/json",
+          body: JSON.stringify({ message: "รหัสนักเรียนมีในระบบอยู่แล้ว" }),
+        });
+      }
+
+      const newStudent = {
+        id: mockStudentsList.length + 100,
+        studentCode: postData.studentCode || `aa${Date.now()}`,
+        firstName: postData.firstName || "นักเรียนใหม่",
+        lastName: postData.lastName || "ทดสอบ",
+        first_name: postData.firstName || "นักเรียนใหม่",
+        last_name: postData.lastName || "ทดสอบ",
+        student_id: postData.studentCode || `aa${Date.now()}`,
+        gender: { name: postData.genderId === 2 ? "หญิง" : "ชาย" },
+        birthDate: postData.birthDate || "2005-01-27",
+        currentAddress: postData.currentAddress || "ตำบลแสนสุข",
+        address: postData.currentAddress || "ตำบลแสนสุข",
+        absentCountThisSemester: 0,
+        absent_count_this_semester: 0,
+        risk_level: "low",
+        enrollments: [
+          {
+            id: 99,
+            isCurrent: true,
+            classroom: { id: 3, roomName: "1", gradeLevel: { name: "มัธยมศึกษาปีที่ 1", code: "M1" } },
+          },
+        ],
+      };
+      mockStudentsList.push(newStudent);
+      return route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify(newStudent) });
+    }
+
+    // GET list with search & filter
+    const urlObj = new URL(url, "http://localhost:3001");
+    const search = (urlObj.searchParams.get("search") || "").trim().toLowerCase();
+
+    let filtered = [...mockStudentsList];
+    if (search) {
+      filtered = filtered.filter((s) =>
+        (s.studentCode && s.studentCode.toLowerCase().includes(search)) ||
+        (s.firstName && s.firstName.toLowerCase().includes(search)) ||
+        (s.lastName && s.lastName.toLowerCase().includes(search)) ||
+        (`${s.firstName} ${s.lastName}`.toLowerCase().includes(search))
+      );
     }
 
     return route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify([
-        {
-          id: 101,
-          studentCode: "50001",
-          firstName: "กิตติพงษ์",
-          lastName: "สุขเกษม",
-          first_name: "กิตติพงษ์",
-          last_name: "สุขเกษม",
-          student_id: "50001",
-          absentCountThisSemester: 0,
-          absent_count_this_semester: 0,
-          risk_level: "low",
-          enrollments: [
-            {
-              id: 1,
-              isCurrent: true,
-              classroom: {
-                id: 1,
-                roomName: "1",
-                gradeLevel: { name: "มัธยมศึกษาปีที่ 3" },
-              },
-            },
-          ],
-        },
-        {
-          id: 102,
-          studentCode: "50002",
-          firstName: "ชาญชัย",
-          lastName: "มีสุข",
-          first_name: "ชาญชัย",
-          last_name: "มีสุข",
-          student_id: "50002",
-          absentCountThisSemester: 4,
-          absent_count_this_semester: 4,
-          risk_level: "high",
-          enrollments: [
-            {
-              id: 2,
-              isCurrent: true,
-              classroom: {
-                id: 1,
-                roomName: "1",
-                gradeLevel: { name: "มัธยมศึกษาปีที่ 3" },
-              },
-            },
-          ],
-        },
-        {
-          id: 103,
-          studentCode: "50003",
-          firstName: "วิภาดา",
-          lastName: "แสงจันทร์",
-          first_name: "วิภาดา",
-          last_name: "แสงจันทร์",
-          student_id: "50003",
-          absentCountThisSemester: 2,
-          absent_count_this_semester: 2,
-          risk_level: "medium",
-          enrollments: [
-            {
-              id: 3,
-              isCurrent: true,
-              classroom: {
-                id: 1,
-                roomName: "1",
-                gradeLevel: { name: "มัธยมศึกษาปีที่ 3" },
-              },
-            },
-          ],
-        },
-        {
-          id: 104,
-          studentCode: "aa692004",
-          firstName: "กนกวรรณ",
-          lastName: "ทองดี",
-          first_name: "กนกวรรณ",
-          last_name: "ทองดี",
-          student_id: "aa692004",
-          absentCountThisSemester: 3,
-          absent_count_this_semester: 3,
-          risk_level: "high",
-          enrollments: [
-            {
-              id: 4,
-              isCurrent: true,
-              classroom: {
-                id: 1,
-                roomName: "1",
-                gradeLevel: { name: "มัธยมศึกษาปีที่ 3" },
-              },
-            },
-          ],
-        },
-        {
-          id: 105,
-          studentCode: "aa692003",
-          firstName: "กมล",
-          lastName: "ทองประเสริฐ",
-          first_name: "กมล",
-          last_name: "ทองประเสริฐ",
-          student_id: "aa692003",
-          absentCountThisSemester: 1,
-          absent_count_this_semester: 1,
-          risk_level: "medium",
-          enrollments: [
-            {
-              id: 5,
-              isCurrent: true,
-              classroom: {
-                id: 1,
-                roomName: "1",
-                gradeLevel: { name: "มัธยมศึกษาปีที่ 3" },
-              },
-            },
-          ],
-        },
-      ]),
+      body: JSON.stringify({
+        data: filtered,
+        items: filtered,
+        meta: { total: filtered.length, page: 1, limit: 25, lastPage: 1 },
+      }),
     });
   });
 
@@ -1756,7 +2143,42 @@ export async function setupStsApiMocks(
     });
   });
 
-  // 16. Student Bulk Import POST upload/submission
+  // 16. Student Bulk Import POST upload/submission & template
+  await page.route(/\/api\/students\/import\/upload/, async (route) => {
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        jobId: "imp-job-mock-001",
+        status: "COMPLETED",
+        totalRows: 40,
+        processedRows: 40,
+        successCount: 40,
+        failedCount: 0,
+        problemRowCount: 0,
+        fileName: "student_mock.xlsx",
+      }),
+    });
+  });
+
+  await page.route(/\/api\/students\/import\/jobs\/([0-9a-zA-Z_-]+)/, async (route) => {
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        id: "imp-job-mock-001",
+        status: "COMPLETED",
+        totalRows: 40,
+        processedRows: 40,
+        successCount: 40,
+        failedCount: 0,
+        problemRowCount: 0,
+        fileName: "student_mock.xlsx",
+        createdAt: new Date().toISOString(),
+      }),
+    });
+  });
+
   await page.route(/\/api\/students\/import(?:\?.*)?$/, async (route) => {
     return route.fulfill({
       status: 200,
@@ -1776,6 +2198,7 @@ export async function setupStsApiMocks(
     const historyData = [
       {
         id: "imp-2569-001",
+        jobId: "imp-2569-001",
         fileName: "students_m3_term1_2569.xlsx",
         originalFileName: "students_m3_term1_2569.xlsx",
         fileSize: 45200,
@@ -1796,6 +2219,7 @@ export async function setupStsApiMocks(
       },
       {
         id: "imp-2569-002",
+        jobId: "imp-2569-002",
         fileName: "students_m1_term1_2569.csv",
         originalFileName: "students_m1_term1_2569.csv",
         fileSize: 32400,
@@ -1827,7 +2251,7 @@ export async function setupStsApiMocks(
     });
   });
 
-  await page.route(/\/api\/students\/template/, async (route) => {
+  await page.route(/\/api\/students\/import\/template|\/api\/students\/template/, async (route) => {
     return route.fulfill({
       status: 200,
       contentType: "text/csv",

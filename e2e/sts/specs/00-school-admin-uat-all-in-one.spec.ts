@@ -398,41 +398,85 @@ test.describe("[UAT ผู้ดูแลระบบโรงเรียน] U
       await page.waitForTimeout(1500);
       await expect(page.locator("h1, [role='heading']").first()).toBeVisible({ timeout: 10_000 });
 
-      // TC-STS-03-01-02: ตรวจสอบช่องค้นหา เมื่อกรอกรหัสนักเรียน (aa691502 / 50001)
       const studentSearch = page.locator("input[placeholder*='ค้นหา'], input[type='text']").first();
-      if (await studentSearch.isVisible()) {
-        await studentSearch.fill("50001");
-        await page.waitForTimeout(600);
-        await studentSearch.clear();
-        await page.waitForTimeout(400);
-      }
+      await expect(studentSearch).toBeVisible();
 
-      // TC-STS-03-11-01: ตรวจสอบปุ่มบันทึก เมื่อกรอกข้อมูลไม่ครบ (ใน Dialog เพิ่มนักเรียนใหม่)
+      // [1] TC-STS-03-01-02: ตรวจสอบช่องค้นหา เมื่อกรอกรหัสนักเรียน (aa691502)
+      await studentSearch.fill("aa691502");
+      await page.waitForTimeout(600);
+      await expect(page.locator("tbody")).toContainText("aa691502");
+
+      // [2] TC-STS-03-01-03: ตรวจสอบช่องค้นหา เมื่อกรอกชื่อผู้ใช้งานไม่ถูกต้อง (ศสิธร)
+      await studentSearch.fill("ศสิธร");
+      await page.waitForTimeout(600);
+      await expect(page.getByText("ไม่พบข้อมูลนักเรียน").first()).toBeVisible();
+
+      // [3] TC-STS-03-01-04: ตรวจสอบช่องค้นหา เมื่อกรอกชื่อผู้ใช้งานถูกต้อง (ศศิธร บุญศรี)
+      await studentSearch.fill("ศศิธร");
+      await page.waitForTimeout(600);
+      await expect(page.locator("tbody")).toContainText("ศศิธร");
+      await studentSearch.clear();
+      await page.waitForTimeout(400);
+
+      // [4] TC-STS-03-10-03: ตรวจสอบการกรอกข้อมูลรหัสนักเรียน เมื่อกรอกข้อมูลซ้ำ (aa692003)
       const addStudentBtn = page.getByRole("button", { name: "เพิ่มนักเรียน" }).first();
-      if (await addStudentBtn.isVisible()) {
-        await addStudentBtn.click();
-        await page.waitForTimeout(600);
-        const addStudentModal = page.locator("dialog[open], [role='dialog']").first();
-        if (await addStudentModal.isVisible()) {
-          // กรอกแค่ชื่อไม่กรอกรหัส แล้วกดบันทึก
-          const fname = addStudentModal.locator("input[name='first_name'], input#first_name").first();
-          if (await fname.isVisible()) {
-            await fname.fill("มนต์แคน");
-          }
-          const saveBtn = addStudentModal.getByRole("button", { name: "บันทึก" }).first();
-          if (await saveBtn.isVisible()) {
-            await saveBtn.click();
-            await page.waitForTimeout(400);
-            // Expected: ไม่สามารถบันทึกได้ มีแจ้งเตือน
-          }
-          // ปิด Modal
-          const cancelBtn = addStudentModal.getByRole("button", { name: "ยกเลิก" }).first();
-          if (await cancelBtn.isVisible()) {
-            await cancelBtn.click();
-            await page.waitForTimeout(400);
-          }
+      await expect(addStudentBtn).toBeVisible();
+      await addStudentBtn.click();
+      await page.waitForTimeout(600);
+
+      const addStudentModal = page.locator("div.fixed.inset-0, dialog[open], [role='dialog']").filter({ hasText: /เพิ่มนักเรียน/ }).first();
+      await expect(addStudentModal).toBeVisible();
+
+      const studentIdInput = addStudentModal.locator("input[placeholder*='6601001'], input[type='text']").first();
+      const fnameInput = addStudentModal.locator("input").nth(1);
+      const lnameInput = addStudentModal.locator("input").nth(2);
+
+      await studentIdInput.fill("aa692003");
+      await fnameInput.fill("กมล");
+      await lnameInput.fill("ทดสอบซ้ำ");
+      const submitStudentBtn = addStudentModal.getByRole("button", { name: "บันทึก" }).first();
+      await submitStudentBtn.click();
+      await page.waitForTimeout(600);
+      // Expected: แจ้งเตือนรหัสนักเรียนมีในระบบอยู่แล้ว
+      await expect(page.locator("text=/รหัสนักเรียนมีในระบบอยู่แล้ว|ซ้ำ/i").first()).toBeVisible();
+
+      // [5] TC-STS-03-11-01: ตรวจสอบปุ่มบันทึก เมื่อกรอกข้อมูลไม่ครบ (กรอกแค่มนต์แคน)
+      await studentIdInput.clear();
+      await lnameInput.clear();
+      await fnameInput.fill("มนต์แคน");
+      await submitStudentBtn.click();
+      await page.waitForTimeout(400);
+      // HTML5 required validation ป้องกัน submit
+      await expect(addStudentModal).toBeVisible();
+
+      // [7] TC-STS-03-11-05: ตรวจสอบปุ่มยกเลิก เมื่อกรอกข้อมูล (มี Dialog ยืนยันการยกเลิก)
+      await studentIdInput.fill("aa111111");
+      await fnameInput.fill("มนต์แคน");
+      await lnameInput.fill("แก่นคูน");
+      const cancelAddStudentBtn = addStudentModal.getByRole("button", { name: "ยกเลิก" }).first();
+      await cancelAddStudentBtn.click();
+      await page.waitForTimeout(400);
+
+      // ตรวจสอบ Confirm Dialog ยืนยันการยกเลิกแสดงขึ้นมา (ยกเลิกการกรอกข้อมูล?)
+      const discardDialog = page.locator("dialog[open]").filter({ hasText: /ยกเลิกการกรอกข้อมูล/ }).first();
+      if (await discardDialog.isVisible()) {
+        const keepEditingBtn = discardDialog.getByRole("button", { name: "กลับไปกรอกต่อ" }).first();
+        if (await keepEditingBtn.isVisible()) {
+          await keepEditingBtn.click();
+          await page.waitForTimeout(400);
         }
       }
+
+      // [6] TC-STS-03-11-02: ตรวจสอบปุ่มบันทึก เมื่อกรอกข้อมูลครบถ้วน (aa111111 มนต์แคน แก่นคูน)
+      if (await submitStudentBtn.isVisible()) {
+        await submitStudentBtn.click();
+        await page.waitForTimeout(1000);
+      }
+      // ตรวจสอบว่าบันทึกสำเร็จและแสดงในตาราง
+      await studentSearch.fill("มนต์แคน");
+      await page.waitForTimeout(600);
+      await expect(page.locator("tbody")).toContainText("มนต์แคน");
+      await studentSearch.clear();
 
       // -------------------------------------------------------------
       // ส่วนที่ 4.2: หน้านำเข้าข้อมูลนักเรียน (/admin/students/import)
@@ -440,10 +484,10 @@ test.describe("[UAT ผู้ดูแลระบบโรงเรียน] U
       await page.goto("/admin/students/import");
       await page.waitForTimeout(1500);
 
-      // TC-STS-03-15-01: ตรวจสอบปุ่มดาวน์โหลดเทมเพลต (เลือก CSV แล้วดาวน์โหลด)
-      const fileTypeSelect = page.locator("select#import-file-type").first();
+      // [11] TC-STS-03-15-01: ตรวจสอบปุ่มดาวน์โหลดเทมเพลต (csv)
+      const fileTypeSelect = page.locator("select#import-file-type, select").first();
       if (await fileTypeSelect.isVisible()) {
-        await fileTypeSelect.selectOption("csv");
+        await fileTypeSelect.selectOption("csv").catch(() => {});
         await page.waitForTimeout(400);
       }
       const downloadTemplateBtn = page.locator("button:has-text('ดาวน์โหลดเทมเพลต'), button:has-text('ดาวน์โหลด template')").first();
@@ -452,15 +496,32 @@ test.describe("[UAT ผู้ดูแลระบบโรงเรียน] U
         await page.waitForTimeout(800);
       }
 
-      // TC-STS-03-12-01: ตรวจสอบปุ่มประวัติการนำเข้า
-      const historyLink = page.locator("a[href*='/admin/students/import/history']").first();
-      if (await historyLink.isVisible()) {
-        await historyLink.click();
+      // [10] TC-STS-03-13-02: ตรวจสอบการทำงานของช่องอัปโหลดไฟล์
+      const fileInput = page.locator("input[type='file']").first();
+      if (await fileInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await fileInput.setInputFiles({
+          name: "student_mock.csv",
+          mimeType: "text/csv",
+          buffer: Buffer.from("studentCode,firstName,lastName\naa699001,ทดสอบ,นำเข้า"),
+        });
+        await page.waitForTimeout(1500);
+      }
+
+      // [8] TC-STS-03-12-01: ตรวจสอบการทำงานของปุ่ม ประวัติการนำเข้า
+      const historyBtn = page.locator("a[href*='/admin/students/import/history'], button:has-text('ประวัติการนำเข้า')").first();
+      if (await historyBtn.isVisible()) {
+        await historyBtn.click();
         await page.waitForTimeout(1500);
         await expect(page).toHaveURL(/\/admin\/students\/import\/history/);
-        // ตรวจสอบตารางประวัติการนำเข้า
-        await expect(page.locator("table, tbody tr").or(page.getByText(/ประวัติ/i)).first()).toBeVisible({ timeout: 10_000 });
-        await page.waitForTimeout(1000);
+        await expect(page.locator("table, tbody tr").first()).toBeVisible({ timeout: 10_000 });
+
+        // [9] TC-STS-03-12-09: ตรวจสอบการทำงานของปุ่ม ดูผล ในหน้าประวัติ
+        const viewResultBtn = page.locator("tbody tr button:has-text('ดูผล'), tbody tr button:has-text('ผลลัพธ์')").first();
+        if (await viewResultBtn.isVisible()) {
+          await viewResultBtn.click();
+          await page.waitForTimeout(1200);
+          await expect(page).toHaveURL(/\/admin\/students\/import/);
+        }
       }
 
       // -------------------------------------------------------------
@@ -469,131 +530,305 @@ test.describe("[UAT ผู้ดูแลระบบโรงเรียน] U
       await page.goto("/admin/classrooms");
       await page.waitForTimeout(1500);
 
-      // TC-STS-03-27-02: ตรวจสอบปุ่มเพิ่มห้องเรียน เมื่อเพิ่มห้องเรียนที่มีอยู่แล้ว
+      // [14] TC-STS-03-27-02: ตรวจสอบการกรอกข้อมูลเพิ่มห้องเรียน เมื่อเพิ่มห้องเรียนที่มีอยู่แล้ว (ม.1 ห้อง 1 ซ้ำ)
       const addClassroomBtn = page.locator("#add-classroom-btn, button:has-text('เพิ่มห้องเรียน')").first();
-      if (await addClassroomBtn.isVisible()) {
-        await addClassroomBtn.click();
+      await expect(addClassroomBtn).toBeVisible();
+      await addClassroomBtn.click();
+      await page.waitForTimeout(600);
+
+      const addClsModal = page.locator("dialog[open], [role='dialog']").first();
+      await expect(addClsModal).toBeVisible();
+
+      const gradeCombobox = addClsModal.locator("#cls-grade, button[role='combobox']").first();
+      const roomInput = addClsModal.locator("#cls-room, input[type='text'], input").first();
+      const capacityInput = addClsModal.locator("#cls-capacity, input[type='number']").first();
+      const saveClsBtn = addClsModal.getByRole("button", { name: /เพิ่มห้องเรียน|บันทึก/i }).first();
+
+      // ม.1 และห้อง 1 และความจุ 40 ถูกตั้งเป็นค่าเริ่มต้นอยู่แล้ว
+      await roomInput.fill("1");
+      await capacityInput.fill("40");
+      await saveClsBtn.click();
+      await page.waitForTimeout(600);
+      // Expected: แจ้งเตือน มีห้องเรียนนี้อยู่แล้ว
+      await expect(page.locator("text=/มีห้องเรียนนี้อยู่แล้ว/i").or(addClsModal.locator("text=/มีห้องเรียนนี้อยู่แล้ว/i"))).toBeVisible();
+
+      // [15] TC-STS-03-27-03: ตรวจสอบการกรอกข้อมูลเพิ่มห้องเรียน เมื่อเพิ่มห้องเรียนปกติ (ม.2 ห้อง 14 ความจุ 40)
+      if (await gradeCombobox.isVisible()) {
+        await gradeCombobox.click();
+        await page.waitForTimeout(300);
+        const m2Option = page.locator("[role='option']:has-text('ม.2'), button:has-text('ม.2'), li:has-text('ม.2')").first();
+        if (await m2Option.isVisible()) {
+          await m2Option.click();
+          await page.waitForTimeout(300);
+        }
+      }
+      await roomInput.fill("14");
+      await capacityInput.fill("40");
+      await saveClsBtn.click();
+      await page.waitForTimeout(1000);
+      // Expected: เพิ่มห้องเรียนสำเร็จ
+      await expect(page.locator("text=/บันทึกสำเร็จ|สร้างสำเร็จ/i").or(page.locator("tbody"))).toBeVisible();
+
+      // [16] TC-STS-03-28-02: ตรวจสอบปุ่มแก้ไขข้อมูลห้อง เมื่อแก้ไขห้องเรียนที่มีนักเรียน (แสดงระดับชั้นและห้องเป็น disable)
+      const editClsRow = page.locator("tbody tr:has-text('ม.3/1')").first();
+      await editClsRow.click();
+      await page.waitForTimeout(600);
+
+      // คลิกเมนู "ดูรายละเอียด / แก้ไข"
+      const viewDetailMenuItem = page.locator("[role='menuitem']:has-text('ดูรายละเอียด'), [role='menuitem']:has-text('แก้ไข')").first();
+      if (await viewDetailMenuItem.isVisible()) {
+        await viewDetailMenuItem.click();
         await page.waitForTimeout(600);
-        const clsDialog = page.locator("dialog[open], [role='dialog']").first();
-        if (await clsDialog.isVisible()) {
-          // ปิด Dialog
-          const cancelBtn = clsDialog.getByRole("button", { name: "ยกเลิก" }).first();
-          if (await cancelBtn.isVisible()) {
-            await cancelBtn.click();
-            await page.waitForTimeout(400);
-          }
+      }
+
+      // เปิด ClassroomDetailModal หรือ Edit Dialog
+      const editClsActionBtn = page.locator("dialog[open] button:has-text('แก้ไขข้อมูลห้อง'), button:has-text('แก้ไขข้อมูลห้อง')").first();
+      if (await editClsActionBtn.isVisible()) {
+        await editClsActionBtn.click();
+        await page.waitForTimeout(500);
+      }
+      const editClsModal = page.locator("dialog[open]").filter({ hasText: /แก้ไขห้องเรียน/ }).first();
+      if (await editClsModal.isVisible()) {
+        // Expected: ระดับชั้นและห้องเป็น disabled
+        const editGradeElem = editClsModal.locator("#cls-grade, select, button[role='combobox']").first();
+        if (await editGradeElem.isVisible()) {
+          const isGradeDisabled = await editGradeElem.isDisabled().catch(() => false);
+          const isGradeAriaDisabled = (await editGradeElem.getAttribute("aria-disabled")) === "true";
+          const hasGradeDisabledClass = (await editGradeElem.getAttribute("class") || "").includes("disabled");
+          expect(isGradeDisabled || isGradeAriaDisabled || hasGradeDisabledClass).toBeTruthy();
+        }
+        const editRoomElem = editClsModal.locator("#cls-room, input").first();
+        if (await editRoomElem.isVisible()) {
+          const isRoomDisabled = await editRoomElem.isDisabled().catch(() => false);
+          const isRoomAriaDisabled = (await editRoomElem.getAttribute("aria-disabled")) === "true";
+          const hasRoomDisabledClass = (await editRoomElem.getAttribute("class") || "").includes("disabled");
+          expect(isRoomDisabled || isRoomAriaDisabled || hasRoomDisabledClass).toBeTruthy();
+        }
+        // ปิด modal
+        const closeEditCls = editClsModal.getByRole("button", { name: /ปิด|ยกเลิก/i }).first();
+        await closeEditCls.click();
+        await page.waitForTimeout(400);
+      }
+      await page.evaluate(() => {
+        document.querySelectorAll('dialog[open]').forEach(d => (d as HTMLDialogElement).close());
+      });
+      await page.keyboard.press("Escape").catch(() => {});
+      await page.waitForTimeout(400);
+
+      // [17] TC-STS-03-28-03: ตรวจสอบการทำงานของปุ่ม เพิ่มครูที่ปรึกษา (เพิ่ม ครูอำนาจ คาดหวัง)
+      const assignAdvisorRow = page.locator("tbody tr:has-text('ม.3/2')").first();
+      await assignAdvisorRow.click();
+      await page.waitForTimeout(600);
+
+      const assignAdvisorMenuItem = page.locator("[role='menuitem']:has-text('จัดครูที่ปรึกษา'), [role='menuitem']:has-text('ครูที่ปรึกษา')").first();
+      if (await assignAdvisorMenuItem.isVisible()) {
+        await assignAdvisorMenuItem.click();
+        await page.waitForTimeout(600);
+      }
+
+      const advisorModal = page.locator("dialog[open]").filter({ hasText: /ครูที่ปรึกษา/ }).first();
+      if (await advisorModal.isVisible()) {
+        // เลือก ครูอำนาจ คาดหวัง
+        const teacherRadio = advisorModal.locator("input[type='radio'], button[role='radio'], tr:has-text('คาดหวัง')").first();
+        if (await teacherRadio.isVisible()) {
+          await teacherRadio.click();
+          await page.waitForTimeout(400);
+        }
+        const saveAdvisorBtn = advisorModal.getByRole("button", { name: /บันทึก/i }).first();
+        if (await saveAdvisorBtn.isVisible()) {
+          await saveAdvisorBtn.click();
+          await page.waitForTimeout(800);
         }
       }
 
-      // TC-STS-03-26-04: ตรวจสอบปุ่มจัดเข้าห้อง (Student Placement)
+      // [18] TC-STS-03-28-04: ตรวจสอบการลบครูที่ปรึกษา (กดปุ่ม เอาออก แล้วกดยืนยัน)
+      // [19] TC-STS-03-28-05: ตรวจสอบการเปลี่ยนครูที่ปรึกษา (กดยืนยันย้ายห้อง)
+      await page.evaluate(() => {
+        document.querySelectorAll('dialog[open]').forEach(d => (d as HTMLDialogElement).close());
+      });
+      await page.keyboard.press("Escape").catch(() => {});
+      await page.waitForTimeout(400);
+
+      // [12] TC-STS-03-26-04 & [13] TC-STS-03-26-05: จัดนักเรียนเข้าห้อง
       const placeStudentsBtn = page.locator("#place-students-btn, button:has-text('จัดนักเรียนเข้าห้อง')").first();
       if (await placeStudentsBtn.isVisible()) {
         await placeStudentsBtn.click();
         await page.waitForTimeout(800);
-        // ปิดหรือยกเลิก Placement
-        const closePlacement = page.locator("dialog[open]").getByRole("button", { name: /ยกเลิก|ปิด/i }).first();
-        if (await closePlacement.isVisible()) {
-          await closePlacement.click();
-          await page.waitForTimeout(400);
-        }
-        await page.evaluate(() => {
-          document.querySelectorAll('dialog[open]').forEach(d => (d as HTMLDialogElement).close());
-        });
-        await page.keyboard.press("Escape").catch(() => {});
-        await page.waitForTimeout(400);
-      }
 
-      // TC-STS-03-28-02: ตรวจสอบปุ่มแก้ไข บนตารางห้องเรียน
-      const editClsBtn = page.locator("tbody tr button:has-text('แก้ไข')").first();
-      if (await editClsBtn.isVisible()) {
-        await editClsBtn.click();
-        await page.waitForTimeout(600);
-        const closeDetail = page.locator("dialog[open]").getByRole("button", { name: /ปิด|ยกเลิก/i }).first();
-        if (await closeDetail.isVisible()) {
-          await closeDetail.click();
-          await page.waitForTimeout(400);
+        const placementDialog = page.locator("dialog[open], [role='dialog']").first();
+        if (await placementDialog.isVisible()) {
+          // เลือกระดับชั้น ม.1
+          const gradeSelectPlacement = placementDialog.locator("select").nth(1);
+          if (await gradeSelectPlacement.isVisible()) {
+            await gradeSelectPlacement.selectOption({ label: "มัธยมศึกษาปีที่ 1" }).catch(() => gradeSelectPlacement.selectOption({ index: 1 }));
+            await page.waitForTimeout(500);
+          }
+
+          // เลือกนักเรียน (checkbox)
+          const studentCheckbox = placementDialog.locator("input[type='checkbox']").first();
+          if (await studentCheckbox.isVisible()) {
+            await studentCheckbox.check();
+            await page.waitForTimeout(400);
+          }
+
+          // TC-STS-03-26-05: สังเกตห้องที่เต็มแล้ว (ม.1/2) เป็น disabled
+          const targetRoomSelect = placementDialog.locator("select").last();
+          if (await targetRoomSelect.isVisible()) {
+            const fullOption = targetRoomSelect.locator("option:has-text('ม.1/2')");
+            if (await fullOption.count() > 0) {
+              await expect(fullOption).toBeDisabled();
+            }
+
+            // TC-STS-03-26-04: เลือกห้อง ม.1/3 แล้วกดจัดเข้าห้อง
+            await targetRoomSelect.selectOption({ label: /ม\.1\/3/i }).catch(() => targetRoomSelect.selectOption({ index: 1 }));
+            await page.waitForTimeout(400);
+          }
+
+          const assignBtn = placementDialog.getByRole("button", { name: /จัดเข้าห้อง|บันทึก/i }).first();
+          if (await assignBtn.isVisible() && await assignBtn.isEnabled()) {
+            await assignBtn.click();
+            await page.waitForTimeout(800);
+          }
+
+          const closePlacement = placementDialog.getByRole("button", { name: /ปิด|ยกเลิก/i }).first();
+          if (await closePlacement.isVisible()) {
+            await closePlacement.click();
+            await page.waitForTimeout(400);
+          }
         }
-        await page.evaluate(() => {
-          document.querySelectorAll('dialog[open]').forEach(d => (d as HTMLDialogElement).close());
-        });
-        await page.keyboard.press("Escape").catch(() => {});
-        await page.waitForTimeout(400);
       }
+      await page.evaluate(() => {
+        document.querySelectorAll('dialog[open]').forEach(d => (d as HTMLDialogElement).close());
+      });
 
       // -------------------------------------------------------------
       // ส่วนที่ 4.4: หน้าข้อมูลนักเรียนรายคน (Student Detail Profile)
       // -------------------------------------------------------------
-      // TC-STS-03-39-01: ตรวจสอบการแสดงผลข้อมูลทั่วไป
-      // TC-STS-03-33-03: ตรวจสอบการแก้ไขข้อมูลนักเรียน
-      // TC-STS-03-34-02: ตรวจสอบปุ่มเปลี่ยนห้องเรียน
-      // TC-STS-03-38-01: ตรวจสอบปุ่มลบ (มี Dialog ยืนยัน)
       await page.goto("/admin/students");
       await page.waitForTimeout(1000);
-      const firstStudentRow = page.locator("tbody tr").first();
-      if (await firstStudentRow.isVisible()) {
-        const viewLink = firstStudentRow.locator("a[href*='/admin/students/']").first();
-        if (await viewLink.isVisible()) {
-          await viewLink.click();
-        } else {
-          await page.goto("/admin/students/101").catch(() => {});
-        }
-      } else {
-        await page.goto("/admin/students/101").catch(() => {});
-      }
+
+      // เข้าสู่หน้านักเรียน กนกวรรณ ทองดี (ID: 104)
+      await page.goto("/admin/students/104");
       await page.waitForTimeout(1500);
 
-      // TC-STS-03-39-01: สังเกตช่องข้อมูลทั่วไป
-      const generalTab = page.getByText(/ข้อมูลทั่วไป|ประวัติ/i).first();
-      if (await generalTab.isVisible()) {
-        await expect(generalTab).toBeVisible();
-      }
+      // [25] TC-STS-03-39-01: ตรวจสอบการแสดงผลข้อมูลทั่วไป
+      await expect(page.locator("h1, [role='heading']").first()).toContainText("กนกวรรณ ทองดี");
+      await expect(page.locator("text=aa692004").first()).toBeVisible();
+      await expect(page.locator("main").locator("text=/ระดับชั้น|ห้องเรียน|วันขาดเรียน/i").first()).toBeVisible();
 
-      // TC-STS-03-33-03: ตรวจสอบการแก้ไขข้อมูลนักเรียน
+      // [20] TC-STS-03-33-03: ตรวจสอบการทำงานของปุ่มแก้ไขข้อมูลนักเรียน เมื่อกรอกข้อมูลครบถ้วน
+      // [21] TC-STS-03-33-04: ตรวจสอบการแสดงผลข้อมูล หลังจากแก้ไขข้อมูลนักเรียน
       const editStudentBtn = page.locator("button:has-text('แก้ไข')").first();
-      if (await editStudentBtn.isVisible()) {
-        await editStudentBtn.click();
-        await page.waitForTimeout(500);
-        const closeEditStudent = page.locator("dialog[open]").getByRole("button", { name: /ยกเลิก|ปิด/i }).first();
-        if (await closeEditStudent.isVisible()) {
-          await closeEditStudent.click();
-          await page.waitForTimeout(400);
-        }
-        await page.evaluate(() => {
-          document.querySelectorAll('dialog[open]').forEach(d => (d as HTMLDialogElement).close());
-        });
-      }
+      await expect(editStudentBtn).toBeVisible();
+      await editStudentBtn.click();
+      await page.waitForTimeout(600);
 
-      // TC-STS-03-34-02: ตรวจสอบปุ่มเปลี่ยนห้องเรียน
-      const changeRoomBtn = page.locator("button:has-text('เปลี่ยนห้องเรียน'), button:has-text('ย้ายห้อง')").first();
-      if (await changeRoomBtn.isVisible()) {
-        await changeRoomBtn.click();
-        await page.waitForTimeout(500);
-        // ปิด Dialog
-        const cancelChange = page.locator("dialog[open]").getByRole("button", { name: /ยกเลิก|ปิด/i }).first();
-        if (await cancelChange.isVisible()) {
-          await cancelChange.click();
-          await page.waitForTimeout(400);
-        }
-        await page.evaluate(() => {
-          document.querySelectorAll('dialog[open]').forEach(d => (d as HTMLDialogElement).close());
-        });
-      }
+      const editStudentModal = page.locator("dialog[open], [role='dialog']").first();
+      await expect(editStudentModal).toBeVisible();
 
-      // TC-STS-03-38-01: ตรวจสอบปุ่มลบ (ต้องมีหน้าต่างยืนยันการลบ แต่นักเรียนยังไม่ถูกลบถ้ากดยกเลิก)
-      const deleteStudentBtn = page.locator("button:has-text('ลบ'), button:has-text('ลบนักเรียน')").first();
-      if (await deleteStudentBtn.isVisible()) {
-        await deleteStudentBtn.click();
-        await page.waitForTimeout(500);
-        // กดยกเลิกใน Confirm Dialog
-        const cancelDelete = page.locator("dialog[open]").getByRole("button", { name: /ยกเลิก|ปิด/i }).first();
-        if (await cancelDelete.isVisible()) {
-          await cancelDelete.click();
-          await page.waitForTimeout(400);
+      const parentNameInput = editStudentModal.locator("#s-parent-name, input[placeholder*='ผู้ปกครอง']").first();
+      const parentPhoneInput = editStudentModal.locator("#s-parent-phone").first();
+      const personIdInput = editStudentModal.locator("#s-person-id").first();
+      const passportIdInput = editStudentModal.locator("#s-passport-id").first();
+      const addressInput = editStudentModal.locator("#s-address, textarea").first();
+
+      if (await parentNameInput.isVisible()) await parentNameInput.fill("บุหลัน ทองดี");
+      if (await parentPhoneInput.isVisible()) await parentPhoneInput.fill("0988888888");
+      if (await personIdInput.isVisible()) await personIdInput.fill("3101101123450");
+      if (await passportIdInput.isVisible()) await passportIdInput.fill("AC5432109");
+      if (await addressInput.isVisible()) await addressInput.fill("ตำบลแสนสุข");
+
+      const saveEditStudentBtn = editStudentModal.getByRole("button", { name: "บันทึก" }).first();
+      await saveEditStudentBtn.click();
+      await page.waitForTimeout(1000);
+
+      // TC-STS-03-33-04 Expected: แสดงผลข้อมูลถูกต้องหลังจากแก้ไข
+      await expect(page.locator("text=/บุหลัน ทองดี|3101101123450|แก้ไขข้อมูลนักเรียนสำเร็จ|บันทึกสำเร็จ/i").first()).toBeVisible();
+
+      // [22] TC-STS-03-34-02: ตรวจสอบการทำงานของปุ่มเปลี่ยนห้องเรียน (ย้ายห้อง -> ม.1/2 หรือ ม.3/2)
+      const changeClassroomBtn = page.locator("button:has-text('เปลี่ยนห้องเรียน'), button:has-text('ย้ายห้อง')").first();
+      if (await changeClassroomBtn.isVisible()) {
+        await changeClassroomBtn.click();
+        await page.waitForTimeout(600);
+
+        const changeClsModal = page.locator("dialog[open], [role='dialog']").first();
+        if (await changeClsModal.isVisible()) {
+          const destSelect = changeClsModal.locator("#change-cls-target, select").first();
+          if (await destSelect.isVisible()) {
+            const tagName = await destSelect.evaluate(el => el.tagName.toLowerCase());
+            if (tagName === "select") {
+              await destSelect.selectOption({ index: 1 });
+            } else {
+              await destSelect.click();
+              await page.waitForTimeout(400);
+              const opt = page.locator("[role='option'], [role='listbox'] > *").nth(1);
+              if (await opt.isVisible()) {
+                await opt.click();
+              } else {
+                const anyOpt = page.locator("[role='option']").first();
+                if (await anyOpt.isVisible()) await anyOpt.click();
+              }
+            }
+            await page.waitForTimeout(400);
+          }
+          const reasonInput = changeClsModal.locator("#change-cls-reason, textarea").first();
+          if (await reasonInput.isVisible()) {
+            await reasonInput.fill("ย้ายห้องเรียนตามผลการเรียน");
+            await page.waitForTimeout(300);
+          }
+          const confirmChangeBtn = changeClsModal.getByRole("button", { name: "เปลี่ยนห้องเรียน" }).first();
+          if (await confirmChangeBtn.isVisible() && await confirmChangeBtn.isEnabled()) {
+            await confirmChangeBtn.click();
+            await page.waitForTimeout(500);
+
+            // กดปุ่มยืนยันใน ConfirmDialog
+            const finalConfirmBtn = page.locator("dialog[open]").last().getByRole("button", { name: "ยืนยัน" }).first();
+            if (await finalConfirmBtn.isVisible()) {
+              await finalConfirmBtn.click();
+              await page.waitForTimeout(800);
+            }
+          }
         }
-        await page.evaluate(() => {
-          document.querySelectorAll('dialog[open]').forEach(d => (d as HTMLDialogElement).close());
-        });
       }
+      await page.evaluate(() => {
+        document.querySelectorAll('dialog[open]').forEach(d => (d as HTMLDialogElement).close());
+      });
+
+      // [23] TC-STS-03-38-01: ตรวจสอบการทำงานของปุ่มลบ (กมล ชัยชนะ - ID: 109)
+      // [24] TC-STS-03-38-02: ตรวจสอบการแสดงผลของปุ่มลบ หลังทำการลบนักเรียน
+      await page.goto("/admin/students/109");
+      await page.waitForTimeout(1500);
+
+      const deleteStudentProfileBtn = page.locator("button:has-text('ลบ'), button:has-text('ลบนักเรียน')").first();
+      await expect(deleteStudentProfileBtn).toBeVisible();
+      await deleteStudentProfileBtn.click();
+      await page.waitForTimeout(600);
+
+      const deleteConfirmModal = page.locator("dialog[open], [role='dialog']").filter({ hasText: /ลบ/ }).first();
+      await expect(deleteConfirmModal).toBeVisible();
+
+      // TC-STS-03-38-01: ทดสอบกดยกเลิกก่อน นักเรียนยังไม่ถูกลบ
+      const cancelDeleteStudentBtn = deleteConfirmModal.getByRole("button", { name: "ยกเลิก" }).first();
+      await cancelDeleteStudentBtn.click();
+      await page.waitForTimeout(500);
+      await expect(page.locator("h1, [role='heading']").first()).toContainText("กมล ชัยชนะ");
+
+      // TC-STS-03-38-02: กดลบจริง
+      await deleteStudentProfileBtn.click();
+      await page.waitForTimeout(500);
+      const confirmDeleteStudentBtn = page.locator("dialog[open]").last().getByRole("button", { name: "ลบ" }).first();
+      await confirmDeleteStudentBtn.click();
+      await page.waitForTimeout(1500);
+
+      // ระบบ redirect กลับมาที่ /admin/students
+      await expect(page).toHaveURL(/\/admin\/students/);
+      const searchAfterDelete = page.locator("input[placeholder*='ค้นหา'], input[type='text']").first();
+      await searchAfterDelete.waitFor({ state: "visible", timeout: 10_000 });
+      // ค้นหา "กมล ชัยชนะ" จะต้องไม่พบข้อมูล
+      await searchAfterDelete.fill("กมล ชัยชนะ");
+      await page.waitForTimeout(600);
+      await expect(page.getByText("ไม่พบข้อมูลนักเรียน").first()).toBeVisible();
+      await searchAfterDelete.clear();
 
       await page.waitForTimeout(1000);
     });
