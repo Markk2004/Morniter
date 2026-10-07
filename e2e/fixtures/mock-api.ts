@@ -700,6 +700,8 @@ export async function setupStsApiMocks(
             description: "มีห้องเรียนที่ยังไม่มีครูที่ปรึกษาประจำชั้น",
             count: 2,
             occurredAt: "2026-09-28T08:00:00Z",
+            href: "/admin/classrooms?filter=missing-advisor",
+            actionUrl: "/admin/classrooms?filter=missing-advisor",
           },
           {
             id: "act-2",
@@ -710,6 +712,8 @@ export async function setupStsApiMocks(
             description: "มีเคสติดตามนักเรียนที่ค้างดำเนินการเกิน 7 วัน",
             count: 4,
             occurredAt: "2026-09-28T08:00:00Z",
+            href: "/admin/cases?filter=overdue-7-days",
+            actionUrl: "/admin/cases?filter=overdue-7-days",
           },
           {
             id: "act-3",
@@ -720,6 +724,8 @@ export async function setupStsApiMocks(
             description: "มีห้องเรียนที่มีจำนวนนักเรียนเกินความจุ",
             count: 1,
             occurredAt: "2026-09-28T08:00:00Z",
+            href: "/admin/classrooms?filter=over-capacity",
+            actionUrl: "/admin/classrooms?filter=over-capacity",
           },
           {
             id: "act-4",
@@ -730,11 +736,13 @@ export async function setupStsApiMocks(
             description: "มีนักเรียนที่ยังไม่ได้จัดสรรเข้าห้องเรียน",
             count: 5,
             occurredAt: "2026-09-28T08:00:00Z",
+            href: "/admin/students?filter=unassigned",
+            actionUrl: "/admin/students?filter=unassigned",
           },
         ],
         totalActionCount: 4,
         dataReadiness: {
-          scorePercentage: 98,
+          scorePercentage: 85,
           checks: [
             {
               key: "STUDENT_ENROLLMENT",
@@ -743,6 +751,18 @@ export async function setupStsApiMocks(
               message: "นักเรียนทุกคนมีชั้นเรียนสังกัด",
               affectedCount: 0,
               actionCode: null,
+            },
+            {
+              key: "CLASSROOM_ADVISOR",
+              label: "การจัดการครูประจำชั้นครบทุกห้อง",
+              title: "การจัดการครูประจำชั้นครบทุกห้อง",
+              status: "NOT_READY",
+              message: "ยังมีห้องเรียนที่ยังไม่มีครูประจำชั้น",
+              affectedCount: 2,
+              actionCode: "ASSIGN_ADVISOR",
+              actionUrl: "/admin/classrooms",
+              link: "/admin/classrooms",
+              buttonLabel: "จัดการห้องเรียน",
             },
           ],
         },
@@ -1314,7 +1334,7 @@ export async function setupStsApiMocks(
       return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify(targetUser ? { ...targetUser, isActive: false } : { success: true, isActive: false }),
+        body: JSON.stringify(targetUser ? { ...targetUser, isActive: false, message: "ระงับการใช้งานสำเร็จแล้ว" } : { success: true, isActive: false, message: "ระงับการใช้งานสำเร็จแล้ว" }),
       });
     }
 
@@ -1368,7 +1388,7 @@ export async function setupStsApiMocks(
       return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ success: true }),
+        body: JSON.stringify({ success: true, message: "บันทึกข้อมูลสำเร็จแล้ว" }),
       });
     }
 
@@ -1385,7 +1405,7 @@ export async function setupStsApiMocks(
       return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ success: true }),
+        body: JSON.stringify({ success: true, message: "ลบผู้ใช้งานสำเร็จแล้ว" }),
       });
     }
 

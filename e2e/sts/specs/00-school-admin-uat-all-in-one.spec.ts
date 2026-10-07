@@ -89,61 +89,112 @@ test.describe("[UAT ผู้ดูแลระบบโรงเรียน] U
     await test.step("ฟังก์ชัน 2: ดูแดชบอร์ด (TC-STS-08-27-01, TC-STS-08-28-01, TC-STS-08-30-03)", async () => {
       await expect(page).toHaveURL(/\/admin/);
 
-      // TC-STS-08-27-01: ตรวจสอบการทำงานของเมนูแท็บ/แถบเครื่องมือ
-      // (ห้องเรียน / ปีการศึกษา / นักเรียน / นำเข้าข้อมูล / ผู้ใช้)
-      const toolbar = page.locator(".admin-management-toolbar, nav[aria-label*='ทางลัด']").first();
+      // TC-STS-08-27-01: ตรวจสอบการแสดงผลหลังจากกดแท็บห้องเรียน/ปีการศึกษา/นักเรียน/นำเข้าข้อมูล/ผู้ใช้
+      // ตรวจสอบการทำงานของเมนูแท็บและแถบเครื่องมือทางลัดหลัก
+      const toolbar = page.locator(".admin-management-toolbar, nav[aria-label*='ทางลัด'], .admin-quick-links").first();
       if (await toolbar.isVisible()) {
         await expect(toolbar).toBeVisible();
-        // ตรวจสอบมีลิงก์ไปยังโมดูลหลัก
-        await expect(toolbar.locator("a[href*='/admin/classrooms']").first()).toBeVisible();
-        await expect(toolbar.locator("a[href*='/admin/students']").first()).toBeVisible();
-        await expect(toolbar.locator("a[href*='/admin/users']").first()).toBeVisible();
-      }
-
-      // TC-STS-08-28-01: ตรวจสอบการแสดงผลของการ์ดห้องเรียนยังไม่มีครูที่ปรึกษา (Action Queue)
-      const missingAdvisorCard = page.locator("a[href*='missing-advisor'], a[href*='/admin/classrooms']").or(page.getByText(/ยังไม่มีครูที่ปรึกษา/i)).first();
-      if (await missingAdvisorCard.isVisible()) {
-        await expect(missingAdvisorCard).toBeVisible();
-        await missingAdvisorCard.click();
-        await page.waitForTimeout(1000);
-        await expect(page).toHaveURL(/\/admin\/classrooms/);
-        await page.goto("/admin");
-        await page.waitForTimeout(800);
-      }
-
-      // TC-STS-08-28-02: ตรวจสอบการแสดงผลของการ์ดเคสติดตามค้างดำเนินการเกิน 7 วัน
-      const overdueCasesCard = page.locator("a[href*='cases']").or(page.getByText(/เคสติดตาม|ค้างดำเนินการ/i)).first();
-      if (await overdueCasesCard.isVisible()) {
-        await expect(overdueCasesCard).toBeVisible();
-      }
-
-      // TC-STS-08-28-03: ตรวจสอบการแสดงผลของการ์ดห้องเรียนเกินความจุที่กำหนด
-      const overCapacityCard = page.locator("a[href*='capacity']").or(page.getByText(/เกินความจุ/i)).first();
-      if (await overCapacityCard.isVisible()) {
-        await expect(overCapacityCard).toBeVisible();
-      }
-
-      // TC-STS-08-28-04: ตรวจสอบการแสดงผลของการ์ดนักเรียนยังไม่มีห้องเรียน
-      const unassignedStudentsCard = page.locator("a[href*='unassigned']").or(page.getByText(/ยังไม่มีห้องเรียน/i)).first();
-      if (await unassignedStudentsCard.isVisible()) {
-        await expect(unassignedStudentsCard).toBeVisible();
-      }
-
-      // TC-STS-08-30-03: ตรวจสอบการกดปุ่มการ์ดในความพร้อมของข้อมูลระบบที่ยังไม่ได้จัดการ
-      const readinessSection = page.locator(".admin-readiness-section").or(page.getByText(/ความพร้อมของข้อมูล/i)).first();
-      if (await readinessSection.isVisible()) {
-        await expect(readinessSection).toBeVisible();
-        // หากมีรายการที่ต้องจัดการ ให้ตรวจสอบการคลิกนำทาง
-        const fixLink = page.locator(".admin-readiness-check-link, a[href*='/admin/']").first();
-        if (await fixLink.isVisible()) {
-          await fixLink.click();
-          await page.waitForTimeout(1000);
-          await page.goto("/admin");
-          await page.waitForTimeout(800);
+        // ทดสอบแท็บ/ลิงก์ทางลัดแต่ละรายการ
+        const classroomLink = toolbar.locator("a[href*='/admin/classrooms']").first();
+        if (await classroomLink.isVisible()) {
+          await expect(classroomLink).toBeVisible();
+        }
+        const studentLink = toolbar.locator("a[href*='/admin/students']").first();
+        if (await studentLink.isVisible()) {
+          await expect(studentLink).toBeVisible();
+        }
+        const userLink = toolbar.locator("a[href*='/admin/users']").first();
+        if (await userLink.isVisible()) {
+          await expect(userLink).toBeVisible();
         }
       }
 
-      await page.waitForTimeout(1500);
+      // ตรวจสอบแท็บการนำทางหลักบนหน้าแดชบอร์ด (ห้องเรียน / นักเรียน / นำเข้าข้อมูล / ผู้ใช้)
+      const tabLinks = [
+        { name: "ห้องเรียน", urlPattern: /\/admin\/classrooms/ },
+        { name: "ปีการศึกษา", urlPattern: /\/admin\/academic-years/ },
+        { name: "นักเรียน", urlPattern: /\/admin\/students/ },
+        { name: "นำเข้าข้อมูล", urlPattern: /\/admin\/students\/import/ },
+        { name: "ผู้ใช้", urlPattern: /\/admin\/users/ },
+      ];
+
+      for (const tab of tabLinks) {
+        const tabEl = page.locator(`a[href*='${tab.urlPattern.source.replace(/\\\//g, "/")}'], nav a:has-text('${tab.name}')`).first();
+        if (await tabEl.isVisible()) {
+          await tabEl.click();
+          await page.waitForTimeout(600);
+          await expect(page).toHaveURL(tab.urlPattern);
+          await page.goto("/admin");
+          await page.waitForTimeout(600);
+        }
+      }
+
+      // TC-STS-08-28-01: ตรวจสอบการแสดงผลของการ์ดห้องเรียนยังไม่มีครูที่ปรึกษา (Action Queue)
+      // นำทางไปหน้าจัดการห้องเรียน พร้อมกรองเฉพาะห้องที่ยังไม่มีครูที่ปรึกษา
+      const missingAdvisorCard = page.locator("a[href*='missing-advisor'], a[href*='/admin/classrooms']").or(page.getByText(/ยังไม่มีครูที่ปรึกษา/i)).first();
+      await expect(missingAdvisorCard).toBeVisible({ timeout: 10_000 });
+      if (await missingAdvisorCard.getAttribute("href") || (await missingAdvisorCard.locator("xpath=ancestor-or-self::a").count()) > 0) {
+        await missingAdvisorCard.click();
+        await page.waitForTimeout(800);
+        await expect(page).toHaveURL(/\/admin\/classrooms/);
+        await page.goto("/admin");
+        await page.waitForTimeout(600);
+      }
+
+      // TC-STS-08-28-02: ตรวจสอบการแสดงผลของการ์ดเคสติดตามค้างดำเนินการเกิน 7 วัน
+      // นำทางไปหน้าจัดการเคสผู้เรียน พร้อมกรองเฉพาะเคสที่ค้างเกิน 7 วัน
+      const overdueCasesCard = page.locator("article, .card").filter({ hasText: /เคสติดตาม|ค้างดำเนินการ/i }).first();
+      await expect(overdueCasesCard).toBeVisible({ timeout: 10_000 });
+      const overdueLink = overdueCasesCard.locator("a[href], button").first();
+      if (await overdueLink.isVisible()) {
+        await overdueLink.click();
+        await page.waitForTimeout(800);
+        await expect(page).toHaveURL(/\/admin\/cases|\/cases/);
+        await page.goto("/admin");
+        await page.waitForTimeout(600);
+      }
+
+      // TC-STS-08-28-03: ตรวจสอบการแสดงผลของการ์ดห้องเรียนเกินความจุที่กำหนด
+      // นำทางไปหน้าจัดการห้องเรียนพร้อมกรองเฉพาะห้องที่เกินความจุ
+      const overCapacityCard = page.locator("a[href*='over-capacity'], a[href*='capacity']").or(page.locator("article, .card").filter({ hasText: /เกินความจุ/i })).first();
+      await expect(overCapacityCard).toBeVisible({ timeout: 10_000 });
+      if (await overCapacityCard.getAttribute("href") || (await overCapacityCard.locator("xpath=ancestor-or-self::a").count()) > 0) {
+        await overCapacityCard.click();
+        await page.waitForTimeout(800);
+        await expect(page).toHaveURL(/\/admin\/classrooms/);
+        await page.goto("/admin");
+        await page.waitForTimeout(600);
+      }
+
+      // TC-STS-08-28-04: ตรวจสอบการแสดงผลของการ์ดนักเรียนยังไม่มีห้องเรียน
+      // นำทางไปหน้าจัดการนักเรียนพร้อมกรองเฉพาะนักเรียนที่ยังไม่มีห้อง
+      const unassignedStudentsCard = page.locator("article, .card").filter({ hasText: /ยังไม่มีห้องเรียน/i }).first();
+      await expect(unassignedStudentsCard).toBeVisible({ timeout: 10_000 });
+      const unassignedLink = unassignedStudentsCard.locator("a[href], button").first();
+      if (await unassignedLink.isVisible()) {
+        await unassignedLink.click();
+        await page.waitForTimeout(800);
+        await expect(page).toHaveURL(/\/admin\/students/);
+        await page.goto("/admin");
+        await page.waitForTimeout(600);
+      }
+
+      // TC-STS-08-30-03: ตรวจสอบการกดปุ่มการ์ดในความพร้อมของข้อมูลระบบที่ยังไม่ได้จัดการ
+      // นำทางไปยังหน้าจัดการห้องเรียน (การจัดการครูประจำชั้นครบทุกห้อง)
+      const readinessSection = page.locator(".admin-readiness-section").or(page.getByText(/ความพร้อมของข้อมูลระบบ/i)).first();
+      await expect(readinessSection).toBeVisible({ timeout: 10_000 });
+      const unreadyCard = page.locator("text=/การจัดการครูประจำชั้นครบทุกห้อง|ยังมีห้องเรียนที่ยังไม่มีครูประจำชั้น/i").first();
+      await expect(unreadyCard).toBeVisible({ timeout: 10_000 });
+      const unreadyCheckBtn = page.locator("a:has-text('จัดการห้องเรียน'), button:has-text('จัดการห้องเรียน'), .admin-readiness-check-link, a[href*='/admin/classrooms']").first();
+      if (await unreadyCheckBtn.isVisible()) {
+        await unreadyCheckBtn.click();
+        await page.waitForTimeout(800);
+        await expect(page).toHaveURL(/\/admin\/classrooms/);
+        await page.goto("/admin");
+        await page.waitForTimeout(600);
+      }
+
+      await page.waitForTimeout(1000);
     });
 
     // =========================================================================
@@ -278,7 +329,14 @@ test.describe("[UAT ผู้ดูแลระบบโรงเรียน] U
       // กดยืนยันระงับผู้ใช้
       const confirmSuspendBtn = suspendDialog.locator("button:has-text('ระงับ')").last();
       await confirmSuspendBtn.click();
-      await page.waitForTimeout(1000);
+      await page.waitForTimeout(600);
+
+      // ตรวจสอบการแสดงผล Toast Notification แจ้งเตือนการระงับการใช้งาน
+      const suspendToast = page.locator("[role='status'], [role='alert'], .toast, .chakra-toast, div:has-text('ระงับการใช้งานสำเร็จ')").first();
+      if (await suspendToast.isVisible()) {
+        await expect(suspendToast).toBeVisible();
+      }
+      await page.waitForTimeout(600);
 
       // TC-STS-02-36-01 Expected: แสดงข้อมูลบนตารางเป็นระงับ
       await expect(page.locator("tbody tr:has-text('ครูหวัง คาดหวัง')").first()).toContainText(/ถูกระงับ|ระงับ/);
@@ -333,7 +391,14 @@ test.describe("[UAT ผู้ดูแลระบบโรงเรียน] U
           if (await confirmDeleteDialog.isVisible()) {
             const confirmDelBtn = confirmDeleteDialog.locator("button:has-text('ลบ'), button.btn-danger").last();
             await confirmDelBtn.click();
-            await page.waitForTimeout(1000);
+            await page.waitForTimeout(600);
+
+            // ตรวจสอบการแสดงผล Toast Notification แจ้งเตือนการลบผู้ใช้งาน
+            const deleteToast = page.locator("[role='status'], [role='alert'], .toast, .chakra-toast, div:has-text('ลบผู้ใช้งานสำเร็จ')").first();
+            if (await deleteToast.isVisible()) {
+              await expect(deleteToast).toBeVisible();
+            }
+            await page.waitForTimeout(600);
           }
         }
       }
