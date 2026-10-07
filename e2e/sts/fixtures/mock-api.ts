@@ -175,7 +175,7 @@ export async function setupStsApiMocks(
   });
 
   // 4. Classrooms list & CRUD for filters & lookups
-  const mockClassroomsList = [
+  const mockClassroomsList: Array<any> = [
     {
       id: 1,
       roomName: "1",
@@ -308,7 +308,7 @@ export async function setupStsApiMocks(
         const targetCls = mockClassroomsList.find((c) => c.id === clsId);
 
         if (method === "DELETE" && teacherId && targetCls) {
-          targetCls.advisors = targetCls.advisors.filter((a) => a.teacherId !== teacherId);
+          targetCls.advisors = targetCls.advisors.filter((a: any) => a.teacherId !== teacherId);
           return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true }) });
         }
         if (method === "POST" && targetCls) {
@@ -317,7 +317,7 @@ export async function setupStsApiMocks(
           const tId = Number(postData.teacherId);
           // ลบครูคนนี้ออกจากห้องอื่นก่อน (ถ้า confirmMove)
           mockClassroomsList.forEach((c) => {
-            c.advisors = c.advisors.filter((a) => a.teacherId !== tId);
+            c.advisors = c.advisors.filter((a: any) => a.teacherId !== tId);
           });
           targetCls.advisors.push({
             teacherId: tId,
@@ -358,6 +358,7 @@ export async function setupStsApiMocks(
         academicYear: "2569",
         academic_year: "2569",
         studentCount: 0,
+        student_count: 0,
         capacity: Number(data.capacity || 40),
         isActive: true,
         advisors: [],

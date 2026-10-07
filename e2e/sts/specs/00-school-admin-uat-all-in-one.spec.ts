@@ -680,7 +680,7 @@ test.describe("[UAT ผู้ดูแลระบบโรงเรียน] U
             }
 
             // TC-STS-03-26-04: เลือกห้อง ม.1/3 แล้วกดจัดเข้าห้อง
-            await targetRoomSelect.selectOption({ label: /ม\.1\/3/i }).catch(() => targetRoomSelect.selectOption({ index: 1 }));
+            await targetRoomSelect.selectOption({ label: "ม.1/3" }).catch(() => targetRoomSelect.selectOption({ index: 1 }));
             await page.waitForTimeout(400);
           }
 
