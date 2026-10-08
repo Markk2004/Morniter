@@ -3948,6 +3948,14 @@ test.describe("[UAT ผู้ดูแลระบบโรงเรียน] U
 });
 `
   },
+  "TC-STS-PLATFORM-ADMIN": {
+    id: "TC-STS-PLATFORM-ADMIN",
+    name: "TC-STS-PLATFORM-ADMIN · [UAT หัวหน้าระบบ] UAT Script (Platform Admin) (Complete 29-TC Workflow)",
+    shortName: "STS Platform Admin",
+    relativePath: "e2e/sts/specs/00-platform-admin-uat-all-in-one.spec.ts",
+    description: "รันครบทุกขั้นตอนการทดสอบ UAT ของหัวหน้าระบบ (Platform Admin) ครอบคลุมทั้ง 4 ฟังก์ชันหลัก และ 26 Test Scenarios (29 Test Cases) ตาม Google Sheet",
+    get code() { return STS_FUNCTION_TEMPLATES["FN-STS-00-PLATFORM-ADMIN"].code; },
+  },
   "FN-STS-00-PLATFORM-ADMIN": {
     id: "FN-STS-00-PLATFORM-ADMIN",
     name: "FN-STS-00-PLATFORM-ADMIN · [UAT หัวหน้าระบบ] UAT Script (Platform Admin) (Complete 29-TC Workflow)",
@@ -4014,6 +4022,8 @@ test.describe("[UAT หัวหน้าระบบ] UAT Script (Platform Admi
     // [Precondition]: ล้าง Cookies และเตรียม Mock API แบบ Triple-Sync
     await page.context().clearCookies();
     await setupStsApiMocks(page);
+    // [PLATFORM_ADMIN_MOCKS_INJECTED]
+    ${COMMON_STS_ROUTE_MOCKS}
     await page.setViewportSize({ width: 1440, height: 900 });
 
     const loginPage = new StsLoginPage(page);
@@ -4936,7 +4946,7 @@ export function getFunctionTemplate(functionIdOrCode: string): FunctionTemplate 
 
   // 3. Category & function matching
   if (
-    upper === "FN-STS-00-PLATFORM-ADMIN" ||
+    upper === "TC-STS-PLATFORM-ADMIN" || upper === "FN-STS-00-PLATFORM-ADMIN" ||
     upper.includes("PLATFORM-ADMIN") ||
     upper.includes("PLATFORM ADMIN") ||
     upper.includes("หัวหน้าระบบ") ||

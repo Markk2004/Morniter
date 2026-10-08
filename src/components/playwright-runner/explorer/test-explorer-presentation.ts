@@ -50,6 +50,15 @@ export function getTestEditorTitle(test: { relativePath?: string; title?: string
   const tit = (test.title || "").toUpperCase();
 
   if (
+    rel.includes("00-platform-admin-uat-all-in-one") ||
+    tit.includes("TC-STS-PLATFORM-ADMIN") ||
+    tit.includes("PLATFORM-ADMIN") ||
+    tit.includes("UAT SCRIPT (PLATFORM ADMIN)")
+  ) {
+    return `[ฟังก์ชัน STS Platform Admin] Open ${rel || "e2e/sts/specs/00-platform-admin-uat-all-in-one.spec.ts"} in editor`;
+  }
+
+  if (
     rel.includes("00-school-uat-all-in-one") ||
     tit.includes("TC-STS-SCHOOL-DIRECTOR") ||
     tit.includes("SCHOOL-DIRECTOR") ||
@@ -73,6 +82,20 @@ export function getTestEditorTitle(test: { relativePath?: string; title?: string
 
 export function getTestThaiMeta(title: string, relativePath: string = ""): TestThaiMeta {
   const t = `${title} ${relativePath}`.toUpperCase();
+
+  if (
+    t.includes("TC-STS-PLATFORM-ADMIN") ||
+    t.includes("00-PLATFORM-ADMIN") ||
+    t.includes("PLATFORM-ADMIN") ||
+    t.includes("UAT SCRIPT (PLATFORM ADMIN)") ||
+    t.includes("UAT หัวหน้าระบบ")
+  ) {
+    return {
+      role: "Platform Admin (หัวหน้าระบบ)",
+      roleBadgeStyle: "border-purple-500/30 bg-purple-950/40 text-purple-300",
+      description: "รันครบ 4 โมดูลหลักตาม UAT Script (Platform Admin): เข้าสู่ระบบ → จัดการผู้ใช้ส่วนกลาง (CRUD, ระงับ, รีเซ็ตรหัส) → มอนิเตอร์สถิติจังหวัดและเคส → จัดการโครงสร้างโรงเรียนและกลุ่มโรงเรียน",
+    };
+  }
 
   if (
     t.includes("FN-STS-00-SCHOOL") ||
@@ -361,6 +384,22 @@ export function resolveFunctionCategory(
   const combined = `${title} ${relativePath} ${groupName}`.toUpperCase();
 
   if (
+    combined.includes("TC-STS-PLATFORM-ADMIN") ||
+    combined.includes("PLATFORM-ADMIN") ||
+    combined.includes("00-PLATFORM-ADMIN") ||
+    combined.includes("UAT SCRIPT (PLATFORM ADMIN)") ||
+    combined.includes("UAT หัวหน้าระบบ")
+  ) {
+    return {
+      code: "TC-STS-PLATFORM-ADMIN",
+      name: "[UAT หัวหน้าระบบ] UAT Script (Platform Admin) (Complete 29-TC Workflow)",
+      shortName: "STS Platform Admin",
+      icon: "🛡️",
+      badgeStyle: "border-purple-500/40 bg-purple-950/60 text-purple-300",
+    };
+  }
+
+  if (
     combined.includes("FN-STS-00-SCHOOL") ||
     combined.includes("00-SCHOOL") ||
     combined.includes("SCHOOL-UAT") ||
@@ -535,6 +574,58 @@ export interface FunctionDetailedDoc {
 }
 
 export const FUNCTION_DETAILED_DOCS: Record<string, FunctionDetailedDoc> = {
+  "TC-STS-PLATFORM-ADMIN": {
+    id: "TC-STS-PLATFORM-ADMIN",
+    code: "TC-STS-PLATFORM-ADMIN",
+    name: "[UAT หัวหน้าระบบ] UAT Script (Platform Admin) (Complete 29-TC Workflow)",
+    role: "Platform Admin (หัวหน้าระบบส่วนกลาง)",
+    workflow: "เข้าสู่ระบบ Platform Admin → จัดการบัญชีผู้ใช้ส่วนกลาง (เพิ่ม/แก้ไข/ระงับ/รีเซ็ตรหัส/ลบ) → มอนิเตอร์ภาพรวมจังหวัดและสถานการณ์เคส → จัดการโครงสร้างจังหวัด กลุ่มโรงเรียน และรายชื่อโรงเรียน",
+    overview: "ชุดทดสอบ UAT ครบวงจรสำหรับหัวหน้าระบบ (Platform Admin) ตาม UAT Spreadsheet ครอบคลุม 4 โมดูลหลัก รวม 26 Scenarios (29 Test Cases) ตั้งแต่ระบบยืนยันตัวตน, จัดการผู้ใช้ระดับประเทศ, แดชบอร์ดภาพรวมเขตพื้นที่/จังหวัด จนถึงโครงสร้างผังโรงเรียน",
+    codeExplanation: "โค้ดรวมฟังก์ชันทดสอบเดียวพร้อม test.step() ครอบคลุม 4 หมวดหลัก: 1. ล็อกอินด้วยบัญชีแอดมินระบบ (admin / password) และตรวจสถานะผู้ใช้, 2. จัดการผู้ใช้งานส่วนกลาง (/admin/users) ตรวจสอบการ์ดสถิติ เพิ่มผู้ใช้ใหม่ แก้ไข ระงับการใช้งาน รีเซ็ตรหัสผ่าน และลบผู้ใช้, 3. ตรวจสอบแดชบอร์ดระดับจังหวัด (/province) ตรวจสอบการ์ดขอบเขตระบบ สถานการณ์เคส ค้นหา กรองสถานะ และเจาะลึกรายละเอียด, 4. จัดการโครงสร้างโรงเรียน (/admin/schools) จัดการกลุ่มโรงเรียน ผังองค์กร และสถานะจังหวัด",
+    steps: [
+      "1. เข้าสู่ระบบด้วยสถานะหัวหน้าระบบ (admin) ตรวจสอบสิทธิ์และการนำทางสู่แดชบอร์ด",
+      "2. จัดการผู้ใช้ระบบส่วนกลาง: ค้นหา กรองบทบาท ตรวจสอบสถานะ",
+      "3. ดำเนินการเพิ่มผู้ใช้ใหม่ ตรวจสอบ Validation และบันทึกข้อมูล",
+      "4. แก้ไขข้อมูลผู้ใช้ ดำเนินการระงับบัญชี (Suspend) และรีเซ็ตรหัสผ่าน",
+      "5. ลบผู้ใช้งานและยืนยันผ่าน Dialog ยืนยันความปลอดภัย",
+      "6. มอนิเตอร์แดชบอร์ดจังหวัด: ตรวจสอบการ์ดขอบเขตระบบ สถานการณ์เคส และกรองสถิติ",
+      "7. บริหารจัดการโรงเรียนและกลุ่มโรงเรียน: จัดการผังต้นไม้ เพิ่มกลุ่ม และจัดการสถานะจังหวัด",
+    ],
+    expectedResult: "ทุกขั้นตอนของบทบาท Platform Admin ทำงานอย่างถูกต้อง 100% ข้อมูลผู้ใช้ สถิติจังหวัด และโครงสร้างโรงเรียนได้รับการอัปเดตและแสดงผลครบถ้วน",
+    keySelectors: [
+      "#login-username, #login-password (ช่องเข้าสู่ระบบ)",
+      "table tr, [data-testid='user-table'] (ตารางผู้ใช้ส่วนกลาง)",
+      "button:has-text('เพิ่มผู้ใช้'), button:has-text('บันทึก') (ปุ่มจัดการผู้ใช้)",
+      "[data-testid='province-card'], input[placeholder*='ค้นหาจังหวัด'] (แดชบอร์ดจังหวัด)",
+      "[data-testid='school-tree'], button:has-text('เพิ่มกลุ่ม') (โครงสร้างโรงเรียน)",
+    ],
+  },
+  "FN-STS-00-PLATFORM-ADMIN": {
+    id: "FN-STS-00-PLATFORM-ADMIN",
+    code: "TC-STS-PLATFORM-ADMIN",
+    name: "[UAT หัวหน้าระบบ] UAT Script (Platform Admin) (Complete 29-TC Workflow)",
+    role: "Platform Admin (หัวหน้าระบบส่วนกลาง)",
+    workflow: "เข้าสู่ระบบ Platform Admin → จัดการบัญชีผู้ใช้ส่วนกลาง (เพิ่ม/แก้ไข/ระงับ/รีเซ็ตรหัส/ลบ) → มอนิเตอร์ภาพรวมจังหวัดและสถานการณ์เคส → จัดการโครงสร้างจังหวัด กลุ่มโรงเรียน และรายชื่อโรงเรียน",
+    overview: "ชุดทดสอบ UAT ครบวงจรสำหรับหัวหน้าระบบ (Platform Admin) ตาม UAT Spreadsheet ครอบคลุม 4 โมดูลหลัก รวม 26 Scenarios (29 Test Cases) ตั้งแต่ระบบยืนยันตัวตน, จัดการผู้ใช้ระดับประเทศ, แดชบอร์ดภาพรวมเขตพื้นที่/จังหวัด จนถึงโครงสร้างผังโรงเรียน",
+    codeExplanation: "โค้ดรวมฟังก์ชันทดสอบเดียวพร้อม test.step() ครอบคลุม 4 หมวดหลัก: 1. ล็อกอินด้วยบัญชีแอดมินระบบ (admin / password) และตรวจสถานะผู้ใช้, 2. จัดการผู้ใช้งานส่วนกลาง (/admin/users) ตรวจสอบการ์ดสถิติ เพิ่มผู้ใช้ใหม่ แก้ไข ระงับการใช้งาน รีเซ็ตรหัสผ่าน และลบผู้ใช้, 3. ตรวจสอบแดชบอร์ดระดับจังหวัด (/province) ตรวจสอบการ์ดขอบเขตระบบ สถานการณ์เคส ค้นหา กรองสถานะ และเจาะลึกรายละเอียด, 4. จัดการโครงสร้างโรงเรียน (/admin/schools) จัดการกลุ่มโรงเรียน ผังองค์กร และสถานะจังหวัด",
+    steps: [
+      "1. เข้าสู่ระบบด้วยสถานะหัวหน้าระบบ (admin) ตรวจสอบสิทธิ์และการนำทางสู่แดชบอร์ด",
+      "2. จัดการผู้ใช้ระบบส่วนกลาง: ค้นหา กรองบทบาท ตรวจสอบสถานะ",
+      "3. ดำเนินการเพิ่มผู้ใช้ใหม่ ตรวจสอบ Validation และบันทึกข้อมูล",
+      "4. แก้ไขข้อมูลผู้ใช้ ดำเนินการระงับบัญชี (Suspend) และรีเซ็ตรหัสผ่าน",
+      "5. ลบผู้ใช้งานและยืนยันผ่าน Dialog ยืนยันความปลอดภัย",
+      "6. มอนิเตอร์แดชบอร์ดจังหวัด: ตรวจสอบการ์ดขอบเขตระบบ สถานการณ์เคส และกรองสถิติ",
+      "7. บริหารจัดการโรงเรียนและกลุ่มโรงเรียน: จัดการผังต้นไม้ เพิ่มกลุ่ม และจัดการสถานะจังหวัด",
+    ],
+    expectedResult: "ทุกขั้นตอนของบทบาท Platform Admin ทำงานอย่างถูกต้อง 100% ข้อมูลผู้ใช้ สถิติจังหวัด และโครงสร้างโรงเรียนได้รับการอัปเดตและแสดงผลครบถ้วน",
+    keySelectors: [
+      "#login-username, #login-password (ช่องเข้าสู่ระบบ)",
+      "table tr, [data-testid='user-table'] (ตารางผู้ใช้ส่วนกลาง)",
+      "button:has-text('เพิ่มผู้ใช้'), button:has-text('บันทึก') (ปุ่มจัดการผู้ใช้)",
+      "[data-testid='province-card'], input[placeholder*='ค้นหาจังหวัด'] (แดชบอร์ดจังหวัด)",
+      "[data-testid='school-tree'], button:has-text('เพิ่มกลุ่ม') (โครงสร้างโรงเรียน)",
+    ],
+  },
   "FN-STS-00-SCHOOL": {
     id: "FN-STS-00-SCHOOL",
     code: "FN-STS-00-SCHOOL",
