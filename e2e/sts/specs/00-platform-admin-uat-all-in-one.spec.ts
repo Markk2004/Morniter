@@ -1,16 +1,49 @@
 // ==============================================================
 // 🧪 ชุดทดสอบระบบ ProjectSTS: Platform Admin UAT Complete All-In-One Workflow
 // 📋 อ้างอิง: UAT Script (Platform Admin) จาก Google Spreadsheet (SoftDeath System Test V2.0)
-// 🎯 ครอบคลุมทั้ง 29 Test Cases ตาม Sheet โดยละเอียด:
-//    - เข้าสู่ระบบ: TC-STS-01-03-01, TC-STS-01-04-01
-//    - ดูแดชบอร์ด: TC-STS-08-10-01, TC-STS-08-11-01, TC-STS-08-12-01, TC-STS-08-13-01, TC-STS-08-15-01
-//    - จัดการแพลตฟอร์มและจังหวัด: TC-STS-10-03-01, TC-STS-10-03-03, TC-STS-10-04-01, TC-STS-10-08-02,
-//                   TC-STS-10-10-01, TC-STS-10-11-01, TC-STS-10-12-01, TC-STS-10-15-01, TC-STS-10-20-01,
-//                   TC-STS-10-32-01, TC-STS-10-34-01, TC-STS-10-35-01, TC-STS-10-35-02, TC-STS-10-36-01,
-//                   TC-STS-10-38-01, TC-STS-10-38-02
-//    - จัดการผู้ใช้: TC-STS-02-06-03, TC-STS-02-07-01, TC-STS-02-08-02, TC-STS-02-10-02,
-//                   TC-STS-02-11-02, TC-STS-02-12-02, TC-STS-02-12-03, TC-STS-02-13-03,
-//                   TC-STS-02-16-01, TC-STS-02-17-02, TC-STS-02-18-01
+// 🎯 ครอบคลุม 4 ฟังก์ชันหลัก และการทดสอบย่อย 26 Test Scenarios (29 Test Cases) ครบถ้วน:
+//
+// 🔹 ฟังก์ชัน 1: เข้าสู่ระบบ (Authentication & Login)
+//    - TS-STS-01-03: ตรวจสอบการแสดงผลสถานะผู้ใช้ระบบ
+//    - TS-STS-01-04: ตรวจสอบการแสดงผลข้อมูล
+//
+// 🔹 ฟังก์ชัน 2: ดูแดชบอร์ด (Dashboard Navigation & Filters)
+//    - TS-STS-08-10: ตรวจสอบการแสดงผลการ์ดขอบเขตระบบ
+//    - TS-STS-08-11: ตรวจสอบการแสดงผลการ์ดสถานการณ์เคส
+//    - TS-STS-08-12: ตรวจสอบการทำงานของช่องค้นหาชื่อจังหวัด
+//    - TS-STS-08-13: ตรวจสอบการทำงานของตัวกรองสถานะ
+//    - TS-STS-08-15: ตรวจสอบการคลิกแถวจังหวัดเพื่อดูรายละเอียด
+//
+// 🔹 ฟังก์ชัน 3: จัดการโรงเรียนและโครงสร้างจังหวัด (Platform & School Management)
+//    - TS-STS-10-20: ตรวจสอบการแสดงผลตารางรายการโรงเรียน
+//    - TS-STS-10-12: ตรวจสอบการทำงานของตัวกรองจังหวัด
+//    - TS-STS-10-15: ตรวจสอบการทำงานแบบสอดคล้องหลายตัวกรอง
+//    - TS-STS-10-11: ตรวจสอบการทำงานของช่องค้นหาโรงเรียน
+//    - TS-STS-10-03: ตรวจสอบการทำงานของปุ่มบันทึก ใน Dialog เพิ่มโรงเรียน
+//    - TS-STS-10-04: ตรวจสอบการทำงานสอดคล้องของตัวกรองจังหวัดและกลุ่มโรงเรียน
+//    - TS-STS-10-08: ตรวจสอบการกรอกข้อมูล แก้ไขโรงเรียน
+//    - TS-STS-10-10: ตรวจสอบการทำงานของปุ่มจัดการผู้ดูแล
+//    - TS-STS-10-32: ตรวจสอบการทำงานของช่องค้นหาจังหวัด/รหัส/กลุ่ม/โรงเรียน
+//    - TS-STS-10-34: ตรวจสอบการทำงานของการเลือกจังหวัดในต้นไม้และการแสดงผลรายละเอียดด้านขวา
+//    - TS-STS-10-35: ตรวจสอบการทำงานของปุ่ม เพิ่มกลุ่ม
+//    - TS-STS-10-36: ตรวจสอบการทำงานของปุ่ม จัดการโรงเรียน
+//    - TS-STS-10-38: ตรวจสอบการทำงานของปุ่ม ปิดใช้งาน (จังหวัด)
+//
+// 🔹 ฟังก์ชัน 4: จัดการผู้ใช้ (User Management)
+//    - TS-STS-02-12: ตรวจสอบการทำงานของปุ่มเพิ่มผู้ใช้ ในเพิ่มผู้ใช้ใหม่
+//    - TS-STS-02-13: ตรวจสอบการกรอกข้อมูล ในเพิ่มผู้ใช้ใหม่
+//    - TS-STS-02-16: ตรวจสอบการแสดงผลข้อมูลผู้ใช้งาน หลังการเพิ่ม
+//    - TS-STS-02-06: ตรวจสอบการทำงานของปุ่มบันทึก ในแก้ไขผู้ใช้
+//    - TS-STS-02-17: ตรวจสอบการแสดงผลข้อมูลผู้ใช้งาน หลังการแก้ไข
+//    - TS-STS-02-10: ตรวจสอบการทำงานของ Dialog ระงับผู้ใช้
+//    - TS-STS-02-18: ตรวจสอบการแสดงผลข้อมูลผู้ใช้งาน หลังระงับการใช้งาน
+//    - TS-STS-02-11: ตรวจสอบการทำงานของ Dialog รีเซ็ตรหัสผ่าน
+//    - TS-STS-02-07: ตรวจสอบการทำงานของปุ่มลบผู้ใช้ ในแก้ไขผู้ใช้
+//    - TS-STS-02-08: ตรวจสอบการทำงานของ Dialog ลบผู้ใช้งาน
+//
+// 🔹 ขั้นตอนปิดท้าย: วิเคราะห์ AI และออกจากระบบ (AI Analysis & Logout)
+//    - TC-STS-11-03-01: วิเคราะห์และประเมินระบบ AI (Status COMPLETED)
+//    - TC-STS-06-01-01 & TC-STS-01-06-01: รายงาน ภาพรวมแพลตฟอร์ม และออกจากระบบ
 // ==============================================================
 import { test, expect } from "@playwright/test";
 import { setupStsApiMocks } from "../fixtures/mock-api";
@@ -40,12 +73,12 @@ test.describe("[UAT หัวหน้าระบบ] UAT Script (Platform Admi
     // =========================================================================
     // 🔹 หมวด 1: เข้าสู่ระบบและตรวจสอบสิทธิ์ผู้ดูแลระบบแพลตฟอร์ม (Authentication)
     // =========================================================================
-    await test.step("หมวด 1: เข้าสู่ระบบและตรวจสอบสิทธิ์หัวหน้าระบบ (TC-STS-01-03-01, TC-STS-01-04-01)", async () => {
+    await test.step("ฟังก์ชัน 1: เข้าสู่ระบบ (TS-STS-01-03, TS-STS-01-04)", async () => {
       await loginPage.goto();
       await page.bringToFront();
       await expect(page).toHaveURL(/\/login/);
 
-      // TC-STS-01-03-01 & TC-STS-01-04-01: กรอกที่อยู่อีเมล/ชื่อผู้ใช้ และรหัสผ่าน
+      // TS-STS-01-04: ตรวจสอบการแสดงผลข้อมูล & TS-STS-01-03: ตรวจสอบการแสดงผลสถานะผู้ใช้ระบบ (TC-STS-01-03-01, TC-STS-01-04-01): กรอกที่อยู่อีเมล/ชื่อผู้ใช้ และรหัสผ่าน
       const userInput = page.locator("#login-username, input[name='username']").first();
       const passInput = page.locator("#login-password, input[name='password']").first();
       const submitBtn = page.locator("#login-submit, button[type='submit']").first();
@@ -71,7 +104,7 @@ test.describe("[UAT หัวหน้าระบบ] UAT Script (Platform Admi
     // =========================================================================
     // 🔹 หมวด 2: แดชบอร์ดภาพรวม สถิติระดับพื้นที่ และการกรองข้อมูล (Dashboard)
     // =========================================================================
-    await test.step("หมวด 2: ตรวจสอบแดชบอร์ดภาพรวม สถิติระดับประเทศ และการกรองข้อมูล (TC-STS-08-10-01 ถึง TC-STS-08-15-01)", async () => {
+    await test.step("ฟังก์ชัน 2: ดูแดชบอร์ด (TS-STS-08-10, TS-STS-08-11, TS-STS-08-12, TS-STS-08-13, TS-STS-08-15)", async () => {
       // นำทางไปยังแดชบอร์ดระดับจังหวัด/เขตพื้นที่
       await page.goto("/province/dashboard");
       await page.waitForTimeout(1500);
@@ -80,15 +113,15 @@ test.describe("[UAT หัวหน้าระบบ] UAT Script (Platform Admi
       const pageHeading = page.locator("h1, h2, [role='heading']").first();
       await expect(pageHeading).toBeVisible({ timeout: 10_000 });
 
-      // TC-STS-08-10-01: ตรวจสอบการแสดงผลการ์ดขอบเขตระบบ (จำนวนจังหวัด/โรงเรียน/นักเรียนทั้งหมด)
+      // TS-STS-08-10: ตรวจสอบการแสดงผลการ์ดขอบเขตระบบ (TC-STS-08-10-01): ตรวจสอบการแสดงผลการ์ดขอบเขตระบบ (จำนวนจังหวัด/โรงเรียน/นักเรียนทั้งหมด)
       const scopeCard = page.locator("main").locator("text=/โรงเรียน|สถานศึกษา|นักเรียน|จังหวัด|ภาพรวม/i").first();
       await expect(scopeCard).toBeVisible({ timeout: 10_000 });
 
-      // TC-STS-08-11-01: ตรวจสอบการแสดงผลการ์ดสถานการณ์เคส (จำนวนเคสทั้งหมดและเคสระดับสูง)
+      // TS-STS-08-11: ตรวจสอบการแสดงผลการ์ดสถานการณ์เคส (TC-STS-08-11-01): ตรวจสอบการแสดงผลการ์ดสถานการณ์เคส (จำนวนเคสทั้งหมดและเคสระดับสูง)
       const caseStatusSection = page.locator("main").locator("text=/เคส|สถานการณ์|ความรุนแรง|เสี่ยงสูง|ผู้ใช้/i").first();
       await expect(caseStatusSection).toBeVisible();
 
-      // TC-STS-08-12-01: ตรวจสอบการทำงานของช่องค้นหาชื่อจังหวัด (ระยอง)
+      // TS-STS-08-12: ตรวจสอบการทำงานของช่องค้นหาชื่อจังหวัด (TC-STS-08-12-01): ตรวจสอบการทำงานของช่องค้นหาชื่อจังหวัด (ระยอง)
       const searchBox = page.locator("#search-input, input[placeholder*='ค้นหา']").first();
       if (await searchBox.isVisible()) {
         await searchBox.fill("ระยอง");
@@ -97,7 +130,7 @@ test.describe("[UAT หัวหน้าระบบ] UAT Script (Platform Admi
         await page.waitForTimeout(500);
       }
 
-      // TC-STS-08-13-01: ตรวจสอบการทำงานของตัวกรองสถานะ (เปิดใช้งาน / ระงับการใช้งาน)
+      // TS-STS-08-13: ตรวจสอบการทำงานของตัวกรองสถานะ (TC-STS-08-13-01): ตรวจสอบการทำงานของตัวกรองสถานะ (เปิดใช้งาน / ระงับการใช้งาน)
       const statusFilterTrigger = page.locator("button:has-text('ตัวกรอง'), button:has-text('สถานะ'), button[role='combobox']").first();
       if (await statusFilterTrigger.isVisible()) {
         await statusFilterTrigger.click();
@@ -116,7 +149,7 @@ test.describe("[UAT หัวหน้าระบบ] UAT Script (Platform Admi
         }
       }
 
-      // TC-STS-08-15-01: ตรวจสอบการคลิกแถวจังหวัดเพื่อดูรายละเอียด (แถวจังหวัด ชลบุรี)
+      // TS-STS-08-15: ตรวจสอบการคลิกแถวจังหวัดเพื่อดูรายละเอียด (TC-STS-08-15-01): ตรวจสอบการคลิกแถวจังหวัดเพื่อดูรายละเอียด (แถวจังหวัด ชลบุรี)
       const chonburiRow = page.locator("text=/ชลบุรี/i").first();
       if (await chonburiRow.isVisible()) {
         await chonburiRow.click();
@@ -129,11 +162,11 @@ test.describe("[UAT หัวหน้าระบบ] UAT Script (Platform Admi
     // =========================================================================
     // 🔹 หมวด 3: จัดการโรงเรียน ค้นหา กรองข้อมูลสอดคล้อง และแบบฟอร์มโรงเรียน (Schools)
     // =========================================================================
-    await test.step("หมวด 3: จัดการโรงเรียน ค้นหา กรองข้อมูลสอดคล้อง และแบบฟอร์มโรงเรียน (TC-STS-10-03 ถึง TC-STS-10-20)", async () => {
+    await test.step("ฟังก์ชัน 3 (ตอนที่ 1): จัดการโรงเรียน (TS-STS-10-03, TS-STS-10-04, TS-STS-10-08, TS-STS-10-10, TS-STS-10-11, TS-STS-10-12, TS-STS-10-15, TS-STS-10-20)", async () => {
       await page.goto("/admin/schools");
       await expect(page).toHaveURL(/\/admin\/schools/);
 
-      // TC-STS-10-20-01: ตรวจสอบการแสดงผลตารางรายการโรงเรียน (คอลัมน์: รหัส, รหัสย่อ, ชื่อ, จังหวัด, กลุ่ม, สถานะระบบ, ความพร้อม, ผู้ดูแล, นักเรียน)
+      // TS-STS-10-20: ตรวจสอบการแสดงผลตารางรายการโรงเรียน (TC-STS-10-20-01): ตรวจสอบการแสดงผลตารางรายการโรงเรียน (คอลัมน์: รหัส, รหัสย่อ, ชื่อ, จังหวัด, กลุ่ม, สถานะระบบ, ความพร้อม, ผู้ดูแล, นักเรียน)
       const schoolTable = page.locator("main table, [role='table'], table").first();
       await expect(schoolTable.locator("th, td, span, div").filter({ hasText: /รหัสโรงเรียน|รหัส/i }).first()).toBeVisible({ timeout: 10_000 });
       await expect(schoolTable.locator("th, td, span, div").filter({ hasText: /ชื่อโรงเรียน|ชื่อ/i }).first()).toBeVisible();
@@ -141,8 +174,8 @@ test.describe("[UAT หัวหน้าระบบ] UAT Script (Platform Admi
       await expect(schoolTable.locator("th, td, span, div").filter({ hasText: /กลุ่มโรงเรียน|กลุ่ม/i }).first()).toBeVisible();
       await expect(schoolTable.locator("th, td, span, div").filter({ hasText: /สถานะระบบ|สถานะ/i }).first()).toBeVisible();
 
-      // TC-STS-10-12-01: ตรวจสอบการทำงานของตัวกรองจังหวัด (ชลบุรี)
-      // TC-STS-10-15-01: ตรวจสอบการทำงานแบบสอดคล้องหลายตัวกรอง (ชลบุรี + ใช้งานได้)
+      // TS-STS-10-12: ตรวจสอบการทำงานของตัวกรองจังหวัด (TC-STS-10-12-01): ตรวจสอบการทำงานของตัวกรองจังหวัด (ชลบุรี)
+      // TS-STS-10-15: ตรวจสอบการทำงานแบบสอดคล้องหลายตัวกรอง (TC-STS-10-15-01): ตรวจสอบการทำงานแบบสอดคล้องหลายตัวกรอง (ชลบุรี + ใช้งานได้)
       const filterMoreBtn = page.locator("button:has-text('ตัวกรองเพิ่มเติม'), button:has-text('ตัวกรอง')").first();
       if (await filterMoreBtn.isVisible()) {
         await filterMoreBtn.click();
@@ -157,7 +190,7 @@ test.describe("[UAT หัวหน้าระบบ] UAT Script (Platform Admi
         }
       }
 
-      // TC-STS-10-11-01: ตรวจสอบการทำงานของช่องค้นหาโรงเรียน (SCHOOL-A)
+      // TS-STS-10-11: ตรวจสอบการทำงานของช่องค้นหาโรงเรียน (TC-STS-10-11-01): ตรวจสอบการทำงานของช่องค้นหาโรงเรียน (SCHOOL-A)
       const schoolSearchInput = page.locator("#search-input, input[placeholder*='ค้นหา']").first();
       await expect(schoolSearchInput).toBeVisible();
       await schoolSearchInput.fill("SCHOOL-A");
@@ -166,7 +199,7 @@ test.describe("[UAT หัวหน้าระบบ] UAT Script (Platform Admi
       await schoolSearchInput.clear();
       await page.waitForTimeout(500);
 
-      // TC-STS-10-03-03: ตรวจสอบการกรอกรหัสโรงเรียนที่ซ้ำกับที่มีอยู่แล้วในระบบ (SCHOOL-A)
+      // TS-STS-10-03: ตรวจสอบการทำงานของปุ่มบันทึก ใน Dialog เพิ่มโรงเรียน (รหัสซ้ำ TC-STS-10-03-03): ตรวจสอบการกรอกรหัสโรงเรียนที่ซ้ำกับที่มีอยู่แล้วในระบบ (SCHOOL-A)
       const addSchoolBtn = page.locator("button:has-text('เพิ่มโรงเรียน')").first();
       await expect(addSchoolBtn).toBeVisible();
       await addSchoolBtn.click();
@@ -192,7 +225,7 @@ test.describe("[UAT หัวหน้าระบบ] UAT Script (Platform Admi
       await expect(errorBanner).toBeVisible({ timeout: 5000 });
       await expect(errorBanner).toContainText("รหัสโรงเรียนซ้ำในระบบ");
 
-      // TC-STS-10-04-01: ตรวจสอบการทำงานสอดคล้องของตัวกรองจังหวัดและกลุ่มโรงเรียน (เลือก ชลบุรี -> กลุ่มโรงเรียนในชลบุรี)
+      // TS-STS-10-04: ตรวจสอบการทำงานสอดคล้องของตัวกรองจังหวัดและกลุ่มโรงเรียน (TC-STS-10-04-01): ตรวจสอบการทำงานสอดคล้องของตัวกรองจังหวัดและกลุ่มโรงเรียน (เลือก ชลบุรี -> กลุ่มโรงเรียนในชลบุรี)
       const provinceDropdownBtn = addSchoolModal.locator("button[role='combobox']:has-text('จังหวัด'), button:has-text('เลือกจังหวัด')").first();
       if (await provinceDropdownBtn.isVisible()) {
         await provinceDropdownBtn.click();
@@ -204,7 +237,7 @@ test.describe("[UAT หัวหน้าระบบ] UAT Script (Platform Admi
         }
       }
 
-      // TC-STS-10-03-01: ตรวจสอบการทำงานของปุ่มบันทึก เมื่อกรอกข้อมูลครบถ้วน (รหัส: SCHOOL-C, ชื่อ: โรงเรียนทดสอบ ซี)
+      // TS-STS-10-03: ตรวจสอบการทำงานของปุ่มบันทึก ใน Dialog เพิ่มโรงเรียน (บันทึกสำเร็จ TC-STS-10-03-01): ตรวจสอบการทำงานของปุ่มบันทึก เมื่อกรอกข้อมูลครบถ้วน (รหัส: SCHOOL-C, ชื่อ: โรงเรียนทดสอบ ซี)
       await schoolCodeInput.fill("SCHOOL-C");
       await schoolNameInput.fill("โรงเรียนทดสอบ ซี");
       if (await schoolPrefixInput.isVisible()) await schoolPrefixInput.fill("sc");
@@ -215,7 +248,7 @@ test.describe("[UAT หัวหน้าระบบ] UAT Script (Platform Admi
       // ยืนยันบันทึกสำเร็จและแสดงในตาราง
       await expect(page.locator("text=/SCHOOL-C|โรงเรียนทดสอบ ซี/i").first()).toBeVisible({ timeout: 10_000 });
 
-      // TC-STS-10-08-02: ตรวจสอบการกรอกข้อมูล แก้ไขโรงเรียน ("โรงเรียนทดสอบ ซี (ชลบุรี)")
+      // TS-STS-10-08: ตรวจสอบการกรอกข้อมูล แก้ไขโรงเรียน (TC-STS-10-08-02): ตรวจสอบการกรอกข้อมูล แก้ไขโรงเรียน ("โรงเรียนทดสอบ ซี (ชลบุรี)")
       const schoolRow = page.locator("tr:has-text('SCHOOL-C'), tr:has-text('โรงเรียนทดสอบ ซี'), tr:has-text('SCHOOL-A')").first();
       if (await schoolRow.isVisible()) {
         await schoolRow.click();
@@ -246,7 +279,7 @@ test.describe("[UAT หัวหน้าระบบ] UAT Script (Platform Admi
         }
       }
 
-      // TC-STS-10-10-01: ตรวจสอบการทำงานของปุ่มจัดการผู้ดูแล ในรายละเอียดโรงเรียน
+      // TS-STS-10-10: ตรวจสอบการทำงานของปุ่มจัดการผู้ดูแล (TC-STS-10-10-01): ตรวจสอบการทำงานของปุ่มจัดการผู้ดูแล ในรายละเอียดโรงเรียน
       if (await schoolRow.isVisible()) {
         await schoolRow.click();
         await page.waitForTimeout(600);
@@ -270,12 +303,12 @@ test.describe("[UAT หัวหน้าระบบ] UAT Script (Platform Admi
     // =========================================================================
     // 🔹 หมวด 4: จัดการโครงสร้างจังหวัดและกลุ่มโรงเรียน (Provinces & School Clusters)
     // =========================================================================
-    await test.step("หมวด 4: จัดการโครงสร้างจังหวัดและกลุ่มโรงเรียน (TC-STS-10-32 ถึง TC-STS-10-38)", async () => {
+    await test.step("ฟังก์ชัน 3 (ตอนที่ 2): จัดการโครงสร้างจังหวัด (TS-STS-10-32, TS-STS-10-34, TS-STS-10-35, TS-STS-10-36, TS-STS-10-38)", async () => {
       await page.goto("/admin/provinces");
       await page.waitForTimeout(1500);
       await expect(page).toHaveURL(/\/admin\/provinces/);
 
-      // TC-STS-10-32-01: ตรวจสอบการทำงานของช่องค้นหาจังหวัด/รหัส/กลุ่ม/โรงเรียน (ชลบุรี)
+      // TS-STS-10-32: ตรวจสอบการทำงานของช่องค้นหาจังหวัด/รหัส/กลุ่ม/โรงเรียน (TC-STS-10-32-01): ตรวจสอบการทำงานของช่องค้นหาจังหวัด/รหัส/กลุ่ม/โรงเรียน (ชลบุรี)
       const treeSearchInput = page.locator("#search-input, input[placeholder*='ค้นหา']").first();
       await expect(treeSearchInput).toBeVisible({ timeout: 10_000 });
       await treeSearchInput.fill("ชลบุรี");
@@ -284,7 +317,7 @@ test.describe("[UAT หัวหน้าระบบ] UAT Script (Platform Admi
       await treeSearchInput.clear();
       await page.waitForTimeout(500);
 
-      // TC-STS-10-34-01: ตรวจสอบการคลิกเลือกจังหวัดในต้นไม้และการแสดงผลรายละเอียดด้านขวา (เลือก ชลบุรี)
+      // TS-STS-10-34: ตรวจสอบการทำงานของการเลือกจังหวัดในต้นไม้และการแสดงผลรายละเอียดด้านขวา (TC-STS-10-34-01): ตรวจสอบการคลิกเลือกจังหวัดในต้นไม้และการแสดงผลรายละเอียดด้านขวา (เลือก ชลบุรี)
       const chonburiTreeNode = page.getByRole("tree").getByRole("button", { name: /ชลบุรี/i }).first();
       await expect(chonburiTreeNode).toBeVisible();
       await chonburiTreeNode.click();
@@ -293,7 +326,7 @@ test.describe("[UAT หัวหน้าระบบ] UAT Script (Platform Admi
       // ตรวจสอบ Panel รายละเอียดด้านขวา
       await expect(page.locator("main").locator("text=/กำลังใช้งาน|กลุ่มโรงเรียน|เพิ่มกลุ่ม|จัดการโรงเรียน/i").first()).toBeVisible({ timeout: 8000 });
 
-      // TC-STS-10-35-01 & TC-STS-10-35-02: ตรวจสอบการทำงานของปุ่ม เพิ่มกลุ่ม และตรวจสอบการกรอกชื่อซ้ำ (เขตบางแสน)
+      // TS-STS-10-35: ตรวจสอบการทำงานของปุ่ม เพิ่มกลุ่ม (TC-STS-10-35-01, TC-STS-10-35-02): ตรวจสอบการทำงานของปุ่ม เพิ่มกลุ่ม และตรวจสอบการกรอกชื่อซ้ำ (เขตบางแสน)
       const addGroupBtn = page.locator("main button:has-text('เพิ่มกลุ่ม')").first();
       if (await addGroupBtn.isVisible()) {
         await addGroupBtn.click();
@@ -321,7 +354,7 @@ test.describe("[UAT หัวหน้าระบบ] UAT Script (Platform Admi
         if (await cancelGroupBtn.isVisible()) await cancelGroupBtn.click();
       }
 
-      // TC-STS-10-36-01: ตรวจสอบการทำงานของปุ่ม จัดการโรงเรียน ในรายละเอียดจังหวัด
+      // TS-STS-10-36: ตรวจสอบการทำงานของปุ่ม จัดการโรงเรียน (TC-STS-10-36-01): ตรวจสอบการทำงานของปุ่ม จัดการโรงเรียน ในรายละเอียดจังหวัด
       const manageSchoolsBtn = page.locator("main a:has-text('จัดการโรงเรียน'), main button:has-text('จัดการโรงเรียน')").first();
       if (await manageSchoolsBtn.isVisible()) {
         await manageSchoolsBtn.click();
@@ -332,7 +365,7 @@ test.describe("[UAT หัวหน้าระบบ] UAT Script (Platform Admi
         await page.waitForTimeout(1000);
       }
 
-      // TC-STS-10-38-02: ตรวจสอบการทำงานของปุ่มปิดใช้งานจังหวัดที่ยังมีโรงเรียนที่ใช้งานอยู่ (กรุงเทพมหานคร)
+      // TS-STS-10-38: ตรวจสอบการทำงานของปุ่ม ปิดใช้งาน (จังหวัดที่มีโรงเรียน TC-STS-10-38-02): ตรวจสอบการทำงานของปุ่มปิดใช้งานจังหวัดที่ยังมีโรงเรียนที่ใช้งานอยู่ (กรุงเทพมหานคร)
       const bkkNode = page.getByRole("tree").getByRole("button", { name: /กรุงเทพมหานคร/i }).first();
       if (await bkkNode.isVisible()) {
         await bkkNode.click();
@@ -348,7 +381,7 @@ test.describe("[UAT หัวหน้าระบบ] UAT Script (Platform Admi
         }
       }
 
-      // TC-STS-10-38-01: ตรวจสอบการทำงานของปุ่ม ปิดใช้งาน สำหรับจังหวัดที่ยังไม่มีโรงเรียน
+      // TS-STS-10-38: ตรวจสอบการทำงานของปุ่ม ปิดใช้งาน (จังหวัดที่ไม่มีโรงเรียน TC-STS-10-38-01): ตรวจสอบการทำงานของปุ่ม ปิดใช้งาน สำหรับจังหวัดที่ยังไม่มีโรงเรียน
       const emptyProvNode = page.getByRole("tree").getByRole("button", { name: /จันทบุรี|ระยอง/i }).first();
       if (await emptyProvNode.isVisible()) {
         await emptyProvNode.click();
@@ -371,13 +404,13 @@ test.describe("[UAT หัวหน้าระบบ] UAT Script (Platform Admi
     // =========================================================================
     // 🔹 หมวด 5: จัดการบัญชีผู้ใช้งานระบบ (User Management)
     // =========================================================================
-    await test.step("หมวด 5: จัดการบัญชีผู้ใช้งานระบบ (TC-STS-02-06 ถึง TC-STS-02-18)", async () => {
+    await test.step("ฟังก์ชัน 4: จัดการผู้ใช้ (TS-STS-02-06, TS-STS-02-07, TS-STS-02-08, TS-STS-02-10, TS-STS-02-11, TS-STS-02-12, TS-STS-02-13, TS-STS-02-16, TS-STS-02-17, TS-STS-02-18)", async () => {
       await usersPage.goto();
       await page.waitForTimeout(1500);
       await expect(page).toHaveURL(/\/admin\/users/);
       await expect(usersPage.heading()).toBeVisible();
 
-      // TC-STS-02-12-02: ตรวจสอบการทำงานของปุ่มเพิ่มผู้ใช้ เมื่อไม่มีการกรอกข้อมูล
+      // TS-STS-02-12: ตรวจสอบการทำงานของปุ่มเพิ่มผู้ใช้ ในเพิ่มผู้ใช้ใหม่ (ไม่มีข้อมูล TC-STS-02-12-02): ตรวจสอบการทำงานของปุ่มเพิ่มผู้ใช้ เมื่อไม่มีการกรอกข้อมูล
       await usersPage.addUserButton().click();
       await page.waitForTimeout(500);
 
@@ -391,7 +424,7 @@ test.describe("[UAT หัวหน้าระบบ] UAT Script (Platform Admi
         await page.waitForTimeout(600);
       }
 
-      // TC-STS-02-13-03: ตรวจสอบการกรอกข้อมูล ชื่อผู้ใช้เป็นภาษาไทย (มอมแมม)
+      // TS-STS-02-13: ตรวจสอบการกรอกข้อมูล ในเพิ่มผู้ใช้ใหม่ (ชื่อผู้ใช้ภาษาไทย TC-STS-02-13-03): ตรวจสอบการกรอกข้อมูล ชื่อผู้ใช้เป็นภาษาไทย (มอมแมม)
       const usernameInput = userModal.locator("#form-username, input[placeholder*='username']").first();
       await usernameInput.fill("มอมแมม");
       if (await submitUserBtn.isEnabled()) {
@@ -399,7 +432,7 @@ test.describe("[UAT หัวหน้าระบบ] UAT Script (Platform Admi
         await page.waitForTimeout(600);
       }
 
-      // TC-STS-02-12-03 & TC-STS-02-16-01: กรอกข้อมูลครบถ้วนและถูกต้อง
+      // TS-STS-02-12 & TS-STS-02-16: ตรวจสอบการกรอกข้อมูลครบถ้วน และแสดงผลผู้ใช้หลังการเพิ่ม (TC-STS-02-12-03, TC-STS-02-16-01): กรอกข้อมูลครบถ้วนและถูกต้อง
       const fullNameInput = userModal.locator("#form-full_name, input[placeholder*='ชื่อและนามสกุล']").first();
       const passwordInput = userModal.locator("#form-password, input[type='password']").first();
       const emailInput = userModal.locator("#form-email, input[type='email']").first();
@@ -429,7 +462,7 @@ test.describe("[UAT หัวหน้าระบบ] UAT Script (Platform Admi
         await page.waitForTimeout(1500);
       }
 
-      // TC-STS-02-16-01: กลับไปยังหน้าจอตารางผู้ใช้งานและแสดงผลผู้ใช้ใหม่
+      // TS-STS-02-16: ตรวจสอบการแสดงผลข้อมูลผู้ใช้งาน หลังการเพิ่ม (TC-STS-02-16-01): กลับไปยังหน้าจอตารางผู้ใช้งานและแสดงผลผู้ใช้ใหม่
       await expect(page.locator("text=/ผู้ดูแลระบบ โรงเรียน ดี|admin_d/i").first()).toBeVisible({ timeout: 10_000 });
 
       // ปิด modal ข้อมูลเข้าสู่ระบบ / handoff modal ที่แสดงผลหลังสร้างผู้ใช้สำเร็จ
@@ -444,7 +477,7 @@ test.describe("[UAT หัวหน้าระบบ] UAT Script (Platform Admi
       });
       await page.waitForTimeout(600);
 
-      // TC-STS-02-06-03 & TC-STS-02-17-02: ตรวจสอบการแก้ไขข้อมูลผู้ใช้ (ครูหวัง คาดหวัง -> ครูหวัง โปรแกรม)
+      // TS-STS-02-06 & TS-STS-02-17: ตรวจสอบการทำงานของปุ่มบันทึก และการแสดงผลข้อมูลหลังแก้ไข (TC-STS-02-06-03, TC-STS-02-17-02): ตรวจสอบการแก้ไขข้อมูลผู้ใช้ (ครูหวัง คาดหวัง -> ครูหวัง โปรแกรม)
       const wangRow = page.locator("tr:has-text('ครูหวัง คาดหวัง'), tr:has-text('wang_kadwang')").first();
       if (await wangRow.isVisible()) {
         await wangRow.click();
@@ -479,7 +512,7 @@ test.describe("[UAT หัวหน้าระบบ] UAT Script (Platform Admi
       });
       await page.waitForTimeout(500);
 
-      // TC-STS-02-10-02 & TC-STS-02-18-01: ตรวจสอบการทำงานของ Dialog ระงับผู้ใช้ (ครูสมหวัง ใจดี หรือ ครูหวัง โปรแกรม)
+      // TS-STS-02-10 & TS-STS-02-18: ตรวจสอบการทำงานของ Dialog ระงับผู้ใช้ และการแสดงผลหลังระงับ (TC-STS-02-10-02, TC-STS-02-18-01): ตรวจสอบการทำงานของ Dialog ระงับผู้ใช้ (ครูสมหวัง ใจดี หรือ ครูหวัง โปรแกรม)
       const somwangRow = page.locator("tr:has-text('ครูสมหวัง ใจดี'), tr:has-text('somwang_jd')").first();
       if (await somwangRow.isVisible()) {
         await somwangRow.click();
@@ -504,7 +537,7 @@ test.describe("[UAT หัวหน้าระบบ] UAT Script (Platform Admi
       });
       await page.waitForTimeout(500);
 
-      // TC-STS-02-11-02: ตรวจสอบการทำงานของ Dialog รีเซ็ตรหัสผ่าน (ครูหวัง คาดหวัง)
+      // TS-STS-02-11: ตรวจสอบการทำงานของ Dialog รีเซ็ตรหัสผ่าน (TC-STS-02-11-02): ตรวจสอบการทำงานของ Dialog รีเซ็ตรหัสผ่าน (ครูหวัง คาดหวัง)
       if (await wangRow.isVisible()) {
         await wangRow.click();
         await page.waitForTimeout(500);
@@ -532,7 +565,7 @@ test.describe("[UAT หัวหน้าระบบ] UAT Script (Platform Admi
       });
       await page.waitForTimeout(500);
 
-      // TC-STS-02-07-01 & TC-STS-02-08-02: ตรวจสอบการทำงานของปุ่มลบผู้ใช้ และ Dialog ยืนยันลบผู้ใช้งาน (ครูอำนาจ แสงทอง)
+      // TS-STS-02-07 & TS-STS-02-08: ตรวจสอบการทำงานของปุ่มลบผู้ใช้ และ Dialog ลบผู้ใช้งาน (TC-STS-02-07-01, TC-STS-02-08-02): ตรวจสอบการทำงานของปุ่มลบผู้ใช้ และ Dialog ยืนยันลบผู้ใช้งาน (ครูอำนาจ แสงทอง)
       const amnatRow = page.locator("tr:has-text('ครูอำนาจ แสงทอง'), tr:has-text('amnat_st')").first();
       if (await amnatRow.isVisible()) {
         await amnatRow.click();
@@ -563,7 +596,7 @@ test.describe("[UAT หัวหน้าระบบ] UAT Script (Platform Admi
     // =========================================================================
     // 🔹 หมวด 6: วิเคราะห์ AI และการประเมินภาพรวมระบบ (AI Benchmark & Case Analysis)
     // =========================================================================
-    await test.step("หมวด 6: วิเคราะห์ AI และการประเมินภาพรวมระบบ (AI Analysis - Status COMPLETED)", async () => {
+    await test.step("ขั้นตอนปิดท้าย (AI): วิเคราะห์และประเมินระบบ AI (TC-STS-11-03-01)", async () => {
       // เรียกใช้ AI Analysis / Benchmark API เพื่อตรวจสอบสถานะ COMPLETED และตัวชี้วัด
       const aiData = await page.evaluate(async () => {
         try {
@@ -582,7 +615,7 @@ test.describe("[UAT หัวหน้าระบบ] UAT Script (Platform Admi
     // =========================================================================
     // 🔹 หมวด 7: ออกรายงานสรุปผลและประวัติข้อมูลระบบ (Reports, History & Logout)
     // =========================================================================
-    await test.step("หมวด 7: ออกรายงานสรุปผล ประวัติข้อมูล และออกจากระบบ (Reports & Logout)", async () => {
+    await test.step("ขั้นตอนปิดท้าย (Logout): รายงาน ภาพรวมแพลตฟอร์ม และออกจากระบบ (TC-STS-06-01-01, TC-STS-01-06-01)", async () => {
       // ตรวจสอบรายงานและภาพรวมระดับแพลตฟอร์ม
       await page.goto("/admin/province-dashboard");
       await page.waitForTimeout(1500);
