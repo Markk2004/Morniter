@@ -52,6 +52,8 @@ export default defineConfig({
   testMatch: [
     "sts/**/*.spec.ts",
     "sts/**/*.test.ts",
+    "workspace/**/*.spec.ts",
+    "workspace/**/*.test.ts",
     "__workspace__/**/*.spec.ts",
     "__workspace__/**/*.test.ts",
   ],
