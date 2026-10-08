@@ -1142,88 +1142,295 @@ export async function setupStsApiMocks(
     });
   });
 
-  // 9.35 Schools mock (both list and single detail)
+  // 9.35 Schools mock (both list, monitoring, and single detail)
+  const mockSchoolsList = [
+    {
+      id: 1,
+      name: "โรงเรียนตัวอย่างทดสอบ",
+      code: "SCHOOL-A",
+      shortCode: "SCH001",
+      provinceId: 1,
+      schoolGroupId: 1,
+      isActive: true,
+      status: "ACTIVE",
+      readiness: "READY",
+      studentCount: 820,
+      adminCount: 2,
+    },
+    {
+      id: 2,
+      name: "โรงเรียนชลบุรีวิทยา",
+      code: "SCHOOL-B",
+      shortCode: "CBI001",
+      provinceId: 2,
+      schoolGroupId: 3,
+      isActive: true,
+      status: "ACTIVE",
+      readiness: "READY",
+      studentCount: 450,
+      adminCount: 1,
+    },
+  ];
+
   await page.route(/\/api\/schools/, async (route) => {
+    const method = route.request().method();
     const url = route.request().url();
-    const matchDetail = url.match(/\/api\/schools\/(\d+)/);
-    if (matchDetail) {
+
+    if (url.includes("/monitoring")) {
       return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ id: 1, name: "โรงเรียนตัวอย่างทดสอบ", code: "SCH001", provinceId: 1, schoolGroupId: 1, isActive: true }),
+        body: JSON.stringify(mockSchoolsList),
       });
     }
+
+    const matchDetail = url.match(/\/api\/schools\/(\d+)/);
+    if (matchDetail) {
+      const sId = Number(matchDetail[1]);
+      const found = mockSchoolsList.find((s) => s.id === sId) || mockSchoolsList[0];
+      if (method === "PUT" || method === "PATCH") {
+        let patchData: Record<string, unknown> = {};
+        try { patchData = route.request().postDataJSON() || {}; } catch {}
+        if (patchData.name) found.name = patchData.name as string;
+        if (patchData.code) found.code = patchData.code as string;
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ success: true, school: found }),
+        });
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(found),
+      });
+    }
+
+    if (method === "POST") {
+      let postData: Record<string, unknown> = {};
+      try { postData = route.request().postDataJSON() || {}; } catch {}
+      const code = (postData.code as string) || "";
+      if (code === "SCHOOL-A" || mockSchoolsList.some((s) => s.code === code)) {
+        return route.fulfill({
+          status: 409,
+          contentType: "application/json",
+          body: JSON.stringify({ message: "รหัสโรงเรียนซ้ำในระบบ" }),
+        });
+      }
+      const newSchool = {
+        id: mockSchoolsList.length + 1,
+        name: (postData.name as string) || "โรงเรียนทดสอบ ซี",
+        code: code || "SCHOOL-C",
+        shortCode: (postData.shortCode as string) || (postData.codePrefix as string) || "SCH003",
+        provinceId: postData.provinceId ? Number(postData.provinceId) : 2,
+        schoolGroupId: postData.schoolGroupId ? Number(postData.schoolGroupId) : 3,
+        isActive: true,
+        status: "ACTIVE",
+        readiness: "READY",
+        studentCount: 120,
+        adminCount: 1,
+      };
+      mockSchoolsList.push(newSchool);
+      return route.fulfill({
+        status: 201,
+        contentType: "application/json",
+        body: JSON.stringify(newSchool),
+      });
+    }
+
+    // GET list with search & filters
+    const urlObj = new URL(url, "http://localhost:3001");
+    const search = (urlObj.searchParams.get("search") || "").trim().toLowerCase();
+    const provinceId = urlObj.searchParams.get("provinceId");
+    const status = urlObj.searchParams.get("status");
+
+    let filtered = [...mockSchoolsList];
+    if (search) {
+      filtered = filtered.filter(
+        (s) =>
+          s.name.toLowerCase().includes(search) ||
+          s.code.toLowerCase().includes(search) ||
+          (s.shortCode && s.shortCode.toLowerCase().includes(search)),
+      );
+    }
+    if (provinceId) {
+      filtered = filtered.filter((s) => s.provinceId === Number(provinceId));
+    }
+    if (status) {
+      filtered = filtered.filter((s) => s.status === status || (status === "ACTIVE" && s.isActive));
+    }
+
     return route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify([
-        { id: 1, name: "โรงเรียนตัวอย่างทดสอบ", code: "SCH001", provinceId: 1, schoolGroupId: 1, isActive: true },
-      ]),
+      body: JSON.stringify(filtered),
     });
   });
 
   // 9.36 Provinces & School Groups
+  const mockProvincesList = [
+    { id: 1, name: "กรุงเทพมหานคร", code: "BKK", isActive: true, schools: [{ id: 1 }] },
+    { id: 2, name: "ชลบุรี", code: "CBI", isActive: true, schools: [{ id: 2 }] },
+    { id: 3, name: "ระยอง", code: "RYG", isActive: true, schools: [] },
+    { id: 4, name: "จันทบุรี", code: "CTI", isActive: true, schools: [] },
+  ];
+
   await page.route(/\/api\/provinces/, async (route) => {
+    const method = route.request().method();
+    const url = route.request().url();
+    const matchDetail = url.match(/\/api\/provinces\/(\d+)/);
+
+    if (matchDetail && (method === "PUT" || method === "PATCH")) {
+      const pId = Number(matchDetail[1]);
+      const targetProv = mockProvincesList.find((p) => p.id === pId);
+      let patchData: Record<string, unknown> = {};
+      try { patchData = route.request().postDataJSON() || {}; } catch {}
+
+      if (targetProv) {
+        // If deactivating and province still has active schools
+        if (patchData.isActive === false && targetProv.schools && targetProv.schools.length > 0) {
+          return route.fulfill({
+            status: 400,
+            contentType: "application/json",
+            body: JSON.stringify({ message: "ปิดใช้งานไม่ได้ เพราะยังมีโรงเรียนที่เปิดใช้งานอยู่ 1 แห่ง — ปิดใช้งานโรงเรียนเหล่านั้นก่อน" }),
+          });
+        }
+        if (patchData.isActive !== undefined) targetProv.isActive = Boolean(patchData.isActive);
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ success: true, province: targetProv }),
+      });
+    }
+
     return route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify([
-        { id: 1, name: "กรุงเทพมหานคร", code: "BKK", isActive: true, schools: [{ id: 1 }] },
-        { id: 2, name: "ชลบุรี", code: "CBI", isActive: true, schools: [] },
-      ]),
+      body: JSON.stringify(mockProvincesList),
     });
   });
 
+  const mockSchoolGroupsList = [
+    { id: 1, name: "สพป. กรุงเทพมหานคร เขต 1", provinceId: 1, isActive: true },
+    { id: 2, name: "สพม. กรุงเทพมหานคร เขต 2", provinceId: 1, isActive: true },
+    { id: 3, name: "เขตบางแสน", provinceId: 2, isActive: true },
+    { id: 4, name: "สพป. ชลบุรี เขต 1", provinceId: 2, isActive: true },
+  ];
+
   await page.route(/\/api\/school-groups/, async (route) => {
+    const method = route.request().method();
+    const url = route.request().url();
+
+    if (method === "POST") {
+      let postData: Record<string, unknown> = {};
+      try { postData = route.request().postDataJSON() || {}; } catch {}
+      const name = (postData.name as string) || "";
+      const provinceId = postData.provinceId ? Number(postData.provinceId) : 2;
+
+      // Duplicate check: เขตบางแสน in province 2
+      if (mockSchoolGroupsList.some((g) => g.name === name && g.provinceId === provinceId)) {
+        return route.fulfill({
+          status: 409,
+          contentType: "application/json",
+          body: JSON.stringify({ message: "ชื่อกลุ่มโรงเรียนซ้ำภายในจังหวัดเดียวกัน" }),
+        });
+      }
+      const newGroup = {
+        id: mockSchoolGroupsList.length + 1,
+        name,
+        provinceId,
+        isActive: true,
+      };
+      mockSchoolGroupsList.push(newGroup);
+      return route.fulfill({
+        status: 201,
+        contentType: "application/json",
+        body: JSON.stringify(newGroup),
+      });
+    }
+
+    const urlObj = new URL(url, "http://localhost:3001");
+    const provinceIdParam = urlObj.searchParams.get("provinceId");
+    let groups = [...mockSchoolGroupsList];
+    if (provinceIdParam) {
+      groups = groups.filter((g) => g.provinceId === Number(provinceIdParam));
+    }
     return route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify([
-        { id: 1, name: "สพป. กรุงเทพมหานคร เขต 1", provinceId: 1, isActive: true },
-        { id: 2, name: "สพม. กรุงเทพมหานคร เขต 2", provinceId: 1, isActive: true },
-      ]),
+      body: JSON.stringify(groups),
     });
   });
 
   // 9.37 Province Dashboard Stats
   await page.route(/\/api\/dashboard\/province/, async (route) => {
+    const url = new URL(route.request().url(), "http://localhost:3001");
+    const search = (url.searchParams.get("search") || "").trim();
+    const status = url.searchParams.get("status");
+
+    // Dynamic mock responding to search & filters differently!
+    const isRayong = search.includes("ระยอง");
+    const isSuspended = status === "suspended" || status === "inactive";
+
     return route.fulfill({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
-        provinceName: "กรุงเทพมหานคร",
-        zoneName: null,
-        totalSchools: 12,
-        totalStudents: 1540,
-        totalCases: 28,
+        provinceName: isRayong ? "ระยอง" : "ชลบุรี",
+        zoneName: isRayong ? "สพป. ระยอง เขต 1" : "สพป. ชลบุรี เขต 1",
+        totalSchools: isRayong ? 8 : (isSuspended ? 2 : 16),
+        totalStudents: isRayong ? 940 : (isSuspended ? 120 : 2150),
+        totalCases: isRayong ? 14 : (isSuspended ? 3 : 38),
         zoneMapMinStudents: 5,
         casesBySeverity: {
-          low: 10,
-          medium: 12,
-          high: 6,
+          low: isRayong ? 6 : (isSuspended ? 1 : 18),
+          medium: isRayong ? 5 : (isSuspended ? 1 : 12),
+          high: isRayong ? 3 : (isSuspended ? 1 : 8),
           unassessed: 0,
         },
-        schoolOptions: [
-          { schoolId: 1, schoolName: "โรงเรียนตัวอย่างทดสอบ" },
-          { schoolId: 2, schoolName: "โรงเรียนวิทยาการสาธิต" },
-        ],
-        schoolComparison: [
-          {
-            schoolId: 1,
-            schoolName: "โรงเรียนตัวอย่างทดสอบ",
-            district: "ปทุมวัน",
-            totalStudents: 820,
-            caseCount: 15,
-            averageAbsentRate: 4.2,
-          },
-        ],
+        schoolOptions: isRayong
+          ? [{ schoolId: 5, schoolName: "โรงเรียนระยองวิทยาคม" }]
+          : [
+              { schoolId: 1, schoolName: "โรงเรียนตัวอย่างทดสอบ" },
+              { schoolId: 2, schoolName: "โรงเรียนชลบุรีวิทยา" },
+            ],
+        schoolComparison: isRayong
+          ? [
+              {
+                schoolId: 5,
+                schoolName: "โรงเรียนระยองวิทยาคม",
+                district: "เมืองระยอง",
+                totalStudents: 940,
+                caseCount: 14,
+                averageAbsentRate: 3.8,
+              },
+            ]
+          : [
+              {
+                schoolId: 2,
+                schoolName: "โรงเรียนชลบุรีวิทยา",
+                district: "เมืองชลบุรี",
+                totalStudents: 1200,
+                caseCount: 22,
+                averageAbsentRate: 4.5,
+              },
+              {
+                schoolId: 1,
+                schoolName: "โรงเรียนตัวอย่างทดสอบ",
+                district: "บางแสน",
+                totalStudents: 950,
+                caseCount: 16,
+                averageAbsentRate: 3.9,
+              },
+            ],
         zoneMap: [
           {
             townId: 1,
-            district: "ปทุมวัน",
-            subdistrict: "วังใหม่",
-            studentCount: 820,
-            caseCount: 15,
+            district: isRayong ? "เมืองระยอง" : "เมืองชลบุรี",
+            subdistrict: isRayong ? "ท่าประดู่" : "แสนสุข",
+            studentCount: isRayong ? 940 : 2150,
+            caseCount: isRayong ? 14 : 38,
           },
         ],
       }),
@@ -1283,6 +1490,45 @@ export async function setupStsApiMocks(
       isPasswordExpired: false,
       provinceId: 1,
       schoolId: 1,
+    },
+    {
+      id: 5,
+      name: "ครูหวัง คาดหวัง",
+      username: "wang_kadwang",
+      role: { name: "TEACHER" },
+      email: "wang@sts.ac.th",
+      phone: "0855555555",
+      isActive: true,
+      mustSetPassword: false,
+      isPasswordExpired: false,
+      provinceId: 2,
+      schoolId: 2,
+    },
+    {
+      id: 6,
+      name: "ครูสมหวัง ใจดี",
+      username: "somwang_jd",
+      role: { name: "TEACHER" },
+      email: "somwang_jd@sts.ac.th",
+      phone: "0866666666",
+      isActive: true,
+      mustSetPassword: false,
+      isPasswordExpired: false,
+      provinceId: 2,
+      schoolId: 2,
+    },
+    {
+      id: 7,
+      name: "ครูอำนาจ แสงทอง",
+      username: "amnat_st",
+      role: { name: "TEACHER" },
+      email: "amnat@sts.ac.th",
+      phone: "0877777777",
+      isActive: true,
+      mustSetPassword: false,
+      isPasswordExpired: false,
+      provinceId: 2,
+      schoolId: 2,
     },
   ];
 
@@ -1346,11 +1592,33 @@ export async function setupStsApiMocks(
       } catch {
         postData = {};
       }
+
+      // Thai username check
+      if (postData.username && /[\u0E00-\u0E7F]/.test(String(postData.username))) {
+        return route.fulfill({
+          status: 400,
+          contentType: "application/json",
+          body: JSON.stringify({ message: "ไม่อนุญาตให้กรอกชื่อผู้ใช้เป็นภาษาไทย" }),
+        });
+      }
+
+      // Empty submission check
+      if (!postData.username && !postData.full_name && !postData.name) {
+        return route.fulfill({
+          status: 400,
+          contentType: "application/json",
+          body: JSON.stringify({ message: "กรุณากรอกข้อมูลให้ครบถ้วน" }),
+        });
+      }
+
+      const roleStr = String(postData.role || "").toLowerCase();
+      const roleName = roleStr.includes("admin") ? "SCHOOL_ADMIN" : "TEACHER";
+
       const newUser = {
         id: mockUsersList.length + 1,
         name: (postData.full_name as string) || (postData.name as string) || "ผู้ใช้งานใหม่",
         username: (postData.username as string) || `user_${Date.now()}`,
-        role: { name: postData.role === "admin" ? "SCHOOL_ADMIN" : "TEACHER" },
+        role: { name: roleName },
         email: (postData.email as string) || "newuser@example.com",
         phone: (postData.phone as string) || "0899999999",
         isActive: true,
@@ -1382,6 +1650,8 @@ export async function setupStsApiMocks(
         if (target) {
           if (patchData.full_name) target.name = patchData.full_name as string;
           if (patchData.name) target.name = patchData.name as string;
+          if (patchData.email) target.email = patchData.email as string;
+          if (patchData.phone) target.phone = patchData.phone as string;
           if (patchData.isActive !== undefined) target.isActive = Boolean(patchData.isActive);
         }
       }
