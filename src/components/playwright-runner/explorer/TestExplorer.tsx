@@ -183,8 +183,9 @@ export function TestExplorer({
     // รวม workflow ของ STS All-in-One ทั้ง 4 role ไว้ในหมวดเดียว
     // แต่ยังเก็บ test ของแต่ละไฟล์ไว้ครบ เพื่อให้ผู้ใช้เปิดดูและเลือกแยกได้
     const stsAllGroups = result.filter((group) => {
-      const firstTest = group.tests[0];
-      return firstTest && resolveFunctionCategory(firstTest.title, firstTest.relativePath, group.name).code === "FN-STS-00";
+      // ใช้ functionId จาก catalog เป็นหลัก ไม่ใช้ชื่อ/keyword ของ test
+      // เพราะกลุ่ม Platform & Province อาจถูก resolver จัดหมวดผิดจากคำว่า STS
+      return group.functionId === "FN-STS-00";
     });
 
     if (stsAllGroups.length > 1) {
