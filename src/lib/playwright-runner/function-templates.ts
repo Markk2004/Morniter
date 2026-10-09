@@ -4087,15 +4087,6 @@ test.describe("[UAT หัวหน้าระบบ] UAT Script (Platform Admi
       const caseStatusSection = page.locator("main").locator("text=/เคส|สถานการณ์|ความรุนแรง|เสี่ยงสูง|ผู้ใช้/i").first();
       await expect(caseStatusSection).toBeVisible();
 
-      // TS-STS-08-12: ตรวจสอบการทำงานของช่องค้นหาชื่อจังหวัด (TC-STS-08-12-01): ตรวจสอบการทำงานของช่องค้นหาชื่อจังหวัด (ระยอง)
-      const searchBox = page.locator("#search-input, input[placeholder*='ค้นหา']").first();
-      if (await searchBox.isVisible()) {
-        await searchBox.fill("ระยอง");
-        await page.waitForTimeout(800);
-        await searchBox.clear();
-        await page.waitForTimeout(500);
-      }
-
       // TS-STS-08-13: ตรวจสอบการทำงานของตัวกรองสถานะ (TC-STS-08-13-01): ตรวจสอบการทำงานของตัวกรองสถานะ (เปิดใช้งาน / ระงับการใช้งาน)
       const statusFilterTrigger = page.locator("button:has-text('ตัวกรอง'), button:has-text('สถานะ'), button[role='combobox']").first();
       if (await statusFilterTrigger.isVisible()) {
@@ -4375,6 +4366,17 @@ test.describe("[UAT หัวหน้าระบบ] UAT Script (Platform Admi
       await page.waitForTimeout(1500);
       await expect(page).toHaveURL(/\\/admin\\/users/);
       await expect(usersPage.heading()).toBeVisible();
+
+      // ค้นหาผู้ใช้ด้วยชื่อบุคคลบนหน้าจัดการผู้ใช้
+      const userSearchInput = usersPage.searchInput().first();
+      await expect(userSearchInput).toBeVisible();
+      await userSearchInput.fill("สมหญิง");
+      await page.waitForTimeout(800);
+      await expect(page.locator("text=/สมหญิง ครูประจำชั้น|teacher_a/i").first()).toBeVisible({ timeout: 8000 });
+      await userSearchInput.clear();
+      await page.waitForTimeout(500);
+
+      // ยังไม่ทดสอบตัวกรอง role จนกว่าหน้าจอจะรองรับการเลือก role เสร็จสมบูรณ์
 
       // TS-STS-02-12: ตรวจสอบการทำงานของปุ่มเพิ่มผู้ใช้ ในเพิ่มผู้ใช้ใหม่ (ไม่มีข้อมูล TC-STS-02-12-02): ตรวจสอบการทำงานของปุ่มเพิ่มผู้ใช้ เมื่อไม่มีการกรอกข้อมูล
       await usersPage.addUserButton().click();

@@ -36,13 +36,13 @@ test.describe("FN-STS-02: User Management Suite", () => {
     await page.waitForTimeout(3000);
   });
 
-  test("TC-STS-USER-002: Platform Admin filters users by status and search input", async ({ page }) => {
+  test("TC-STS-USER-002: Platform Admin searches users by person name and filters by status", async ({ page }) => {
     const usersPage = new StsUsersPage(page);
 
     await usersPage.goto();
     await page.bringToFront();
 
-    // Filter by search input
+    // Search by a person's name, not by province
     await usersPage.searchInput().fill("สมหญิง");
     await page.waitForTimeout(600); // debounce
 
