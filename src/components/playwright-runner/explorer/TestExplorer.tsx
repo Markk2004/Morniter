@@ -113,22 +113,26 @@ export function TestExplorer({
 
     // UAT All-in-One มีไฟล์ Platform Admin ซ้ำใน e2e/sts และ e2e/workspace
     // ใช้ไฟล์ใน e2e/sts เป็น canonical และไม่แสดง workflow เดิมซ้ำใน explorer
-    const allInOneByTitle = new Map<string, ProjectCoverageTest>();
+    const canonicalAllInOnePaths = new Set([
+      "e2e/sts/specs/00-teacher-uat-all-in-one.spec.ts",
+      "e2e/sts/specs/00-school-uat-all-in-one.spec.ts",
+      "e2e/sts/specs/00-school-admin-uat-all-in-one.spec.ts",
+      "e2e/sts/specs/00-platform-admin-uat-all-in-one.spec.ts",
+    ]);
+    const allInOneByPath = new Map<string, ProjectCoverageTest>();
     for (const group of rawGroups) {
       for (const test of group.tests) {
-        if (!/COMPLETE-E2E|ALL-IN-ONE/i.test(test.title)) {
+        const normalizedPath = test.relativePath.replace(/\\/g, "/");
+        if (!canonicalAllInOnePaths.has(normalizedPath)) {
           continue;
         }
 
-        const key = test.title.trim().toLowerCase();
-        const previous = allInOneByTitle.get(key);
-        if (!previous || (previous.relativePath.includes("e2e/workspace") && test.relativePath.includes("e2e/sts"))) {
-          allInOneByTitle.set(key, test);
-        }
+        const previous = allInOneByPath.get(normalizedPath);
+        if (!previous || previous.relativePath.includes("e2e/workspace")) allInOneByPath.set(normalizedPath, test);
       }
     }
 
-    const canonicalAllInOneTests = Array.from(allInOneByTitle.values());
+    const canonicalAllInOneTests = Array.from(allInOneByPath.values());
     const canonicalAllInOneIds = new Set(canonicalAllInOneTests.map((test) => test.id));
     const result: ProjectCoverageGroup[] = [];
     for (const group of rawGroups) {
@@ -138,8 +142,9 @@ export function TestExplorer({
         group.functionName?.toLowerCase().includes("sts all");
       const groupTests = group.tests.filter((test) => {
         if (isStsAllGroup && !/COMPLETE-E2E|ALL-IN-ONE/i.test(test.title)) return false;
-        if (!/COMPLETE-E2E|ALL-IN-ONE/i.test(test.title)) return true;
-        return canonicalAllInOneIds.has(test.id);
+        const normalizedPath = test.relativePath.replace(/\\/g, "/");
+        if (canonicalAllInOnePaths.has(normalizedPath)) return canonicalAllInOneIds.has(test.id);
+        return !isStsAllGroup;
       });
       if (groupTests.length === 0) continue;
 
