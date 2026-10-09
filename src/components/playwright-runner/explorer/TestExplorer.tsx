@@ -111,22 +111,48 @@ export function TestExplorer({
       };
     });
 
+    // UAT All-in-One มีไฟล์ Platform Admin ซ้ำใน e2e/sts และ e2e/workspace
+    // ใช้ไฟล์ใน e2e/sts เป็น canonical และไม่แสดง workflow เดิมซ้ำใน explorer
+    const allInOneByTitle = new Map<string, ProjectCoverageTest>();
+    for (const group of rawGroups) {
+      for (const test of group.tests) {
+        if (!/COMPLETE-E2E|ALL-IN-ONE/i.test(test.title)) {
+          continue;
+        }
+
+        const key = test.title.trim().toLowerCase();
+        const previous = allInOneByTitle.get(key);
+        if (!previous || (previous.relativePath.includes("e2e/workspace") && test.relativePath.includes("e2e/sts"))) {
+          allInOneByTitle.set(key, test);
+        }
+      }
+    }
+
+    const canonicalAllInOneTests = Array.from(allInOneByTitle.values());
+    const canonicalAllInOneIds = new Set(canonicalAllInOneTests.map((test) => test.id));
     const result: ProjectCoverageGroup[] = [];
     for (const group of rawGroups) {
+      const groupTests = group.tests.filter((test) => {
+        if (!/COMPLETE-E2E|ALL-IN-ONE/i.test(test.title)) return true;
+        return canonicalAllInOneIds.has(test.id);
+      });
+      if (groupTests.length === 0) continue;
+
+      const normalizedGroup = groupTests.length === group.tests.length ? group : { ...group, tests: groupTests };
       const isMonolithic =
-        group.name.toLowerCase() === "specs" ||
-        group.name.toLowerCase() === "e2e" ||
-        group.name.toLowerCase() === "tests" ||
-        (!group.functionId && group.tests.length > 5);
+        normalizedGroup.name.toLowerCase() === "specs" ||
+        normalizedGroup.name.toLowerCase() === "e2e" ||
+        normalizedGroup.name.toLowerCase() === "tests" ||
+        (!normalizedGroup.functionId && normalizedGroup.tests.length > 5);
 
       if (!isMonolithic) {
-        result.push(group);
+        result.push(normalizedGroup);
         continue;
       }
 
-      const subMap = new Map<string, typeof group.tests>();
-      for (const test of group.tests) {
-        const cat = resolveFunctionCategory(test.title, test.relativePath, group.name);
+      const subMap = new Map<string, typeof normalizedGroup.tests>();
+      for (const test of normalizedGroup.tests) {
+        const cat = resolveFunctionCategory(test.title, test.relativePath, normalizedGroup.name);
         const list = subMap.get(cat.code) || [];
         list.push(test);
         subMap.set(cat.code, list);
@@ -145,7 +171,7 @@ export function TestExplorer({
           });
         }
       } else {
-        result.push(group);
+        result.push(normalizedGroup);
       }
     }
 
