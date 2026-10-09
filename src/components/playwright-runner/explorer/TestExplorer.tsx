@@ -132,7 +132,12 @@ export function TestExplorer({
     const canonicalAllInOneIds = new Set(canonicalAllInOneTests.map((test) => test.id));
     const result: ProjectCoverageGroup[] = [];
     for (const group of rawGroups) {
+      const isStsAllGroup =
+        group.functionId === "FN-STS-00" ||
+        group.name.toLowerCase().includes("sts all") ||
+        group.functionName?.toLowerCase().includes("sts all");
       const groupTests = group.tests.filter((test) => {
+        if (isStsAllGroup && !/COMPLETE-E2E|ALL-IN-ONE/i.test(test.title)) return false;
         if (!/COMPLETE-E2E|ALL-IN-ONE/i.test(test.title)) return true;
         return canonicalAllInOneIds.has(test.id);
       });
