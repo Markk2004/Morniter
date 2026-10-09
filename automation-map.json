@@ -18,7 +18,7 @@
   "scanRoots": [
     { "path": "e2e/sts", "runner": "playwright", "executionProfileId": "playwright-sts", "executable": true }
   ],
-  "excludeDirectories": ["node_modules", ".next", "dist", "coverage", "playwright-report-sts", ".git"],
+  "excludeDirectories": ["node_modules", ".next", "dist", "coverage", "playwright-report-sts", ".git", "__workspace__"],
   "generatedRoot": "e2e/sts/generated",
   "functions": [
     { "id": "FN-STS-00", "name": "Sts all หมวดหมู่", "keywords": ["uat", "sts-all", "all-in-one", "workflow", "teacher", "school", "school-admin", "platform-admin"] },
