@@ -75,18 +75,15 @@ export function resolveTestGroupName(groupPath: string[], fileName: string): str
   const baseName = fileName.replace(/\.(spec|test)\.[a-z]+$/i, "").toLowerCase();
 
   // STS module files follow explicit numeric prefixing or login in sts context
-  // ⚠️ Order matters: most-specific checks FIRST before generic "all-in-one"
-  if (baseName.includes("00-platform-admin")) {
-    return "UAT Script (Platform Admin) · TC-STS-PLATFORM-ADMIN All-in-One";
-  }
-  if (baseName.includes("00-school-admin")) {
-    return "TC-STS-SCHOOL-ADMIN-COMPLETE-E2E: School Admin Full 29-TC Workflow";
-  }
-  if (baseName.includes("00-school")) {
-    return "TC-STS-SCHOOL-DIRECTOR-COMPLETE-E2E: School Complete UAT Workflow (Director & Admin All-in-One)";
-  }
-  if (baseName.includes("00-teacher")) {
-    return "TC-STS-TEACHER-COMPLETE-E2E: Teacher Complete UAT Workflow (Single Function All-in-One)";
+  // 🌟 All 4 All-in-One UAT workflows grouped together into "Sts all หมวดหมู่"
+  if (
+    baseName.includes("00-platform-admin") ||
+    baseName.includes("00-school-admin") ||
+    baseName.includes("00-school") ||
+    baseName.includes("00-teacher") ||
+    (baseName.startsWith("00-") && baseName.includes("all-in-one"))
+  ) {
+    return "FN-STS-00 · Sts all หมวดหมู่";
   }
   if (baseName.includes("02-dashboard")) {
     return "[UAT ครู] หมวด 2: แดชบอร์ดครูที่ปรึกษา (Dashboard Navigation)";
