@@ -149,6 +149,30 @@ export function TestExplorer({
       }
     }
 
+    // รวม workflow ของ STS All-in-One ทั้ง 4 role ไว้ในหมวดเดียว
+    // แต่ยังเก็บ test ของแต่ละไฟล์ไว้ครบ เพื่อให้ผู้ใช้เปิดดูและเลือกแยกได้
+    const stsAllGroups = result.filter((group) => {
+      const firstTest = group.tests[0];
+      return firstTest && resolveFunctionCategory(firstTest.title, firstTest.relativePath, group.name).code === "FN-STS-00";
+    });
+
+    if (stsAllGroups.length > 1) {
+      const mergedTests = stsAllGroups.flatMap((group) => group.tests);
+      const firstGroup = stsAllGroups[0];
+      const withoutStsAll = result.filter((group) => !stsAllGroups.includes(group));
+      return [
+        ...withoutStsAll,
+        {
+          ...firstGroup,
+          id: "fn-sts-00",
+          name: "FN-STS-00 · Sts all หมวดหมู่",
+          functionId: "FN-STS-00",
+          functionName: "Sts all หมวดหมู่",
+          tests: mergedTests,
+        },
+      ];
+    }
+
     return result;
   }, [groups]);
 
