@@ -5023,10 +5023,22 @@ export function getFunctionTemplate(functionIdOrCode: string): FunctionTemplate 
 }
 
 /**
- * Returns all STS function templates as a list (FN-STS-01 through FN-STS-11)
+ * Returns all STS function templates — includes the 4 All-in-One UAT scripts (Sts all หมวดหมู่)
+ * and individual function templates FN-STS-01 through FN-STS-11.
  */
 export function getAllFunctionTemplates(): FunctionTemplate[] {
-  return Object.values(STS_FUNCTION_TEMPLATES).filter((tpl) =>
+  const allInOne = [
+    "FN-STS-00",
+    "FN-STS-00-SCHOOL",
+    "FN-STS-00-SCHOOL-ADMIN",
+    "FN-STS-00-PLATFORM-ADMIN",
+  ]
+    .map((id) => STS_FUNCTION_TEMPLATES[id])
+    .filter(Boolean);
+
+  const individual = Object.values(STS_FUNCTION_TEMPLATES).filter((tpl) =>
     /^FN-STS-(?!00)\d{2}$/.test(tpl.id),
   );
+
+  return [...allInOne, ...individual];
 }

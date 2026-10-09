@@ -50,6 +50,14 @@ export function getTestEditorTitle(test: { relativePath?: string; title?: string
   const tit = (test.title || "").toUpperCase();
 
   if (
+    rel.includes("00-school-admin-uat-all-in-one") ||
+    tit.includes("TC-STS-SCHOOL-ADMIN") ||
+    tit.includes("SCHOOL-ADMIN")
+  ) {
+    return `[ฟังก์ชัน STS School Admin] Open ${rel || "e2e/sts/specs/00-school-admin-uat-all-in-one.spec.ts"} in editor`;
+  }
+
+  if (
     rel.includes("00-platform-admin-uat-all-in-one") ||
     tit.includes("TC-STS-PLATFORM-ADMIN") ||
     tit.includes("PLATFORM-ADMIN") ||
@@ -84,6 +92,19 @@ export function getTestThaiMeta(title: string, relativePath: string = ""): TestT
   const t = `${title} ${relativePath}`.toUpperCase();
 
   if (
+    t.includes("00-SCHOOL-ADMIN") ||
+    t.includes("TC-STS-SCHOOL-ADMIN") ||
+    t.includes("SCHOOL-ADMIN-COMPLETE") ||
+    t.includes("SCHOOL-ADMIN-UAT")
+  ) {
+    return {
+      role: "STS School Admin (ผู้ดูแลระบบโรงเรียน)",
+      roleBadgeStyle: "border-cyan-500/30 bg-cyan-950/40 text-cyan-300",
+      description: "รันครบ 29 ขั้นตอนตาม UAT Script ผู้ดูแลระบบโรงเรียน: เข้าสู่ระบบ → มอนิเตอร์แดชบอร์ด → จัดการบัญชีผู้ใช้โรงเรียน → จัดการชั้นเรียนและข้อมูลนักเรียน",
+    };
+  }
+
+  if (
     t.includes("TC-STS-PLATFORM-ADMIN") ||
     t.includes("00-PLATFORM-ADMIN") ||
     t.includes("PLATFORM-ADMIN") ||
@@ -102,7 +123,7 @@ export function getTestThaiMeta(title: string, relativePath: string = ""): TestT
     t.includes("TC-STS-SCHOOL-DIRECTOR") ||
     t.includes("SCHOOL-DIRECTOR") ||
     t.includes("SCHOOL-UAT-ALL-IN-ONE") ||
-    t.includes("00-SCHOOL") ||
+    t.includes("00-SCHOOL-UAT") ||
     t.includes("UAT SCRIPT [SCHOOL]") ||
     t.includes("UAT โรงเรียน") ||
     t.includes("COMPLETE SCHOOL WORKFLOW")
@@ -114,7 +135,12 @@ export function getTestThaiMeta(title: string, relativePath: string = ""): TestT
     };
   }
 
-  if (t.includes("TEACHER-COMPLETE-E2E") || t.includes("ALL-IN-ONE") || t.includes("หมวด 7") || t.includes("COMPLETE UAT WORKFLOW")) {
+  if (
+    t.includes("00-TEACHER") ||
+    t.includes("TEACHER-COMPLETE") ||
+    (t.includes("ALL-IN-ONE") && t.includes("TEACHER")) ||
+    t.includes("หมวด 7")
+  ) {
     return {
       role: "ครูประจำชั้น (UAT ครบวงจร)",
       roleBadgeStyle: "border-emerald-500/30 bg-emerald-950/40 text-emerald-300",
@@ -384,50 +410,30 @@ export function resolveFunctionCategory(
   const combined = `${title} ${relativePath} ${groupName}`.toUpperCase();
 
   if (
-    combined.includes("TC-STS-PLATFORM-ADMIN") ||
-    combined.includes("PLATFORM-ADMIN") ||
-    combined.includes("00-PLATFORM-ADMIN") ||
-    combined.includes("UAT SCRIPT (PLATFORM ADMIN)") ||
-    combined.includes("UAT หัวหน้าระบบ")
-  ) {
-    return {
-      code: "TC-STS-PLATFORM-ADMIN",
-      name: "[UAT หัวหน้าระบบ] UAT Script (Platform Admin) (Complete 29-TC Workflow)",
-      shortName: "STS Platform Admin",
-      icon: "🛡️",
-      badgeStyle: "border-purple-500/40 bg-purple-950/60 text-purple-300",
-    };
-  }
-
-  if (
-    combined.includes("FN-STS-00-SCHOOL") ||
-    combined.includes("00-SCHOOL") ||
-    combined.includes("SCHOOL-UAT") ||
-    combined.includes("UAT SCRIPT [SCHOOL]") ||
-    combined.includes("UAT โรงเรียน")
-  ) {
-    return {
-      code: "FN-STS-00-SCHOOL",
-      name: "[UAT โรงเรียน] Uat script [School Director & Admin] (Complete School Workflow)",
-      shortName: "STS School Director",
-      icon: "🏫",
-      badgeStyle: "border-indigo-500/40 bg-indigo-950/60 text-indigo-300",
-    };
-  }
-
-  if (
-    combined.includes("FN-STS-00") ||
-    combined.includes("TEACHER-COMPLETE") ||
     combined.includes("ALL-IN-ONE") ||
+    combined.includes("00-PLATFORM-ADMIN") ||
+    combined.includes("00-SCHOOL-ADMIN") ||
+    combined.includes("00-SCHOOL") ||
+    combined.includes("00-TEACHER") ||
+    combined.includes("FN-STS-00") ||
+    combined.includes("TC-STS-ALL") ||
+    combined.includes("STS ALL") ||
+    combined.includes("STS-ALL") ||
+    combined.includes("SCHOOL-ADMIN-COMPLETE") ||
+    combined.includes("SCHOOL-DIRECTOR-COMPLETE") ||
+    combined.includes("TEACHER-COMPLETE") ||
+    combined.includes("PLATFORM-ADMIN-COMPLETE") ||
+    combined.includes("UAT SCRIPT [SCHOOL]") ||
+    combined.includes("UAT SCRIPT (PLATFORM ADMIN)") ||
     combined.includes("หมวด 7") ||
     combined.includes("รันทุกฟังก์ชัน")
   ) {
     return {
       code: "FN-STS-00",
-      name: "[UAT ครู] หมวด 7: รันทุกฟังก์ชัน All-in-One (Complete Workflow)",
-      shortName: "UAT ครู All-in-One",
+      name: "Sts all หมวดหมู่",
+      shortName: "Sts all",
       icon: "🌟",
-      badgeStyle: "border-emerald-500/40 bg-emerald-950/60 text-emerald-300",
+      badgeStyle: "border-indigo-500/40 bg-indigo-950/60 text-indigo-300",
     };
   }
 
@@ -657,27 +663,23 @@ export const FUNCTION_DETAILED_DOCS: Record<string, FunctionDetailedDoc> = {
   "FN-STS-00": {
     id: "FN-STS-00",
     code: "FN-STS-00",
-    name: "[UAT ครู] หมวด 7: รันทุกฟังก์ชัน All-in-One (Complete Workflow)",
-    role: "ครูประจำชั้น (Teacher UAT ครบวงจร)",
-    workflow: "เข้าสู่ระบบ → ตรวจสอบแดชบอร์ด → เช็กชื่อประจำวัน → กลับหน้าแดชบอร์ด → จัดการเคสและเปิดเคส → บันทึกข้อสังเกตและ AI Insights",
-    overview: "ชุดทดสอบ UAT ครบวงจรสำหรับคุณครู (หัวข้อที่ 7 ใน UAT Spreadsheet) ที่รวมขั้นตอน 1 ถึง 6 มารันต่อเนื่องเป็นฟังก์ชันเดียวใน Code Workspace เพื่อตรวจสอบ Journey ของคุณครูตั้งแต่เริ่มปฏิบัติงานจนถึงการติดตามนักเรียนด้วยระบบ AI",
-    codeExplanation: "โค้ดรวมฟังก์ชันทดสอบเดียวพร้อม test.step() ครอบคลุม 6 หมวด: 1. ล็อกอินด้วยบัญชีครู (teacher_a) และตรวจสถานะครูที่ปรึกษา, 2. ตรวจสอบการ์ดสถิติและ Banner เตือนยังไม่ได้เช็กชื่อ, 3. เข้าสู่หน้าเช็กชื่อ ค้นหานักเรียน และกดบันทึกเป็นมาเรียนทั้งหมด, 4. สลับกลับมาดูแดชบอร์ดและแท็บเคสติดตาม, 5. เปิดเคสใหม่ให้นักเรียนกลุ่มเสี่ยง, 6. บันทึกข้อสังเกตพฤติกรรม กดประเมินด้วย AI Insights และตรวจสอบกระบวนการ Human Review",
+    name: "Sts all หมวดหมู่ (4 All-in-One Workflows)",
+    role: "รวมทุกบทบาท (Teacher, School Director, School Admin, Platform Admin)",
+    workflow: "เข้าสู่ระบบ → แดชบอร์ดตามสิทธิ์ → จัดการผู้ใช้/เคส/โรงเรียน → ติดตามพฤติกรรม & AI Analysis → ออกรายงาน",
+    overview: "ชุดทดสอบ UAT ครบวงจรรวมทุกบทบาทในระบบ STS (Sts all หมวดหมู่) ประกอบด้วย 4 Code Workspaces: 1. UAT ครูประจำชั้น 2. UAT ผู้อำนวยการโรงเรียน 3. UAT ผู้ดูแลระบบโรงเรียน 4. UAT หัวหน้าระบบ (Platform Admin)",
+    codeExplanation: "รวบรวมฟังก์ชันการทดสอบอัตโนมัติแบบครบวงจรของ 4 บทบาทหลักในระบบ ProjectSTS ครอบคลุมการทำงานตั้งแต่ระดับห้องเรียน โรงเรียน จนถึงศูนย์ควบคุมระดับประเทศและแพลตฟอร์มส่วนกลาง",
     steps: [
-      "1. เข้าสู่ระบบด้วยสถานะคุณครู (teacher_a / changeme) และตรวจเช็คสถานะครูที่ปรึกษา",
-      "2. ตรวจสอบแบนเนอร์แจ้งเตือนสถานะการเช็คชื่อบนหน้าแดชบอร์ดและกดเริ่มเช็คชื่อ",
-      "3. ค้นหารายชื่อนักเรียนในห้อง ทำการเช็คชื่อ และบันทึกข้อมูลการเข้าเรียนประจำวัน",
-      "4. กลับสู่หน้าแดชบอร์ดเพื่อตรวจสอบตัวเลขสถิติที่อัปเดตและสลับแท็บเคสติดตาม",
-      "5. ไปยังหน้ารายการเคส ค้นหา และเปิดเคสใหม่สำหรับนักเรียนกลุ่มเสี่ยงสูง",
-      "6. เปิดเคสนักเรียน บันทึกข้อสังเกตพฤติกรรม และกดปุ่มวิเคราะห์เคสด้วย AI Insights",
+      "1. [ครูประจำชั้น]: ตรวจสอบแดชบอร์ด เช็กชื่อประจำวัน บริหารเคส และวิเคราะห์ AI Insights",
+      "2. [ผอ. โรงเรียน]: มอนิเตอร์สถิติ KPI บริหารเคสเสี่ยงสูง/ปานกลาง ส่งต่อหน่วยงานภายนอก (PDPA)",
+      "3. [แอดมินโรงเรียน]: บริหารจัดการผู้ใช้ในโรงเรียน โครงสร้างชั้นเรียน และนำเข้าข้อมูลนักเรียน Bulk Import",
+      "4. [หัวหน้าระบบ]: บริหารจัดการผู้ใช้ระดับประเทศ ตรวจสอบแดชบอร์ดระดับจังหวัด และจัดการโครงสร้างเครือข่ายโรงเรียน",
     ],
-    expectedResult: "ทุกขั้นตอนทำงานอย่างราบรื่นต่อเนื่อง ข้อมูลสถิติและเคสได้รับการบันทึกและแสดงผลการวิเคราะห์ AI อย่างสมบูรณ์โดยไม่มีข้อผิดพลาด",
+    expectedResult: "ทั้ง 4 บทบาททำงานอย่างถูกต้อง สมบูรณ์ และสอดคล้องกัน 100% ครบทุก Scenarios ในระบบ STS",
     keySelectors: [
-      "#login-username, #login-password (ช่องเข้าสู่ระบบ)",
-      "main [role='heading']:has-text('ยังไม่ได้เช็คชื่อ') (แบนเนอร์เช็คชื่อ)",
-      "button:has-text('มาเรียนทั้งหมด'), button:has-text('บันทึก') (ปุ่มเช็คชื่อ)",
-      "table tr:has-text('CASE-') (รายการเคสนักเรียน)",
-      "textarea[placeholder*='ข้อสังเกต'] (ช่องบันทึกข้อสังเกต)",
-      "button:has-text('วิเคราะห์เคสด้วย AI') (ปุ่ม AI Insights)",
+      "#login-username, #login-password (ระบบเข้าสู่ระบบ)",
+      "table tr, [data-testid='user-table'] (ระบบจัดการผู้ใช้)",
+      "table tr:has-text('CASE-') (ระบบจัดการเคส)",
+      "[data-testid='province-card'] (แดชบอร์ดระดับจังหวัด)",
     ],
   },
 

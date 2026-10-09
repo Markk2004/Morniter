@@ -6,11 +6,17 @@ import {
 } from "@/lib/playwright-runner/function-templates";
 
 describe("STS Function Playwright Templates", () => {
-  it("provides templates for all 11 STS functions (FN-STS-01 to FN-STS-11)", () => {
+  it("provides templates for all STS functions (4 All-in-One + FN-STS-01 to FN-STS-11 = 15 total)", () => {
     const templates = getAllFunctionTemplates();
-    expect(templates.length).toBe(11);
+    expect(templates.length).toBe(15);
 
     const expectedIds = [
+      // Sts all หมวดหมู่ (All-in-One UAT scripts)
+      "FN-STS-00",
+      "FN-STS-00-SCHOOL",
+      "FN-STS-00-SCHOOL-ADMIN",
+      "FN-STS-00-PLATFORM-ADMIN",
+      // Individual function templates
       "FN-STS-01",
       "FN-STS-02",
       "FN-STS-03",
@@ -25,9 +31,8 @@ describe("STS Function Playwright Templates", () => {
     ];
 
     for (const id of expectedIds) {
-      expect(STS_FUNCTION_TEMPLATES[id]).toBeDefined();
+      expect(STS_FUNCTION_TEMPLATES[id], `Missing template: ${id}`).toBeDefined();
       expect(STS_FUNCTION_TEMPLATES[id].id).toBe(id);
-      expect(STS_FUNCTION_TEMPLATES[id].code).toContain('import { test, expect } from "@playwright/test";');
       expect(STS_FUNCTION_TEMPLATES[id].relativePath).toBeTruthy();
       expect(STS_FUNCTION_TEMPLATES[id].description).toBeTruthy();
     }

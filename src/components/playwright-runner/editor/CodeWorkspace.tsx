@@ -104,7 +104,7 @@ export function CodeWorkspace({
             className="rounded border border-slate-700 bg-slate-800 px-2 py-1 text-[11px] font-mono text-slate-300 focus:outline-none cursor-pointer"
           >
             <option value="" disabled>
-              + เลือกเทมเพลต ProjectSTS (FN-01 ถึง FN-11)
+              🌟 Sts all หมวดหมู่ · เลือก Code Workspace (4 All-in-One + FN-01~11)
             </option>
             {STS_TEMPLATES.map((t) => (
               <option key={t.name} value={t.name}>

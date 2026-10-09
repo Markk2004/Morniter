@@ -21,9 +21,7 @@
   "excludeDirectories": ["node_modules", ".next", "dist", "coverage", "playwright-report-sts", ".git"],
   "generatedRoot": "e2e/sts/generated",
   "functions": [
-    { "id": "FN-STS-00", "name": "[UAT ครู] หมวด 7: รันทุกฟังก์ชัน All-in-One (Complete Workflow)", "keywords": ["uat", "teacher", "all-in-one", "workflow"] },
-    { "id": "FN-STS-00-SCHOOL", "name": "[UAT โรงเรียน] Uat script [STS School Director] (Complete School Workflow)", "keywords": ["uat", "school", "director", "admin", "all-in-one", "workflow"] },
-    { "id": "TC-STS-PLATFORM-ADMIN", "name": "[UAT หัวหน้าระบบ] UAT Script (Platform Admin) (Complete 29-TC Workflow)", "keywords": ["uat", "tc-sts-platform-admin", "platform-admin", "platform", "admin", "all-in-one", "workflow"] },
+    { "id": "FN-STS-00", "name": "Sts all หมวดหมู่", "keywords": ["uat", "sts-all", "all-in-one", "workflow", "teacher", "school", "school-admin", "platform-admin"] },
     { "id": "FN-STS-01", "name": "[UAT ครู] หมวด 1: ระบบยืนยันตัวตนและการเข้าสู่ระบบ (Authentication)", "keywords": ["auth", "login", "password", "session", "teacher"] },
     { "id": "FN-STS-02", "name": "User Management (ระบบจัดการผู้ใช้)", "keywords": ["user", "role", "permission", "management"] },
     { "id": "FN-STS-03", "name": "Students & Classrooms (รายชื่อนักเรียนและห้องเรียน)", "keywords": ["student", "classroom", "profile"] },
@@ -37,9 +35,10 @@
     { "id": "FN-STS-11", "name": "Profile & Password (โปรไฟล์ส่วนตัวและการเปลี่ยนรหัสผ่าน)", "keywords": ["profile", "password", "policy"] }
   ],
   "explicitMappings": [
-    { "path": "e2e/sts/specs/00-platform-admin-uat-all-in-one.spec.ts", "functionId": "TC-STS-PLATFORM-ADMIN" },
+    { "path": "e2e/sts/specs/00-platform-admin-uat-all-in-one.spec.ts", "functionId": "FN-STS-00" },
+    { "path": "e2e/sts/specs/00-school-admin-uat-all-in-one.spec.ts", "functionId": "FN-STS-00" },
     { "path": "e2e/sts/specs/00-teacher-uat-all-in-one.spec.ts", "functionId": "FN-STS-00" },
-    { "path": "e2e/sts/specs/00-school-uat-all-in-one.spec.ts", "functionId": "FN-STS-00-SCHOOL" },
+    { "path": "e2e/sts/specs/00-school-uat-all-in-one.spec.ts", "functionId": "FN-STS-00" },
     { "path": "e2e/sts/specs/01-auth-login-roles.spec.ts", "functionId": "FN-STS-01" },
     { "path": "e2e/sts/specs/01-auth-invalid-credentials.spec.ts", "functionId": "FN-STS-01" },
     { "path": "e2e/sts/specs/01-auth-empty-submission.spec.ts", "functionId": "FN-STS-01" },
