@@ -89,7 +89,22 @@ describe("STS Function Playwright Templates", () => {
   });
 
   it("ensures all 11 function templates contain essential Next.js route mocks", () => {
-    for (const [id, tpl] of Object.entries(STS_FUNCTION_TEMPLATES)) {
+    const fnIds = [
+      "FN-STS-01",
+      "FN-STS-02",
+      "FN-STS-03",
+      "FN-STS-04",
+      "FN-STS-05",
+      "FN-STS-06",
+      "FN-STS-07",
+      "FN-STS-08",
+      "FN-STS-09",
+      "FN-STS-10",
+      "FN-STS-11",
+    ];
+    for (const id of fnIds) {
+      const tpl = STS_FUNCTION_TEMPLATES[id];
+      expect(tpl, `Missing template: ${id}`).toBeDefined();
       expect(tpl.code).toContain('import { test, expect } from "@playwright/test";');
       expect(tpl.code).toContain("page.route");
       // All function templates must mock auth session endpoints to prevent redirect bouncing
