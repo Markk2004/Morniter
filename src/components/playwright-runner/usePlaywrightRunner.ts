@@ -387,12 +387,13 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
   }, [refreshCatalog, refreshUnlock]);
 
   // Periodic polling when catalog is not yet ready or in error state (e.g. waiting for Local Agent to connect)
+  // Adjusted to 8000ms to preserve Upstash command limits
   useEffect(() => {
     if (catalog && !catalogError && presence?.state === "online") return;
 
     const timer = setInterval(() => {
       void refreshCatalog();
-    }, 3500);
+    }, 8000);
 
     return () => clearInterval(timer);
   }, [catalog, catalogError, presence?.state, refreshCatalog]);
