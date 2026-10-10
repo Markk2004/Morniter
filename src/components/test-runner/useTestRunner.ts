@@ -11,7 +11,7 @@ import { isPlaywrightActiveStatus } from "@/lib/playwright-runner/job-store-logi
 import { fetchNoStore } from "@/lib/http/fetch-no-store";
 
 const ACTIVE_POLL_MS = 1_000;
-const IDLE_POLL_MS = 5_000;
+const IDLE_POLL_MS = 15_000;
 
 export interface AgentPresenceState {
   agentId: string;

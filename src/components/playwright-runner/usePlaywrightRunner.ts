@@ -387,13 +387,14 @@ export function usePlaywrightRunner(): UsePlaywrightRunnerResult {
   }, [refreshCatalog, refreshUnlock]);
 
   // Periodic polling when catalog is not yet ready or in error state (e.g. waiting for Local Agent to connect)
-  // Adjusted to 8000ms to preserve Upstash command limits
+  // Adjusted to 15000ms and paused when tab is hidden to preserve Upstash command limits
   useEffect(() => {
     if (catalog && !catalogError && presence?.state === "online") return;
 
     const timer = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
       void refreshCatalog();
-    }, 8000);
+    }, 15000);
 
     return () => clearInterval(timer);
   }, [catalog, catalogError, presence?.state, refreshCatalog]);
