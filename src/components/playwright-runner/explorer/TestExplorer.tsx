@@ -186,27 +186,58 @@ export function TestExplorer({
     }
 
     // รวม workflow ของ STS All-in-One ทั้ง 4 role ไว้ในหมวดเดียว
-    // แต่ยังเก็บ test ของแต่ละไฟล์ไว้ครบ เพื่อให้ผู้ใช้เปิดดูและเลือกแยกได้
-    const stsAllGroups = result.filter((group) => {
-      // ใช้ functionId จาก catalog เป็นหลัก ไม่ใช้ชื่อ/keyword ของ test
-      // เพราะกลุ่ม Platform & Province อาจถูก resolver จัดหมวดผิดจากคำว่า STS
-      return group.functionId === "FN-STS-00";
-    });
+    // นำ tc-sts-platform-admin มารวมกับ UAT script 3 role ที่มีอยู่ เพื่อให้แสดงเป็น 1 หมวดหมู่เดียวเสมอ
+    const isStsAllGroup = (group: ProjectCoverageGroup) => {
+      if (group.functionId === "FN-STS-00" || group.id === "fn-sts-00") return true;
+      if (group.name.toLowerCase().includes("sts all") || group.functionName?.toLowerCase().includes("sts all")) return true;
+      if (group.functionId === "TC-STS-PLATFORM-ADMIN" || group.id.toLowerCase().includes("platform-admin")) return true;
+      const firstTest = group.tests[0];
+      if (firstTest) {
+        const cat = resolveFunctionCategory(firstTest.title, firstTest.relativePath, group.name);
+        if (cat.code === "FN-STS-00") return true;
+      }
+      return false;
+    };
 
-    if (stsAllGroups.length > 1) {
-      const mergedTests = stsAllGroups.flatMap((group) => group.tests);
+    const stsAllGroups = result.filter(isStsAllGroup);
+    if (stsAllGroups.length > 0) {
+      const allTests = stsAllGroups.flatMap((group) => group.tests);
+      const seen = new Set<string>();
+      const deduplicatedTests: ProjectCoverageTest[] = [];
+      for (const t of allTests) {
+        const key = t.relativePath ? t.relativePath.replace(/\\/g, "/") : t.id;
+        if (!seen.has(key)) {
+          seen.add(key);
+          deduplicatedTests.push(t);
+        }
+      }
+
+      // เรียงลำดับ 4 บทบาท: Platform Admin -> School Admin -> School Director -> Teacher
+      deduplicatedTests.sort((a, b) => {
+        const order = (path = "", title = "") => {
+          const s = `${path} ${title}`.toLowerCase();
+          if (s.includes("platform-admin")) return 1;
+          if (s.includes("school-admin")) return 2;
+          if (s.includes("school") && (s.includes("director") || s.includes("uat-all-in-one"))) return 3;
+          if (s.includes("teacher")) return 4;
+          return 5;
+        };
+        return order(a.relativePath, a.title) - order(b.relativePath, b.title);
+      });
+
+      const withoutStsAll = result.filter((group) => !isStsAllGroup(group));
       const firstGroup = stsAllGroups[0];
-      const withoutStsAll = result.filter((group) => !stsAllGroups.includes(group));
       return [
-        ...withoutStsAll,
         {
           ...firstGroup,
           id: "fn-sts-00",
           name: "FN-STS-00 · Sts all หมวดหมู่",
           functionId: "FN-STS-00",
           functionName: "Sts all หมวดหมู่",
-          tests: mergedTests,
+          tests: deduplicatedTests,
+          gaps: [],
         },
+        ...withoutStsAll,
       ];
     }
 
