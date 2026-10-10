@@ -9,10 +9,21 @@ export default function PwaRegistration() {
         .register("/sw.js")
         .then((reg) => {
           console.log("PWA Service Worker registered:", reg.scope);
+          // Check for service worker updates immediately
+          reg.update().catch(() => {});
         })
         .catch((err) => {
           console.error("Service worker registration failed:", err);
         });
+
+      // When a new service worker takes over, reload to get fresh assets
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if (!refreshing) {
+          refreshing = true;
+          window.location.reload();
+        }
+      });
     }
   }, []);
 

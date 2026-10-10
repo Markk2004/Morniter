@@ -47,6 +47,22 @@ export function PlaywrightWorkspace() {
     ? 0
     : Math.max(0, terminalLineCount - lastSeenLogCount);
 
+  const handleHardRefresh = useCallback(() => {
+    try {
+      if (typeof window !== "undefined") {
+        sessionStorage.clear();
+        if ("caches" in window) {
+          caches.keys().then((names) => {
+            names.forEach((name) => caches.delete(name));
+          });
+        }
+        window.location.reload();
+      }
+    } catch {
+      window.location.reload();
+    }
+  }, []);
+
   const testGroups: ProjectCoverageGroup[] = runner.currentProject?.coverageGroups ??
     (runner.currentProject?.testGroups ?? []).map((group) => ({
       id: `legacy-${group.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
@@ -235,6 +251,7 @@ export function PlaywrightWorkspace() {
                   onRun={runner.run}
                   onCancel={runner.cancelActiveJob}
                   onResetLayout={layout.resetLayout}
+                  onHardRefresh={handleHardRefresh}
                 />
               }
               explorer={

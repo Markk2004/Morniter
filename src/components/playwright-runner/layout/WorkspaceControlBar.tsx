@@ -37,6 +37,7 @@ export interface WorkspaceControlBarProps {
   onRun: () => void;
   onCancel: () => void;
   onResetLayout?: () => void;
+  onHardRefresh?: () => void;
 }
 
 const BROWSERS: Array<{ id: BrowserName; label: string; icon: string; short: string }> = [
@@ -69,6 +70,7 @@ export function WorkspaceControlBar({
   onRun,
   onCancel,
   onResetLayout,
+  onHardRefresh,
 }: WorkspaceControlBarProps) {
   const agentState = presence?.state || "offline";
   let agentDot = "bg-rose-500";
@@ -234,18 +236,31 @@ export function WorkspaceControlBar({
         </div>
       </div>
 
-      {/* Right: Actions (Reset Layout, Run / Cancel) */}
+      {/* Right: Actions (Reset Layout, Hard Refresh, Run / Cancel) */}
       <div className="flex flex-wrap items-center justify-between gap-2 shrink-0 border-t border-slate-800/80 pt-2">
-        {onResetLayout && (
-          <button
-            type="button"
-            onClick={onResetLayout}
-            title="Reset workspace panels to default layout"
-            className="px-2 py-1.5 rounded-lg border border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 text-[11px] transition-colors cursor-pointer"
-          >
-            ↺ Reset layout
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {onResetLayout && (
+            <button
+              type="button"
+              onClick={onResetLayout}
+              title="Reset workspace panels to default layout"
+              className="px-2 py-1.5 rounded-lg border border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 text-[11px] transition-colors cursor-pointer"
+            >
+              ↺ Reset layout
+            </button>
+          )}
+
+          {onHardRefresh && (
+            <button
+              type="button"
+              onClick={onHardRefresh}
+              title="ล้างแคชเบราว์เซอร์และรีเฟรชหน้าเว็บทันที เพื่อรับโค้ดและรายการเทสเวอร์ชันล่าสุด"
+              className="px-2 py-1.5 rounded-lg border border-indigo-500/30 bg-indigo-950/40 text-indigo-300 hover:text-indigo-100 hover:bg-indigo-900/50 text-[11px] font-medium transition-colors cursor-pointer flex items-center gap-1 shadow-sm"
+            >
+              ⚡ รีเซ็ตเซสชัน (Force Refresh)
+            </button>
+          )}
+        </div>
 
         {/* Stable Run / Cancel slot */}
         <div data-tutorial-id="run">
