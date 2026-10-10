@@ -111,41 +111,67 @@ export function TestExplorer({
       };
     });
 
-    // UAT All-in-One มีไฟล์ Platform Admin ซ้ำใน e2e/sts และ e2e/workspace
-    // ใช้ไฟล์ใน e2e/sts เป็น canonical และไม่แสดง workflow เดิมซ้ำใน explorer
-    const canonicalAllInOnePaths = new Set([
-      "e2e/sts/specs/00-teacher-uat-all-in-one.spec.ts",
-      "e2e/sts/specs/00-school-uat-all-in-one.spec.ts",
-      "e2e/sts/specs/00-school-admin-uat-all-in-one.spec.ts",
-      "e2e/sts/specs/00-platform-admin-uat-all-in-one.spec.ts",
-    ]);
-    const allInOneByPath = new Map<string, ProjectCoverageTest>();
+    // 1. กำหนด Canonical 4 All-in-One scripts สำหรับ Sts all หมวดหมู่
+    const canonicalRoleOrder: Record<string, number> = {
+      "platform-admin": 1,
+      "school-admin": 2,
+      "school": 3,
+      "teacher": 4,
+    };
+
+    const getRoleKey = (path = "", title = ""): string | null => {
+      const s = `${path} ${title}`.toLowerCase();
+      if (s.includes("platform-admin")) return "platform-admin";
+      if (s.includes("school-admin")) return "school-admin";
+      if (s.includes("school") && (s.includes("director") || s.includes("uat-all-in-one") || s.includes("00-school"))) return "school";
+      if (s.includes("teacher")) return "teacher";
+      return null;
+    };
+
+    const isAllInOneTest = (test: ProjectCoverageTest) => {
+      const role = getRoleKey(test.relativePath, test.title);
+      if (!role) return false;
+      const s = `${test.relativePath} ${test.title}`.toLowerCase();
+      return s.includes("all-in-one") || s.includes("complete") || s.includes("uat");
+    };
+
+    // เลือก test ที่เป็น canonical (ชอบไฟล์จาก e2e/sts มากกว่า e2e/workspace)
+    const canonicalMap = new Map<string, ProjectCoverageTest>();
     for (const group of rawGroups) {
       for (const test of group.tests) {
-        const normalizedPath = test.relativePath.replace(/\\/g, "/");
-        if (!canonicalAllInOnePaths.has(normalizedPath)) {
-          continue;
-        }
+        if (!isAllInOneTest(test)) continue;
+        const role = getRoleKey(test.relativePath, test.title);
+        if (!role) continue;
 
-        const previous = allInOneByPath.get(normalizedPath);
-        if (!previous || previous.relativePath.includes("e2e/workspace")) allInOneByPath.set(normalizedPath, test);
+        const existing = canonicalMap.get(role);
+        if (!existing) {
+          canonicalMap.set(role, test);
+        } else if (existing.relativePath.includes("workspace") && !test.relativePath.includes("workspace")) {
+          // แทนที่ด้วยไฟล์จาก e2e/sts
+          canonicalMap.set(role, test);
+        }
       }
     }
 
-    const canonicalAllInOneTests = Array.from(allInOneByPath.values());
-    const canonicalAllInOneIds = new Set(canonicalAllInOneTests.map((test) => test.id));
+    const canonicalTestIds = new Set(Array.from(canonicalMap.values()).map((t) => t.id));
+
+    // คัดกรองกลุ่มย่อยทั่วไป โดยไม่ให้ไฟล์ workspace ซ้ำหลุดเข้าไป
     const result: ProjectCoverageGroup[] = [];
     for (const group of rawGroups) {
       const isStsAllGroup =
         group.functionId === "FN-STS-00" ||
         group.name.toLowerCase().includes("sts all") ||
         group.functionName?.toLowerCase().includes("sts all");
+
       const groupTests = group.tests.filter((test) => {
-        if (isStsAllGroup && !/COMPLETE-E2E|ALL-IN-ONE/i.test(test.title)) return false;
-        const normalizedPath = test.relativePath.replace(/\\/g, "/");
-        if (canonicalAllInOnePaths.has(normalizedPath)) return canonicalAllInOneIds.has(test.id);
+        if (isAllInOneTest(test)) {
+          // หากเป็น All-in-One ให้รับเฉพาะตัวที่เป็น Canonical เท่านั้น
+          return canonicalTestIds.has(test.id);
+        }
+        // ถ้าไม่ใช่ All-in-One ไม่ให้อยู่ในกลุ่ม STS All
         return !isStsAllGroup;
       });
+
       if (groupTests.length === 0) continue;
 
       const normalizedGroup = groupTests.length === group.tests.length ? group : { ...group, tests: groupTests };
@@ -185,47 +211,50 @@ export function TestExplorer({
       }
     }
 
-    // รวม workflow ของ STS All-in-One ทั้ง 4 role ไว้ในหมวดเดียว
-    // นำ tc-sts-platform-admin มารวมกับ UAT script 3 role ที่มีอยู่ เพื่อให้แสดงเป็น 1 หมวดหมู่เดียวเสมอ
-    const isStsAllGroup = (group: ProjectCoverageGroup) => {
+    // รวม workflow ของ STS All-in-One ทั้ง 4 role ไว้ในหมวดเดียวเท่านั้น
+    const isStsAllTargetGroup = (group: ProjectCoverageGroup) => {
       if (group.functionId === "FN-STS-00" || group.id === "fn-sts-00") return true;
       if (group.name.toLowerCase().includes("sts all") || group.functionName?.toLowerCase().includes("sts all")) return true;
       if (group.functionId === "TC-STS-PLATFORM-ADMIN" || group.id.toLowerCase().includes("platform-admin")) return true;
-      const firstTest = group.tests[0];
-      if (firstTest) {
-        const cat = resolveFunctionCategory(firstTest.title, firstTest.relativePath, group.name);
-        if (cat.code === "FN-STS-00") return true;
-      }
       return false;
     };
 
-    const stsAllGroups = result.filter(isStsAllGroup);
+    const stsAllGroups = result.filter(isStsAllTargetGroup);
     if (stsAllGroups.length > 0) {
-      const allTests = stsAllGroups.flatMap((group) => group.tests);
-      const seen = new Set<string>();
-      const deduplicatedTests: ProjectCoverageTest[] = [];
-      for (const t of allTests) {
-        const key = t.relativePath ? t.relativePath.replace(/\\/g, "/") : t.id;
-        if (!seen.has(key)) {
-          seen.add(key);
-          deduplicatedTests.push(t);
+      // ดึงเฉพาะ 4 tests ที่เป็น All-in-One ของ 4 บทบาทเท่านั้น ไม่นำเทสอื่น (เช่น PRV-001) มารวม
+      const testsToInclude = Array.from(canonicalMap.values());
+
+      // เรียงลำดับ 4 บทบาท: Platform Admin -> School Admin -> School Director -> Teacher
+      testsToInclude.sort((a, b) => {
+        const roleA = getRoleKey(a.relativePath, a.title) || "";
+        const roleB = getRoleKey(b.relativePath, b.title) || "";
+        const orderA = canonicalRoleOrder[roleA] || 99;
+        const orderB = canonicalRoleOrder[roleB] || 99;
+        return orderA - orderB;
+      });
+
+      // กรองกลุ่มที่ไม่ใช่ Sts All ออกมา
+      // สำหรับกลุ่มที่มี tests อื่น (เช่น PRV-001 ที่เคยติดมา) ให้นำ tests ที่ไม่ใช่ All-in-One เก็บไว้ในกลุ่มเดิม
+      const remainingGroups: ProjectCoverageGroup[] = [];
+      for (const g of result) {
+        if (!isStsAllTargetGroup(g)) {
+          remainingGroups.push(g);
+        } else {
+          // ตรวจสอบว่าใน g มีเทสที่ไม่ใช่ All-in-One หลงเข้ามาหรือไม่
+          const nonAllInOneTests = g.tests.filter((t) => !isAllInOneTest(t));
+          if (nonAllInOneTests.length > 0) {
+            remainingGroups.push({
+              ...g,
+              id: `fn-prv-other-${g.id}`,
+              name: "FN-STS-10 · แดชบอร์ดระดับเขตและจังหวัด (Platform & Province)",
+              functionId: "FN-STS-10",
+              functionName: "แดชบอร์ดระดับเขตและจังหวัด (Platform & Province)",
+              tests: nonAllInOneTests,
+            });
+          }
         }
       }
 
-      // เรียงลำดับ 4 บทบาท: Platform Admin -> School Admin -> School Director -> Teacher
-      deduplicatedTests.sort((a, b) => {
-        const order = (path = "", title = "") => {
-          const s = `${path} ${title}`.toLowerCase();
-          if (s.includes("platform-admin")) return 1;
-          if (s.includes("school-admin")) return 2;
-          if (s.includes("school") && (s.includes("director") || s.includes("uat-all-in-one"))) return 3;
-          if (s.includes("teacher")) return 4;
-          return 5;
-        };
-        return order(a.relativePath, a.title) - order(b.relativePath, b.title);
-      });
-
-      const withoutStsAll = result.filter((group) => !isStsAllGroup(group));
       const firstGroup = stsAllGroups[0];
       return [
         {
@@ -234,10 +263,10 @@ export function TestExplorer({
           name: "FN-STS-00 · Sts all หมวดหมู่",
           functionId: "FN-STS-00",
           functionName: "Sts all หมวดหมู่",
-          tests: deduplicatedTests,
+          tests: testsToInclude,
           gaps: [],
         },
-        ...withoutStsAll,
+        ...remainingGroups,
       ];
     }
 
