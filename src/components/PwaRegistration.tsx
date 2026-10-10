@@ -16,11 +16,14 @@ export default function PwaRegistration() {
           console.error("Service worker registration failed:", err);
         });
 
-      // When a new service worker takes over, reload to get fresh assets
+      // When a new service worker takes over, clear session and reload
       let refreshing = false;
       navigator.serviceWorker.addEventListener("controllerchange", () => {
         if (!refreshing) {
           refreshing = true;
+          try {
+            sessionStorage.clear();
+          } catch {}
           window.location.reload();
         }
       });
