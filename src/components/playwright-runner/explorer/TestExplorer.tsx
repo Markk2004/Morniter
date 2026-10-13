@@ -128,17 +128,19 @@ export function TestExplorer({
       };
     });
 
-    // 1. กำหนด Canonical 4 All-in-One scripts สำหรับ Sts all หมวดหมู่
+    // 1. กำหนด Canonical 5 All-in-One scripts สำหรับ Sts all หมวดหมู่
     const canonicalRoleOrder: Record<string, number> = {
       "platform-admin": 1,
-      "school-admin": 2,
-      "school": 3,
-      "teacher": 4,
+      "province-officer": 2,
+      "school-admin": 3,
+      "school": 4,
+      "teacher": 5,
     };
 
     const getRoleKey = (path = "", title = ""): string | null => {
       const s = `${path} ${title}`.toLowerCase();
       if (s.includes("platform-admin")) return "platform-admin";
+      if (s.includes("province")) return "province-officer";
       if (s.includes("school-admin")) return "school-admin";
       if (s.includes("school") && (s.includes("director") || s.includes("uat-all-in-one") || s.includes("00-school"))) return "school";
       if (s.includes("teacher")) return "teacher";
@@ -170,7 +172,7 @@ export function TestExplorer({
       }
     }
 
-    // กำหนดค่าสำรองให้ครบทั้ง 4 บทบาทเฉพาะเมื่อโปรเจกต์มี STS All หรือมี All-in-One script อย่างน้อยหนึ่งตัว
+    // กำหนดค่าสำรองให้ครบทั้ง 5 บทบาทเฉพาะเมื่อโปรเจกต์มี STS All หรือมี All-in-One script อย่างน้อยหนึ่งตัว
     const hasAnyAllInOneOrSts =
       canonicalMap.size > 0 ||
       rawGroups.some(
@@ -187,6 +189,17 @@ export function TestExplorer({
           id: "e2e-sts-specs-00-platform-admin-uat-all-in-one-s-fa6bee5b",
           title: "TC-STS-PLATFORM-ADMIN-COMPLETE-E2E: Platform Admin Full 29-TC Workflow",
           relativePath: "e2e/sts/specs/00-platform-admin-uat-all-in-one.spec.ts",
+          runner: "playwright",
+          executable: true,
+          risk: "read-only",
+          origin: "manual",
+          confidence: "high",
+          matchedBy: ["path"],
+        },
+        "province-officer": {
+          id: "e2e-sts-specs-00-province-offi-1aeba-Single-Function-All-in-One",
+          title: "TC-STS-PROVINCE-COMPLETE-E2E: Province Officer Complete UAT Workflow (Single Function All-in-One)",
+          relativePath: "e2e/sts/specs/00-province-officer-uat-all-in-one.spec.ts",
           runner: "playwright",
           executable: true,
           risk: "read-only",
@@ -296,21 +309,22 @@ export function TestExplorer({
       }
     }
 
-    // รวม workflow ของ STS All-in-One ทั้ง 4 role ไว้ในหมวดเดียวเท่านั้น
+    // รวม workflow ของ STS All-in-One ทั้ง 5 role ไว้ในหมวดเดียวเท่านั้น
     const isStsAllTargetGroup = (group: ProjectCoverageGroup) => {
       if (group.functionId === "FN-STS-00" || group.id === "fn-sts-00") return true;
       if (group.name.toLowerCase() === "sts") return true;
       if (group.name.toLowerCase().includes("sts all") || group.functionName?.toLowerCase().includes("sts all")) return true;
       if (group.functionId === "TC-STS-PLATFORM-ADMIN" || group.id.toLowerCase().includes("platform-admin")) return true;
+      if (group.functionId === "TC-STS-PROVINCE" || group.id.toLowerCase().includes("province-officer")) return true;
       return false;
     };
 
     const stsAllGroups = result.filter(isStsAllTargetGroup);
     if (stsAllGroups.length > 0 || canonicalMap.size > 0) {
-      // ดึงเฉพาะ 4 tests ที่เป็น All-in-One ของ 4 บทบาทเท่านั้น ไม่นำเทสอื่น (เช่น PRV-001) มารวม
+      // ดึงเฉพาะ 5 tests ที่เป็น All-in-One ของ 5 บทบาทเท่านั้น ไม่นำเทสอื่น (เช่น PRV-001) มารวม
       const testsToInclude = Array.from(canonicalMap.values());
 
-      // เรียงลำดับ 4 บทบาท: Platform Admin -> School Admin -> School Director -> Teacher
+      // เรียงลำดับ 5 บทบาท: Platform Admin -> Province Officer -> School Admin -> School Director -> Teacher
       testsToInclude.sort((a, b) => {
         const roleA = getRoleKey(a.relativePath, a.title) || "";
         const roleB = getRoleKey(b.relativePath, b.title) || "";

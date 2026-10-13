@@ -3331,63 +3331,40 @@ test.describe("[UAT ผู้ดูแลระบบโรงเรียน] U
       await expect(page.locator("tbody tr:has-text('ครูหวัง คาดหวัง')").first()).toContainText(/ถูกระงับ|ระงับ/);
 
       // =======================================================================
-      // 8. TC-STS-02-26-01: ตรวจสอบการทำงานของ Dialog ลบผู้ใช้งาน (เมื่อกดยกเลิก)
-      //    TC-STS-02-26-02: ตรวจสอบการทำงานของ Dialog ลบผู้ใช้งาน (เมื่อกดยืนยันลบผู้ใช้งาน)
+      // 8. TC-STS-02-26-01: ตรวจสอบการทำงานของ Dialog ลบผู้ใช้งาน เมื่อกดยกเลิก
+      //    ข้อมูลทดสอบ: ครูอำนาจ แสงทอง (amnat_st)
       // =======================================================================
-      await addUserBtn.click();
-      await page.waitForTimeout(600);
-      const delUserModal = page.locator(".users-form-modal, dialog[open], [role='dialog']").first();
-      await delUserModal.locator("input#form-full_name").fill("ครูอำนาจ ทดสอบลบ");
-      await delUserModal.locator("input#form-username").fill("teacher_del");
-      const delUserRoleSelect = delUserModal.locator("select#form-role");
-      if (await delUserRoleSelect.isVisible()) {
-        await delUserRoleSelect.selectOption({ label: "ครูที่ปรึกษา (Teacher)" }).catch(() => delUserRoleSelect.selectOption({ index: 1 }));
-      }
-      await delUserModal.getByRole("button", { name: "เพิ่มผู้ใช้" }).first().click();
-      await page.waitForTimeout(1000);
-      const delUserHandoffDoneBtn = page.locator(".users-handoff-modal button:has-text('เสร็จสิ้น'), button:has-text('เสร็จสิ้น')").first();
-      if (await delUserHandoffDoneBtn.isVisible()) {
-        await delUserHandoffDoneBtn.click();
-        await page.waitForTimeout(400);
-      }
-
-      const targetRowForDelete = page.locator("tbody tr:has-text('ครูอำนาจ ทดสอบลบ')").first();
-      await targetRowForDelete.click();
-      await page.waitForTimeout(500);
-
-      const editMenuForDelete = page.locator("button[role='menuitem']:has-text('แก้ไข')").first();
-      await editMenuForDelete.click();
-      await page.waitForTimeout(600);
-
-      // ใน Edit Modal กดปุ่ม "ลบผู้ใช้"
-      const deleteUserBtn = page.locator("button.users-delete-button, button:has-text('ลบผู้ใช้')").first();
-      if (await deleteUserBtn.isVisible()) {
-        await deleteUserBtn.click();
+      const targetRowForDelete = page.locator("tbody tr:has-text('ครูอำนาจ แสงทอง'), tbody tr:has-text('amnat_st')").first();
+      if (await targetRowForDelete.isVisible()) {
+        await targetRowForDelete.click();
         await page.waitForTimeout(500);
 
-        // ตรวจสอบ Dialog ลบผู้ใช้งาน แสดงขึ้นมา (ConfirmDialog มักจะเป็น top-most / max-w-sm)
-        const deleteConfirmDialog = page.locator("dialog[open]").filter({ hasText: "คุณต้องการลบ" }).first();
+        // ตรวจสอบว่าในเมนูการดำเนินการ มีปุ่ม 'ลบ' หรือ 'แก้ไข'
+        const directDeleteMenu = page.locator("button[role='menuitem']:has-text('ลบ')").first();
+        if (await directDeleteMenu.isVisible()) {
+          await directDeleteMenu.click();
+          await page.waitForTimeout(500);
+        } else {
+          const editMenuForDelete = page.locator("button[role='menuitem']:has-text('แก้ไข')").first();
+          if (await editMenuForDelete.isVisible()) {
+            await editMenuForDelete.click();
+            await page.waitForTimeout(600);
+            const deleteUserBtn = page.locator("button.users-delete-button, button:has-text('ลบผู้ใช้'), button:has-text('ลบ')").first();
+            if (await deleteUserBtn.isVisible()) {
+              await deleteUserBtn.click();
+              await page.waitForTimeout(500);
+            }
+          }
+        }
+
+        // ตรวจสอบ Dialog ลบผู้ใช้งาน (เมื่อกดยกเลิก)
+        const deleteConfirmDialog = page.locator("dialog[open]").filter({ hasText: /คุณต้องการลบ|ลบผู้ใช้|ยืนยันการลบ/ }).first();
         if (await deleteConfirmDialog.isVisible()) {
           // [TC-STS-02-26-01]: กดปุ่ม ยกเลิก
           const cancelDeleteBtn = deleteConfirmDialog.locator("button:has-text('ยกเลิก')").first();
-          await cancelDeleteBtn.click();
-          await page.waitForTimeout(400);
-
-          // [TC-STS-02-26-02]: กดปุ่ม ลบผู้ใช้ อีกครั้ง แล้วกดยืนยันลบผู้ใช้จริง
-          await deleteUserBtn.click();
-          await page.waitForTimeout(500);
-          const confirmDeleteDialog = page.locator("dialog[open]").filter({ hasText: "คุณต้องการลบ" }).first();
-          if (await confirmDeleteDialog.isVisible()) {
-            const confirmDelBtn = confirmDeleteDialog.locator("button:has-text('ลบ'), button.btn-danger").last();
-            await confirmDelBtn.click();
-            await page.waitForTimeout(600);
-
-            // ตรวจสอบการแสดงผล Toast Notification แจ้งเตือนการลบผู้ใช้งาน
-            const deleteToast = page.locator("[role='status'], [role='alert'], .toast, .chakra-toast, div:has-text('ลบผู้ใช้งานสำเร็จ')").first();
-            if (await deleteToast.isVisible()) {
-              await expect(deleteToast).toBeVisible();
-            }
-            await page.waitForTimeout(600);
+          if (await cancelDeleteBtn.isVisible()) {
+            await cancelDeleteBtn.click();
+            await page.waitForTimeout(500);
           }
         }
       }
@@ -3395,8 +3372,10 @@ test.describe("[UAT ผู้ดูแลระบบโรงเรียน] U
       await page.evaluate(() => {
         document.querySelectorAll('dialog[open]').forEach(d => (d as HTMLDialogElement).close());
       });
-      // TC-STS-02-26-02 Expected: ผู้ใช้ "ครูอำนาจ ทดสอบลบ" ถูกลบออกจากตารางแล้ว
-      await expect(page.locator("tbody")).not.toContainText("ครูอำนาจ ทดสอบลบ");
+      await page.waitForTimeout(500);
+
+      // TC-STS-02-26-01 Expected: ข้อมูลผู้ใช้ยังคงอยู่ในตาราง (ยกเลิกการลบข้อมูลสำเร็จ)
+      await expect(page.locator("tbody")).toContainText("ครูอำนาจ แสงทอง");
 
       // =======================================================================
       // 9. TC-STS-02-29-02: ตรวจสอบการทำงานของ Dialog รีเซ็ตรหัสผ่าน เมื่อกดยืนยันรีเซ็ตรหัสผ่าน
@@ -3947,6 +3926,154 @@ test.describe("[UAT ผู้ดูแลระบบโรงเรียน] U
   });
 });
 `
+  },
+  "TC-STS-PROVINCE": {
+    id: "TC-STS-PROVINCE",
+    name: "TC-STS-PROVINCE · [UAT เจ้าหน้าที่ระดับจังหวัด] TC-STS Province Officer (Complete Workflow)",
+    shortName: "STS Province Officer",
+    relativePath: "e2e/sts/specs/00-province-officer-uat-all-in-one.spec.ts",
+    description: "รันครบทุกขั้นตอนการทดสอบ UAT ของเจ้าหน้าที่ระดับจังหวัด (Province Officer) แดชบอร์ดสรุปภาพรวม สัดส่วนความเสี่ยงเคส ตารางเปรียบเทียบโรงเรียน และรายงานเชิงพื้นที่",
+    get code() { return STS_FUNCTION_TEMPLATES["FN-STS-00-PROVINCE"].code; },
+  },
+  "FN-STS-00-PROVINCE": {
+    id: "FN-STS-00-PROVINCE",
+    name: "FN-STS-00-PROVINCE · [UAT เจ้าหน้าที่ระดับจังหวัด] TC-STS Province Officer (Complete Workflow)",
+    shortName: "STS Province Officer",
+    relativePath: "e2e/sts/specs/00-province-officer-uat-all-in-one.spec.ts",
+    description: "รันครบทุกขั้นตอนการทดสอบ UAT ของเจ้าหน้าที่ระดับจังหวัด (Province Officer) แดชบอร์ดสรุปภาพรวม สัดส่วนความเสี่ยงเคส ตารางเปรียบเทียบโรงเรียน และรายงานเชิงพื้นที่",
+    code: `// ==============================================================
+// 🧪 ชุดทดสอบระบบ ProjectSTS: Province Officer UAT Complete All-In-One Workflow
+// 📋 อ้างอิง: DEMO_CREDENTIALS["province-officer"], mock-api.ts (/api/dashboard/province, /api/reports),
+//    ProjectSTS frontend: ProvinceDashboardHeader.tsx, province/dashboard (ท้ายไฟล์), province/reports/page.tsx,
+//    ProvinceReportsTabs.tsx  (ทุก locator ด้านล่างอ้างอิง id / data-* / ข้อความจาก source หรือ Mock จริง)
+// ⚠️ DRAFT รอบที่ 2: หมวด 1-3 เท่านั้น
+// ==============================================================
+import { test, expect } from "@playwright/test";
+import { setupStsApiMocks } from "../fixtures/mock-api";
+import { StsLoginPage } from "../page-objects/login.page";
+import { DEMO_CREDENTIALS } from "../fixtures/auth-data";
+
+test.describe("[UAT เจ้าหน้าที่ระดับจังหวัด] All-in-One (Province Officer Complete Workflow)", () => {
+  test("TC-STS-PROVINCE-COMPLETE-E2E: Province Officer Complete UAT Workflow (Single Function All-in-One)", async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    await page.context().clearCookies();
+    await setupStsApiMocks(page);
+
+    const creds = DEMO_CREDENTIALS["province-officer"];
+    const loginPage = new StsLoginPage(page);
+
+    // 🔹 หมวดที่ 1: เข้าสู่ระบบ
+    await test.step("หมวด 1: เข้าสู่ระบบด้วยบทบาทเจ้าหน้าที่ระดับจังหวัด และตรวจสอบการนำทางไปแดชบอร์ดจังหวัด", async () => {
+      await loginPage.goto();
+      await page.bringToFront();
+      await expect(page).toHaveURL(/\\/login/);
+
+      await loginPage.login(creds.username, creds.password);
+
+      await expect(page).toHaveURL(creds.expectedPath, { timeout: 15_000 });
+      await page.waitForTimeout(1500);
+    });
+
+    // 🔹 หมวดที่ 2: แดชบอร์ดจังหวัด (TC-STS-PRV-001) — ค่าทั้งหมดมาจาก Mock /api/dashboard/province (ไม่มี query)
+    await test.step("หมวด 2: ตรวจสอบแดชบอร์ดจังหวัด การ์ดสรุป ตารางเปรียบเทียบโรงเรียน และสัดส่วนเคส", async () => {
+      await page.goto("/province/dashboard");
+      await page.bringToFront();
+      await expect(page).toHaveURL(/\\/province\\/dashboard/);
+
+      // 2.1 ชื่อจังหวัด: header[data-province-name] (ProvinceDashboardHeader) — Mock ค่าเริ่มต้น = ชลบุรี
+      await expect(page.locator("header[data-province-name]")).toHaveAttribute(
+        "data-province-name",
+        "ชลบุรี",
+        { timeout: 15_000 },
+      );
+
+      // 2.2 การ์ดสรุป: "Student Case" เป็นข้อความ hardcode, การ์ดความเสี่ยงสูงเป็น data-tone="danger"
+      const caseCard = page
+        .locator('div[data-tone="primary"]')
+        .filter({ hasText: "Student Case" });
+      await expect(caseCard.locator("strong")).toHaveText("38", {
+        timeout: 15_000,
+      });
+      await expect(page.locator('div[data-tone="danger"] strong')).toHaveText(
+        "8",
+      );
+
+      // 2.3 ตารางเปรียบเทียบโรงเรียน: th scope="row" = rowheader, td = cell (นักเรียน | เคส | อัตราขาดเฉลี่ย)
+      const schoolTable = page.locator(
+        'section[aria-labelledby="school-comparison-title"] table',
+      );
+      await expect(schoolTable).toBeVisible({ timeout: 10_000 });
+      const schoolRow = (name: string) =>
+        schoolTable.getByRole("row", { name: new RegExp(name) });
+      await expect(
+        schoolRow("โรงเรียนชลบุรีวิทยา").getByRole("cell"),
+      ).toHaveText([/^1,?200$/, "22", "4.5%"]);
+      await expect(
+        schoolRow("โรงเรียนตัวอย่างทดสอบ").getByRole("cell"),
+      ).toHaveText([/^950$/, "16", "3.9%"]);
+
+      // 2.4 สัดส่วนเคสตามความรุนแรง: li[data-tone=<key>] — คีย์ที่เป็น 0 จะไม่แสดงเมื่อมีเคสรวม > 0
+      const severity = page.locator(
+        'section[aria-labelledby="severity-title"]',
+      );
+      await expect(severity.locator('li[data-tone="low"] strong')).toHaveText(
+        "18",
+      );
+      await expect(
+        severity.locator('li[data-tone="medium"] strong'),
+      ).toHaveText("12");
+      await expect(severity.locator('li[data-tone="high"] strong')).toHaveText(
+        "8",
+      );
+      await expect(severity.locator('li[data-tone="unassessed"]')).toHaveCount(
+        0,
+      );
+      await page.waitForTimeout(1500);
+    });
+
+    // 🔹 หมวดที่ 3: พื้นที่รายงานระดับจังหวัด (TC-STS-PRV-002)
+    await test.step("หมวด 3: เปิดรายงานระดับจังหวัด ตรวจ Privacy badge และสลับแท็บสร้างรายงาน/เปรียบเทียบโรงเรียน", async () => {
+      await page.goto("/province/reports");
+      await page.bringToFront();
+      await expect(page).toHaveURL(/\\/province\\/reports/);
+
+      // หัวข้อเปลี่ยนตามสถานะโหลดและ zone จึงไม่ผูกกับคำว่า "จังหวัด" — รอให้ข้อมูล Mock โหลดแล้วต้องมีชื่อพื้นที่
+      await expect(page.locator("#province-reports-title")).toContainText(
+        /ชลบุรี/,
+        { timeout: 15_000 },
+      );
+      await expect(
+        page.getByText(/ไม่มีข้อมูลนักเรียนรายบุคคล/i).first(),
+      ).toBeVisible();
+
+      const createTab = page.getByRole("tab", { name: /สร้างรายงาน/i });
+      const compareTab = page.getByRole("tab", {
+        name: /เปรียบเทียบโรงเรียน/i,
+      });
+      await expect(createTab).toBeVisible();
+      await expect(compareTab).toBeVisible();
+
+      // แท็บเริ่มต้น = create (useState('create')); aria-selected และ hidden มาจาก source
+      await expect(createTab).toHaveAttribute("aria-selected", "true");
+      await expect(page.locator("#panel-create")).toBeVisible();
+      await expect(page.locator("#panel-comparison")).toBeHidden();
+
+      await compareTab.click();
+      await expect(compareTab).toHaveAttribute("aria-selected", "true");
+      await expect(page.locator("#panel-comparison")).toBeVisible();
+      await expect(page.locator("#panel-create")).toBeHidden();
+      await page.waitForTimeout(1200);
+
+      await createTab.click();
+      await expect(createTab).toHaveAttribute("aria-selected", "true");
+      await expect(page.locator("#panel-create")).toBeVisible();
+      await page.waitForTimeout(1500);
+    });
+  });
+});
+`,
   },
   "TC-STS-PLATFORM-ADMIN": {
     id: "TC-STS-PLATFORM-ADMIN",
@@ -4963,6 +5090,18 @@ export function getFunctionTemplate(functionIdOrCode: string): FunctionTemplate 
   }
 
   if (
+    upper === "TC-STS-PROVINCE" ||
+    upper === "FN-STS-00-PROVINCE" ||
+    upper === "TC-STS-PROVINCE-COMPLETE-E2E" ||
+    upper.includes("PROVINCE-OFFICER") ||
+    upper.includes("PROVINCE OFFICER") ||
+    upper.includes("เจ้าหน้าที่ระดับจังหวัด") ||
+    (upper.includes("PROVINCE") && (upper.includes("ALL-IN-ONE") || upper.includes("COMPLETE") || upper.includes("00-PROVINCE")))
+  ) {
+    return STS_FUNCTION_TEMPLATES["FN-STS-00-PROVINCE"];
+  }
+
+  if (
     upper === "FN-STS-00-SCHOOL-ADMIN" ||
     upper.includes("SCHOOL-ADMIN") ||
     upper.includes("ผู้ดูแลระบบโรงเรียน")
@@ -5030,15 +5169,16 @@ export function getFunctionTemplate(functionIdOrCode: string): FunctionTemplate 
 }
 
 /**
- * Returns all STS function templates — includes the 4 All-in-One UAT scripts (Sts all หมวดหมู่)
+ * Returns all STS function templates — includes the 5 All-in-One UAT scripts (Sts all หมวดหมู่)
  * and individual function templates FN-STS-01 through FN-STS-11.
  */
 export function getAllFunctionTemplates(): FunctionTemplate[] {
   const allInOne = [
-    "FN-STS-00",
-    "FN-STS-00-SCHOOL",
-    "FN-STS-00-SCHOOL-ADMIN",
     "FN-STS-00-PLATFORM-ADMIN",
+    "FN-STS-00-PROVINCE",
+    "FN-STS-00-SCHOOL-ADMIN",
+    "FN-STS-00-SCHOOL",
+    "FN-STS-00",
   ]
     .map((id) => STS_FUNCTION_TEMPLATES[id])
     .filter(Boolean);

@@ -412,6 +412,10 @@ export function resolveFunctionCategory(
   if (
     combined.includes("ALL-IN-ONE") ||
     combined.includes("00-PLATFORM-ADMIN") ||
+    combined.includes("00-PROVINCE") ||
+    combined.includes("00-PROVINCE-OFFICER") ||
+    combined.includes("PROVINCE-COMPLETE") ||
+    combined.includes("PROVINCE-OFFICER-UAT") ||
     combined.includes("00-SCHOOL-ADMIN") ||
     combined.includes("00-SCHOOL") ||
     combined.includes("00-TEACHER") ||
@@ -663,22 +667,24 @@ export const FUNCTION_DETAILED_DOCS: Record<string, FunctionDetailedDoc> = {
   "FN-STS-00": {
     id: "FN-STS-00",
     code: "FN-STS-00",
-    name: "Sts all หมวดหมู่ (4 All-in-One Workflows)",
-    role: "รวมทุกบทบาท (Teacher, School Director, School Admin, Platform Admin)",
-    workflow: "เข้าสู่ระบบ → แดชบอร์ดตามสิทธิ์ → จัดการผู้ใช้/เคส/โรงเรียน → ติดตามพฤติกรรม & AI Analysis → ออกรายงาน",
-    overview: "ชุดทดสอบ UAT ครบวงจรรวมทุกบทบาทในระบบ STS (Sts all หมวดหมู่) ประกอบด้วย 4 Code Workspaces: 1. UAT ครูประจำชั้น 2. UAT ผู้อำนวยการโรงเรียน 3. UAT ผู้ดูแลระบบโรงเรียน 4. UAT หัวหน้าระบบ (Platform Admin)",
-    codeExplanation: "รวบรวมฟังก์ชันการทดสอบอัตโนมัติแบบครบวงจรของ 4 บทบาทหลักในระบบ ProjectSTS ครอบคลุมการทำงานตั้งแต่ระดับห้องเรียน โรงเรียน จนถึงศูนย์ควบคุมระดับประเทศและแพลตฟอร์มส่วนกลาง",
+    name: "Sts all หมวดหมู่ (5 All-in-One Workflows)",
+    role: "รวมทุกบทบาท (Platform Admin, Province Officer, School Admin, School Director, Teacher)",
+    workflow: "เข้าสู่ระบบ → แดชบอร์ดตามสิทธิ์ → จัดการผู้ใช้/เคส/โรงเรียน/จังหวัด → ติดตามพฤติกรรม & AI Analysis → ออกรายงาน",
+    overview: "ชุดทดสอบ UAT ครบวงจรรวมทุกบทบาทในระบบ STS (Sts all หมวดหมู่) ประกอบด้วย 5 Code Workspaces: 1. UAT หัวหน้าระบบ (Platform Admin) 2. UAT เจ้าหน้าที่ระดับจังหวัด (Province Officer) 3. UAT ผู้ดูแลระบบโรงเรียน 4. UAT ผู้อำนวยการโรงเรียน 5. UAT ครูประจำชั้น",
+    codeExplanation: "รวบรวมฟังก์ชันการทดสอบอัตโนมัติแบบครบวงจรของ 5 บทบาทหลักในระบบ ProjectSTS ครอบคลุมการทำงานตั้งแต่ระดับห้องเรียน โรงเรียน เขตพื้นที่/จังหวัด จนถึงศูนย์ควบคุมระดับประเทศและแพลตฟอร์มส่วนกลาง",
     steps: [
-      "1. [ครูประจำชั้น]: ตรวจสอบแดชบอร์ด เช็กชื่อประจำวัน บริหารเคส และวิเคราะห์ AI Insights",
-      "2. [ผอ. โรงเรียน]: มอนิเตอร์สถิติ KPI บริหารเคสเสี่ยงสูง/ปานกลาง ส่งต่อหน่วยงานภายนอก (PDPA)",
+      "1. [หัวหน้าระบบ]: บริหารจัดการผู้ใช้ระดับประเทศ ตรวจสอบแดชบอร์ดระดับจังหวัด และจัดการโครงสร้างเครือข่ายโรงเรียน",
+      "2. [เจ้าหน้าที่ระดับจังหวัด]: ตรวจสอบแดชบอร์ดสรุปภาพรวม สัดส่วนความเสี่ยงเคส เปรียบเทียบโรงเรียน และรายงานเชิงพื้นที่",
       "3. [แอดมินโรงเรียน]: บริหารจัดการผู้ใช้ในโรงเรียน โครงสร้างชั้นเรียน และนำเข้าข้อมูลนักเรียน Bulk Import",
-      "4. [หัวหน้าระบบ]: บริหารจัดการผู้ใช้ระดับประเทศ ตรวจสอบแดชบอร์ดระดับจังหวัด และจัดการโครงสร้างเครือข่ายโรงเรียน",
+      "4. [ผอ. โรงเรียน]: มอนิเตอร์สถิติ KPI บริหารเคสเสี่ยงสูง/ปานกลาง ส่งต่อหน่วยงานภายนอก (PDPA)",
+      "5. [ครูประจำชั้น]: ตรวจสอบแดชบอร์ด เช็กชื่อประจำวัน บริหารเคส และวิเคราะห์ AI Insights",
     ],
-    expectedResult: "ทั้ง 4 บทบาททำงานอย่างถูกต้อง สมบูรณ์ และสอดคล้องกัน 100% ครบทุก Scenarios ในระบบ STS",
+    expectedResult: "ทั้ง 5 บทบาททำงานอย่างถูกต้อง สมบูรณ์ และสอดคล้องกัน 100% ครบทุก Scenarios ในระบบ STS",
     keySelectors: [
       "#login-username, #login-password (ระบบเข้าสู่ระบบ)",
       "table tr, [data-testid='user-table'] (ระบบจัดการผู้ใช้)",
       "table tr:has-text('CASE-') (ระบบจัดการเคส)",
+      "header[data-province-name], #province-reports-title (แดชบอร์ดและรายงานจังหวัด)",
       "[data-testid='province-card'] (แดชบอร์ดระดับจังหวัด)",
     ],
   },

@@ -24,6 +24,10 @@ export default defineConfig({
     baseURL: STS_BASE_URL,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
+    video: {
+      mode: "on",
+      size: { width: 1440, height: 900 },
+    },
   },
   projects: [
     {

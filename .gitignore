@@ -55,3 +55,5 @@ test-runner.config.local.json
 cypress/videos/
 cypress/screenshots/
 cypress/downloads/
+test-recordings/
+*.webm

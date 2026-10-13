@@ -14,6 +14,23 @@ export async function setupStsApiMocks(
     provinceId: 1,
   };
 
+  // 0. Fallback handlers for backend API calls (e.g. localhost:3000) to eliminate net::ERR_CONNECTION_REFUSED
+  await page.route(/^(?:https?:\/\/[^/]+)?\/api\/.*/, async (route) => {
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ success: true, message: "OK (mock fallback)", data: [] }),
+    });
+  });
+
+  await page.route(/^https?:\/\/localhost:3000\/.*/, async (route) => {
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ success: true, message: "OK (mock fallback)", data: [] }),
+    });
+  });
+
   // 1. Auth login mock
   await page.route("**/api/auth/login", async (route) => {
     let postData: { username?: string; password?: string } | null = null;
@@ -122,6 +139,40 @@ export async function setupStsApiMocks(
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({ success: true }),
+    });
+  });
+
+  // 1.3 Auth logout mock
+  await page.route("**/api/auth/logout", async (route) => {
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ success: true, message: "ออกจากระบบสำเร็จ" }),
+    });
+  });
+
+  // 1.4 OAuth SSO mocks (ThaID & Google)
+  await page.route("**/api/auth/thaid/**", async (route) => {
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        url: "http://localhost:3001/login?auth=thaid",
+        authorizeUrl: "http://localhost:3001/login?auth=thaid",
+        state: "mock-thaid-state",
+      }),
+    });
+  });
+
+  await page.route("**/api/auth/google/**", async (route) => {
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        url: "http://localhost:3001/login?auth=google",
+        authorizeUrl: "http://localhost:3001/login?auth=google",
+        state: "mock-google-state",
+      }),
     });
   });
 
@@ -1360,6 +1411,133 @@ export async function setupStsApiMocks(
       status: 200,
       contentType: "application/json",
       body: JSON.stringify(groups),
+    });
+  });
+
+  // 9.35b Platform Province Drilldown Stats
+  await page.route(/\/api\/dashboard\/platform\/provinces/, async (route) => {
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        scope: {
+          provinceId: 1,
+          provinceName: "ชลบุรี",
+        },
+        totals: {
+          totalSchools: 16,
+          totalStudents: 2150,
+          totalCases: 38,
+        },
+        casesBySeverity: {
+          HIGH: 8,
+          MEDIUM: 15,
+          LOW: 15,
+          UNASSESSED: 0,
+        },
+        schoolComparison: [],
+        zoneMap: [],
+        zoneMapMinStudents: 0,
+        generatedAt: new Date().toISOString(),
+      }),
+    });
+  });
+
+  // 9.35b Platform Province Drilldown Stats
+  await page.route(/\/api\/dashboard\/platform\/provinces/, async (route) => {
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        scope: {
+          provinceId: 1,
+          provinceName: "ชลบุรี",
+        },
+        totals: {
+          totalSchools: 16,
+          totalStudents: 2150,
+          totalCases: 38,
+        },
+        casesBySeverity: {
+          HIGH: 8,
+          MEDIUM: 15,
+          LOW: 15,
+          UNASSESSED: 0,
+        },
+        schoolComparison: [],
+        zoneMap: [],
+        zoneMapMinStudents: 0,
+        generatedAt: new Date().toISOString(),
+      }),
+    });
+  });
+
+  // 9.36 Platform Dashboard Stats
+  await page.route(/\/api\/dashboard\/platform/, async (route) => {
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        totals: {
+          totalProvinces: 77,
+          totalSchools: 1240,
+          totalStudents: 450000,
+          totalCases: 1420,
+        },
+        casesBySeverity: {
+          HIGH: 89,
+          MEDIUM: 480,
+          LOW: 850,
+          UNASSESSED: 0,
+          high: 89,
+          medium: 480,
+          low: 850,
+          unassessed: 0,
+        },
+        provinces: [
+          {
+            id: 1,
+            provinceId: 1,
+            name: "ชลบุรี",
+            provinceName: "ชลบุรี",
+            isActive: true,
+            schoolCount: 16,
+            totalSchools: 16,
+            studentCount: 2150,
+            totalStudents: 2150,
+            caseCount: 38,
+            totalCases: 38,
+            urgentCaseCount: 8,
+            averageAbsentRate: 2.5,
+          },
+          {
+            id: 2,
+            provinceId: 2,
+            name: "ระยอง",
+            provinceName: "ระยอง",
+            isActive: true,
+            schoolCount: 8,
+            totalSchools: 8,
+            studentCount: 940,
+            totalStudents: 940,
+            caseCount: 14,
+            totalCases: 14,
+            urgentCaseCount: 3,
+            averageAbsentRate: 1.8,
+          },
+        ],
+        totalProvinces: 77,
+        totalSchools: 1240,
+        totalStudents: 450000,
+        totalUsers: 18500,
+        activeCases: 1420,
+        resolvedCases: 5600,
+        criticalCases: 89,
+        provincesSummary: [
+          { provinceId: 1, provinceName: "ชลบุรี", totalSchools: 16, totalStudents: 2150, totalCases: 38 },
+          { provinceId: 2, provinceName: "ระยอง", totalSchools: 8, totalStudents: 940, totalCases: 14 },
+        ],
+      }),
     });
   });
 
