@@ -1546,10 +1546,142 @@ export async function setupStsApiMocks(
     const url = new URL(route.request().url(), "http://localhost:3001");
     const search = (url.searchParams.get("search") || "").trim();
     const status = url.searchParams.get("status");
+    const schoolIdParam = url.searchParams.get("schoolId");
+    const severityParam = url.searchParams.get("severity");
+    const caseStatusParam = url.searchParams.get("caseStatus");
 
     // Dynamic mock responding to search & filters differently!
     const isRayong = search.includes("ระยอง");
     const isSuspended = status === "suspended" || status === "inactive";
+
+    const allSchoolOptions = [
+      { schoolId: 1, schoolName: "โรงเรียนทดสอบ เอ (ชลบุรี)" },
+      { schoolId: 4, schoolName: "โรงเรียนทดสอบ บี (ชลบุรี)" },
+      { schoolId: 2, schoolName: "โรงเรียนชลบุรีวิทยา" },
+      { schoolId: 3, schoolName: "โรงเรียนตัวอย่างทดสอบ" },
+    ];
+
+    const allSchoolComparison = [
+      {
+        schoolId: 2,
+        schoolName: "โรงเรียนชลบุรีวิทยา",
+        district: "เมืองชลบุรี",
+        totalStudents: 1200,
+        caseCount: severityParam === "LOW" ? 10 : 22,
+        averageAbsentRate: 4.5,
+      },
+      {
+        schoolId: 1,
+        schoolName: "โรงเรียนทดสอบ เอ (ชลบุรี)",
+        district: "บางละมุง",
+        totalStudents: 550,
+        caseCount: severityParam === "LOW" ? 5 : 10,
+        averageAbsentRate: 3.9,
+      },
+      {
+        schoolId: 4,
+        schoolName: "โรงเรียนทดสอบ บี (ชลบุรี)",
+        district: "เมืองชลบุรี",
+        totalStudents: 250,
+        caseCount: severityParam === "LOW" ? 2 : 4,
+        averageAbsentRate: 3.5,
+      },
+      {
+        schoolId: 3,
+        schoolName: "โรงเรียนตัวอย่างทดสอบ",
+        district: "เมืองชลบุรี",
+        totalStudents: 150,
+        caseCount: severityParam === "LOW" ? 1 : 2,
+        averageAbsentRate: 3.2,
+      },
+    ];
+
+    const allZoneMap = [
+      {
+        townId: 1,
+        district: "เมืองชลบุรี",
+        subdistrict: "แสนสุข",
+        studentCount: 1200,
+        caseCount: severityParam === "LOW" ? 10 : 22,
+      },
+      {
+        townId: 2,
+        district: "เมืองชลบุรี",
+        subdistrict: "บ้านสวน",
+        studentCount: 400,
+        caseCount: severityParam === "LOW" ? 3 : 6,
+      },
+      {
+        townId: 3,
+        district: "บางละมุง",
+        subdistrict: "หนองปรือ",
+        studentCount: 350,
+        caseCount: severityParam === "LOW" ? 3 : 7,
+      },
+      {
+        townId: 4,
+        district: "บางละมุง",
+        subdistrict: "นาเกลือ",
+        studentCount: 200,
+        caseCount: severityParam === "LOW" ? 2 : 3,
+      },
+    ];
+
+    const selectedSchoolId = schoolIdParam ? Number(schoolIdParam) : null;
+    const filteredSchoolComparison = selectedSchoolId
+      ? allSchoolComparison.filter((s) => s.schoolId === selectedSchoolId)
+      : allSchoolComparison;
+
+    const filteredZoneMap =
+      selectedSchoolId === 1
+        ? allZoneMap.filter((z) => z.district === "บางละมุง")
+        : selectedSchoolId
+          ? allZoneMap.filter((z) => z.district === "เมืองชลบุรี")
+          : allZoneMap;
+
+    const isLowFilter = severityParam === "LOW" || caseStatusParam === "WAITING_DIRECTOR";
+
+    const totalSchools = isRayong
+      ? 8
+      : isSuspended
+        ? 2
+        : selectedSchoolId
+          ? 1
+          : 16;
+
+    const totalStudents = isRayong
+      ? 940
+      : isSuspended
+        ? 120
+        : selectedSchoolId
+          ? (filteredSchoolComparison[0]?.totalStudents ?? 550)
+          : 2150;
+
+    const totalCases = isRayong
+      ? 14
+      : isSuspended
+        ? 3
+        : selectedSchoolId
+          ? (filteredSchoolComparison[0]?.caseCount ?? 10)
+          : isLowFilter
+            ? 18
+            : 38;
+
+    const casesBySeverity = isRayong
+      ? { low: 6, medium: 5, high: 3, unassessed: 0 }
+      : isSuspended
+        ? { low: 1, medium: 1, high: 1, unassessed: 0 }
+        : selectedSchoolId === 1
+          ? { low: 5, medium: 3, high: 2, unassessed: 0 }
+          : selectedSchoolId === 2
+            ? { low: 10, medium: 7, high: 5, unassessed: 0 }
+            : selectedSchoolId === 4
+              ? { low: 2, medium: 1, high: 1, unassessed: 0 }
+              : selectedSchoolId === 3
+                ? { low: 1, medium: 1, high: 0, unassessed: 0 }
+                : isLowFilter
+                  ? { low: 18, medium: 0, high: 0, unassessed: 0 }
+                  : { low: 18, medium: 12, high: 8, unassessed: 0 };
 
     return route.fulfill({
       status: 200,
@@ -1557,22 +1689,14 @@ export async function setupStsApiMocks(
       body: JSON.stringify({
         provinceName: isRayong ? "ระยอง" : "ชลบุรี",
         zoneName: isRayong ? "สพป. ระยอง เขต 1" : "สพป. ชลบุรี เขต 1",
-        totalSchools: isRayong ? 8 : (isSuspended ? 2 : 16),
-        totalStudents: isRayong ? 940 : (isSuspended ? 120 : 2150),
-        totalCases: isRayong ? 14 : (isSuspended ? 3 : 38),
+        totalSchools,
+        totalStudents,
+        totalCases,
         zoneMapMinStudents: 5,
-        casesBySeverity: {
-          low: isRayong ? 6 : (isSuspended ? 1 : 18),
-          medium: isRayong ? 5 : (isSuspended ? 1 : 12),
-          high: isRayong ? 3 : (isSuspended ? 1 : 8),
-          unassessed: 0,
-        },
+        casesBySeverity,
         schoolOptions: isRayong
           ? [{ schoolId: 5, schoolName: "โรงเรียนระยองวิทยาคม" }]
-          : [
-              { schoolId: 1, schoolName: "โรงเรียนตัวอย่างทดสอบ" },
-              { schoolId: 2, schoolName: "โรงเรียนชลบุรีวิทยา" },
-            ],
+          : allSchoolOptions,
         schoolComparison: isRayong
           ? [
               {
@@ -1584,33 +1708,18 @@ export async function setupStsApiMocks(
                 averageAbsentRate: 3.8,
               },
             ]
-          : [
+          : filteredSchoolComparison,
+        zoneMap: isRayong
+          ? [
               {
-                schoolId: 2,
-                schoolName: "โรงเรียนชลบุรีวิทยา",
-                district: "เมืองชลบุรี",
-                totalStudents: 1200,
-                caseCount: 22,
-                averageAbsentRate: 4.5,
+                townId: 1,
+                district: "เมืองระยอง",
+                subdistrict: "ท่าประดู่",
+                studentCount: 940,
+                caseCount: 14,
               },
-              {
-                schoolId: 1,
-                schoolName: "โรงเรียนตัวอย่างทดสอบ",
-                district: "บางแสน",
-                totalStudents: 950,
-                caseCount: 16,
-                averageAbsentRate: 3.9,
-              },
-            ],
-        zoneMap: [
-          {
-            townId: 1,
-            district: isRayong ? "เมืองระยอง" : "เมืองชลบุรี",
-            subdistrict: isRayong ? "ท่าประดู่" : "แสนสุข",
-            studentCount: isRayong ? 940 : 2150,
-            caseCount: isRayong ? 14 : 38,
-          },
-        ],
+            ]
+          : filteredZoneMap,
       }),
     });
   });
@@ -1953,7 +2062,98 @@ export async function setupStsApiMocks(
       });
     }
 
-    // 3. Preview report
+    // 3. Cross-school comparison report preview (Province Officer)
+    if (url.includes("/cross-school")) {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          data: [
+            {
+              id: 2,
+              schoolId: 2,
+              schoolName: "โรงเรียนชลบุรีวิทยา",
+              name: "โรงเรียนชลบุรีวิทยา",
+              district: "เมืองชลบุรี",
+              totalStudents: 1200,
+              studentCount: 1200,
+              totalCases: 22,
+              caseCount: 22,
+              highRiskCases: 5,
+              mediumRiskCases: 7,
+              lowRiskCases: 10,
+              averageAbsentRate: 4.5,
+              absentRate: 4.5,
+            },
+            {
+              id: 1,
+              schoolId: 1,
+              schoolName: "โรงเรียนทดสอบ เอ (ชลบุรี)",
+              name: "โรงเรียนทดสอบ เอ (ชลบุรี)",
+              district: "บางละมุง",
+              totalStudents: 550,
+              studentCount: 550,
+              totalCases: 10,
+              caseCount: 10,
+              highRiskCases: 2,
+              mediumRiskCases: 3,
+              lowRiskCases: 5,
+              averageAbsentRate: 3.9,
+              absentRate: 3.9,
+            },
+            {
+              id: 4,
+              schoolId: 4,
+              schoolName: "โรงเรียนทดสอบ บี (ชลบุรี)",
+              name: "โรงเรียนทดสอบ บี (ชลบุรี)",
+              district: "เมืองชลบุรี",
+              totalStudents: 250,
+              studentCount: 250,
+              totalCases: 4,
+              caseCount: 4,
+              highRiskCases: 1,
+              mediumRiskCases: 1,
+              lowRiskCases: 2,
+              averageAbsentRate: 3.5,
+              absentRate: 3.5,
+            },
+            {
+              id: 3,
+              schoolId: 3,
+              schoolName: "โรงเรียนตัวอย่างทดสอบ",
+              name: "โรงเรียนตัวอย่างทดสอบ",
+              district: "เมืองชลบุรี",
+              totalStudents: 150,
+              studentCount: 150,
+              totalCases: 2,
+              caseCount: 2,
+              highRiskCases: 0,
+              mediumRiskCases: 1,
+              lowRiskCases: 1,
+              averageAbsentRate: 3.2,
+              absentRate: 3.2,
+            },
+          ],
+          meta: {
+            page: 1,
+            pageSize: 50,
+            total: 4,
+            totalPages: 1,
+          },
+          summary: {
+            totalSchools: 4,
+            totalStudents: 2150,
+            totalCases: 38,
+            highRiskCases: 8,
+            mediumRiskCases: 12,
+            lowRiskCases: 18,
+          },
+          generatedAt: "2026-09-28T10:00:00.000Z",
+        }),
+      });
+    }
+
+    // 4. Preview report
     return route.fulfill({
       status: 200,
       contentType: "application/json",

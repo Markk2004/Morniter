@@ -6,15 +6,16 @@ import {
 } from "@/lib/playwright-runner/function-templates";
 
 describe("STS Function Playwright Templates", () => {
-  it("provides templates for all STS functions (4 All-in-One + FN-STS-01 to FN-STS-11 = 15 total)", () => {
+  it("provides templates for all STS functions (5 All-in-One + FN-STS-01 to FN-STS-11 = 16 total)", () => {
     const templates = getAllFunctionTemplates();
-    expect(templates.length).toBe(15);
+    expect(templates.length).toBe(16);
 
     const expectedIds = [
       // Sts all หมวดหมู่ (All-in-One UAT scripts)
       "FN-STS-00",
       "FN-STS-00-SCHOOL",
       "FN-STS-00-SCHOOL-ADMIN",
+      "FN-STS-00-PROVINCE",
       "FN-STS-00-PLATFORM-ADMIN",
       // Individual function templates
       "FN-STS-01",

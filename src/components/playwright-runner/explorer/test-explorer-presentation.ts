@@ -58,6 +58,15 @@ export function getTestEditorTitle(test: { relativePath?: string; title?: string
   }
 
   if (
+    rel.includes("00-province-officer-uat-all-in-one") ||
+    tit.includes("TC-STS-PROVINCE") ||
+    tit.includes("FN-STS-00-PROVINCE") ||
+    tit.includes("PROVINCE OFFICER UAT")
+  ) {
+    return `[ฟังก์ชัน STS Province Officer] Open ${rel || "e2e/sts/specs/00-province-officer-uat-all-in-one.spec.ts"} in editor`;
+  }
+
+  if (
     rel.includes("00-platform-admin-uat-all-in-one") ||
     tit.includes("TC-STS-PLATFORM-ADMIN") ||
     tit.includes("PLATFORM-ADMIN") ||
@@ -90,6 +99,20 @@ export function getTestEditorTitle(test: { relativePath?: string; title?: string
 
 export function getTestThaiMeta(title: string, relativePath: string = ""): TestThaiMeta {
   const t = `${title} ${relativePath}`.toUpperCase();
+
+  if (
+    t.includes("00-PROVINCE-OFFICER") ||
+    t.includes("TC-STS-PROVINCE") ||
+    t.includes("FN-STS-00-PROVINCE") ||
+    t.includes("PROVINCE OFFICER UAT") ||
+    t.includes("UAT เจ้าหน้าที่ระดับจังหวัด")
+  ) {
+    return {
+      role: "STS Province Officer (เจ้าหน้าที่จังหวัด)",
+      roleBadgeStyle: "border-amber-500/30 bg-amber-950/40 text-amber-300",
+      description: "รันครบ 10 Test Cases (8 Test Scenarios) ตาม UAT Script เจ้าหน้าที่จังหวัด: เข้าสู่ระบบ → ตัวกรองโรงเรียน → ตัวกรองเพิ่มเติม → พื้นที่เฝ้าระวังรายอำเภอ → Heatmap รายตำบล & ความเป็นส่วนตัว → สัดส่วนความรุนแรงเคส → เปรียบเทียบโรงเรียนและส่งออกรายงาน (PDF/Excel)",
+    };
+  }
 
   if (
     t.includes("00-SCHOOL-ADMIN") ||

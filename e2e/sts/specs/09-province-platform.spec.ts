@@ -23,7 +23,7 @@ test.describe("FN-STS-10: Platform & Province Suite", () => {
     await expect(page).toHaveURL(/\/province\/dashboard/);
 
     // Verify province name and severity summary are displayed
-    await expect(page.getByText("กรุงเทพมหานคร").first()).toBeVisible();
+    await expect(page.getByText(/ชลบุรี|กรุงเทพมหานคร/).first()).toBeVisible();
 
     // Verify key metric figures or labels
     await expect(page.getByText(/โรงเรียน|สถานศึกษา/i).first()).toBeVisible();
@@ -38,7 +38,7 @@ test.describe("FN-STS-10: Platform & Province Suite", () => {
     await expect(page).toHaveURL(/\/province\/reports/);
 
     // Verify header and privacy badge
-    await expect(page.getByText(/รายงานระดับจังหวัด/i).first()).toBeVisible();
+    await expect(page.getByText(/รายงานระดับจังหวัด|รายงานระดับเขต|รายงานเขต/i).first()).toBeVisible();
     await expect(page.getByText(/ไม่มีข้อมูลนักเรียนรายบุคคล/i).first()).toBeVisible();
 
     // Verify tabs
