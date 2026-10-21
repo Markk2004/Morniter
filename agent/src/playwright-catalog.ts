@@ -77,12 +77,12 @@ export function resolveTestGroupName(groupPath: string[], fileName: string): str
   // STS module files follow explicit numeric prefixing or login in sts context
   // 🌟 All 5 All-in-One UAT workflows grouped together into "Sts all หมวดหมู่"
   if (
+    baseName.includes("all-in-one") ||
     baseName.includes("00-platform-admin") ||
     baseName.includes("00-province-officer") ||
     baseName.includes("00-school-admin") ||
     baseName.includes("00-school") ||
-    baseName.includes("00-teacher") ||
-    (baseName.startsWith("00-") && baseName.includes("all-in-one"))
+    baseName.includes("00-teacher")
   ) {
     return "FN-STS-00 · Sts all หมวดหมู่";
   }

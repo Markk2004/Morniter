@@ -5,13 +5,11 @@ const STS_BASE_URL = process.env.STS_BASE_URL || "http://localhost:3001";
 export default defineConfig({
   testDir: "./e2e",
   testMatch: [
-    "sts/**/*.spec.ts",
-    "sts/**/*.test.ts",
-    "workspace/**/*.spec.ts",
-    "workspace/**/*.test.ts",
-    "__workspace__/**/*.spec.ts",
-    "__workspace__/**/*.test.ts",
+    "sts/specs/**/*.spec.ts",
+    "sts/login.spec.ts",
+    "__workspace__/*.spec.ts",
   ],
+  testIgnore: ["**/sts/__workspace__/**"],
   timeout: 30_000,
   expect: { timeout: 10_000 },
   fullyParallel: false,
