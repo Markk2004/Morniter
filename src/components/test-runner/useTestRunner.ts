@@ -111,9 +111,11 @@ export function useTestRunner() {
     isPollingRef.current = true;
 
     try {
-      await fetchCatalogAndPresence(signal);
       const currentId = activeJobIdRef.current;
-      if (!currentId || !activeJobRef.current || !isPlaywrightActiveStatus(activeJobRef.current.status)) {
+      const isJobActive = Boolean(currentId && activeJobRef.current && isPlaywrightActiveStatus(activeJobRef.current.status));
+
+      if (!isJobActive) {
+        await fetchCatalogAndPresence(signal);
         return;
       }
 
@@ -134,7 +136,7 @@ export function useTestRunner() {
             isPlaywrightActiveStatus(previousStatus) &&
             !isPlaywrightActiveStatus(data.job.status)
           ) {
-            await fetchHistory();
+            await Promise.all([fetchCatalogAndPresence(), fetchHistory()]);
           }
         }
         if (data.logs && data.logs.length > 0) {

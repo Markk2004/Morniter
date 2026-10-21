@@ -141,6 +141,10 @@ export async function touchAgentDevice(deviceId: string, now: Date = new Date())
   const key = deviceKey(deviceId);
   const device = await redisClient().get<AgentDevice>(key);
   if (device && !device.revokedAt) {
-    await redisClient().set(key, { ...device, lastSeenAt: now.toISOString() }, { ex: DEVICE_RETENTION_SECONDS });
+    const lastSeenMs = device.lastSeenAt ? new Date(device.lastSeenAt).getTime() : 0;
+    // Throttle Redis writes: only write back if lastSeenAt is older than 45 seconds
+    if (now.getTime() - lastSeenMs >= 45_000) {
+      await redisClient().set(key, { ...device, lastSeenAt: now.toISOString() }, { ex: DEVICE_RETENTION_SECONDS });
+    }
   }
 }

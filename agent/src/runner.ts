@@ -64,7 +64,7 @@ export async function executeClaimedJob(
       } finally {
         scheduleHeartbeat();
       }
-    }, 1000);
+    }, 2500);
   };
 
   scheduleHeartbeat();
@@ -171,7 +171,7 @@ export async function executeClaimedPlaywrightJob(
       } finally {
         scheduleHeartbeat();
       }
-    }, 300);
+    }, 2500);
   };
 
   scheduleHeartbeat();
@@ -345,8 +345,10 @@ export async function runAgent(config: AgentConfig): Promise<void> {
 
   const client = new AgentClient(config.serverUrl, config.agentToken, config.agentId, config.deviceId);
   const catalog = buildCatalogFromConfig(config);
-  const pollIntervalMs = (config.pollIntervalSeconds ?? 5) * 1000;
-  const catalogRefreshMs = Math.max(30_000, pollIntervalMs * 6);
+  const idlePollIntervalMs = (config.pollIntervalSeconds ?? 15) * 1000;
+  const activePollIntervalMs = 2000;
+  let currentPollIntervalMs = idlePollIntervalMs;
+  const catalogRefreshMs = Math.max(60_000, idlePollIntervalMs * 4);
   let cachedPlaywrightCatalog: Awaited<ReturnType<typeof buildPlaywrightCatalogFromConfig>> | undefined;
   let nextCatalogRefreshAt = 0;
   let lastPublishedPlaywrightCatalogVersion: string | undefined;
@@ -367,12 +369,15 @@ export async function runAgent(config: AgentConfig): Promise<void> {
   console.log(`[Monitor Local Agent] Agent "${config.agentId}" started polling ${config.serverUrl}`);
 
   while (true) {
+    let hadActivity = false;
     try {
       // 1. Poll legacy preset queue if presets configured
       const hasPresets = config.projects.some((p) => p.presets && p.presets.length > 0);
       if (hasPresets) {
         const job = await client.poll("1.0.0", catalog);
         if (job) {
+          hadActivity = true;
+          currentPollIntervalMs = activePollIntervalMs;
           console.log(`[Monitor Local Agent] Claimed legacy job ${job.id} (${job.projectId}:${job.presetId})`);
           await executeClaimedJob(config, job, client);
           continue;
@@ -393,6 +398,8 @@ export async function runAgent(config: AgentConfig): Promise<void> {
         const pwJob = await client.pollPlaywright(pwCatalog.version, catalogChanged ? pwCatalog : undefined, capabilities);
         if (catalogChanged) lastPublishedPlaywrightCatalogVersion = pwCatalog.version;
         if (pwJob) {
+          hadActivity = true;
+          currentPollIntervalMs = activePollIntervalMs;
           console.log(`[Monitor Local Agent] Claimed Playwright job ${pwJob.id} (${pwJob.projectId}:${pwJob.source})`);
           await executeClaimedPlaywrightJob(config, pwJob, client);
           continue;
@@ -401,6 +408,8 @@ export async function runAgent(config: AgentConfig): Promise<void> {
         // 3. Poll Recipe Mutation queue
         const mutation = await client.pollMutation();
         if (mutation) {
+          hadActivity = true;
+          currentPollIntervalMs = activePollIntervalMs;
           console.log(`[Monitor Local Agent] Claimed recipe mutation ${mutation.id} for project ${mutation.projectId}`);
           const result = await executeRecipeMutation(config, mutation);
           await client.completeMutation(mutation.id, mutation.leaseToken || "", result);
@@ -413,6 +422,10 @@ export async function runAgent(config: AgentConfig): Promise<void> {
       console.error(`[Monitor Local Agent] Poll error: ${msg}`);
     }
 
-    await new Promise((r) => setTimeout(r, pollIntervalMs));
+    if (!hadActivity) {
+      currentPollIntervalMs = idlePollIntervalMs;
+    }
+
+    await new Promise((r) => setTimeout(r, currentPollIntervalMs));
   }
 }

@@ -391,8 +391,12 @@ export async function appendPlaywrightLogBatch(
     });
   }
 
-  for (const line of linesToAdd) {
-    await redis.zadd(logsKey, { score: line.sequence, member: JSON.stringify(line) });
+  if (linesToAdd.length > 0) {
+    const [first, ...rest] = linesToAdd.map((line) => ({
+      score: line.sequence,
+      member: JSON.stringify(line),
+    }));
+    await redis.zadd(logsKey, first, ...rest);
   }
   await redis.expire(logsKey, JOB_TTL_SECONDS);
 
@@ -582,15 +586,8 @@ export async function listPlaywrightJobs(
     return [];
   }
 
-  const jobs: PlaywrightJob[] = [];
-  for (const id of jobIds) {
-    const job = await getPlaywrightJob(id, redis);
-    if (job) {
-      jobs.push(job);
-    }
-  }
-
-  return jobs;
+  const jobs = await Promise.all(jobIds.map((id) => getPlaywrightJob(id, redis)));
+  return jobs.filter((job): job is PlaywrightJob => Boolean(job));
 }
 
 export async function reapStalePlaywrightJobs(

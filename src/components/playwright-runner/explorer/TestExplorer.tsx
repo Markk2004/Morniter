@@ -817,7 +817,6 @@ export function TestExplorer({
                                 <div
                                   key={`${test.id}-${testIdx}`}
                                   className="space-y-1"
-                                  onMouseEnter={() => onPrefetchSource?.(test.id)}
                                 >
                                   <div
                                     className={`flex items-center justify-between p-2 rounded-lg border text-xs transition-colors ${
@@ -1031,7 +1030,6 @@ export function TestExplorer({
                                 <div
                                   key={`${test.id}-${testIdx}`}
                                   className="space-y-1"
-                                  onMouseEnter={() => onPrefetchSource?.(test.id)}
                                 >
                                   <div
                                     className={`flex items-center justify-between p-2 rounded-lg border text-xs transition-colors ${

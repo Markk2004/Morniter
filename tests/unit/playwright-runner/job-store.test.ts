@@ -62,12 +62,12 @@ class FakeRedis {
     return list.length;
   }
 
-  async zadd(key: string, entry: { score: number; member: string }): Promise<number> {
+  async zadd(key: string, ...entries: { score: number; member: string }[]): Promise<number> {
     const set = this.sortedSets.get(key) || [];
-    set.push(entry);
+    set.push(...entries);
     set.sort((a, b) => a.score - b.score);
     this.sortedSets.set(key, set);
-    return 1;
+    return entries.length;
   }
 
   async zrange<T>(

@@ -31,7 +31,7 @@ export class AgentSupervisor {
       serverUrl: settings.serverUrl,
       agentToken: "device-token-from-secure-storage",
       deviceId: settings.deviceId,
-      pollIntervalSeconds: 5,
+      pollIntervalSeconds: 15,
       projects: settings.projects.map((project) => ({
         id: project.id,
         name: project.name,
