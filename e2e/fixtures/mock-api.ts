@@ -1414,66 +1414,37 @@ export async function setupStsApiMocks(
     });
   });
 
-  // 9.35b Platform Province Drilldown Stats
-  await page.route(/\/api\/dashboard\/platform\/provinces/, async (route) => {
-    return route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        scope: {
-          provinceId: 1,
-          provinceName: "ชลบุรี",
-        },
-        totals: {
-          totalSchools: 16,
-          totalStudents: 2150,
-          totalCases: 38,
-        },
-        casesBySeverity: {
-          HIGH: 8,
-          MEDIUM: 15,
-          LOW: 15,
-          UNASSESSED: 0,
-        },
-        schoolComparison: [],
-        zoneMap: [],
-        zoneMapMinStudents: 0,
-        generatedAt: new Date().toISOString(),
-      }),
-    });
-  });
-
-  // 9.35b Platform Province Drilldown Stats
-  await page.route(/\/api\/dashboard\/platform\/provinces/, async (route) => {
-    return route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        scope: {
-          provinceId: 1,
-          provinceName: "ชลบุรี",
-        },
-        totals: {
-          totalSchools: 16,
-          totalStudents: 2150,
-          totalCases: 38,
-        },
-        casesBySeverity: {
-          HIGH: 8,
-          MEDIUM: 15,
-          LOW: 15,
-          UNASSESSED: 0,
-        },
-        schoolComparison: [],
-        zoneMap: [],
-        zoneMapMinStudents: 0,
-        generatedAt: new Date().toISOString(),
-      }),
-    });
-  });
-
-  // 9.36 Platform Dashboard Stats
+  // 9.35b Platform Province Drilldown & Platform Dashboard Stats
   await page.route(/\/api\/dashboard\/platform/, async (route) => {
+    const url = route.request().url();
+    if (url.includes("/provinces")) {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          scope: {
+            provinceId: 1,
+            provinceName: "ชลบุรี",
+          },
+          totals: {
+            totalSchools: 16,
+            totalStudents: 2150,
+            totalCases: 38,
+          },
+          casesBySeverity: {
+            HIGH: 8,
+            MEDIUM: 15,
+            LOW: 15,
+            UNASSESSED: 0,
+          },
+          schoolComparison: [],
+          zoneMap: [],
+          zoneMapMinStudents: 0,
+          generatedAt: new Date().toISOString(),
+        }),
+      });
+    }
+
     return route.fulfill({
       status: 200,
       contentType: "application/json",
